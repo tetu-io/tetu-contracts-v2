@@ -57,7 +57,9 @@ describe("Base Vaults tests", function () {
   it("deposit/withdraw test", async () => {
     const amount = parseUnits('1', 6);
 
-    await vault.deposit(amount, signer2.address)
+    const tx = await vault.deposit(amount, signer2.address)
+    const rec = await tx.wait();
+    // expect(rec.gasUsed).eq(145880)
 
     const expectedShares = await vault.convertToShares(amount);
     await vault.deposit(amount, signer.address)

@@ -64,19 +64,19 @@ contract MockVault is ERC4626Upgradeable, ControllableV3 {
   //           DEPOSIT/WITHDRAWAL LIMIT LOGIC
   ///////////////////////////////////////////////////////////////
 
-  function maxDeposit(address) public view override returns (uint) {
+  function maxDeposit(address) public pure override returns (uint) {
     return 100 * 1e18;
   }
 
-  function maxMint(address) public view override returns (uint) {
+  function maxMint(address) public pure override returns (uint) {
     return 100 * 1e18;
   }
 
-  function maxWithdraw(address owner) public view override returns (uint) {
+  function maxWithdraw(address) public pure override returns (uint) {
     return 100 * 1e18;
   }
 
-  function maxRedeem(address owner) public view virtual override returns (uint) {
+  function maxRedeem(address) public pure virtual override returns (uint) {
     return 100 * 1e18;
   }
 

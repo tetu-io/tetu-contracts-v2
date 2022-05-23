@@ -4,50 +4,68 @@ pragma solidity 0.8.4;
 
 interface IController {
 
-  function dungeonImplementationsBosses(uint level) external view returns (address);
+  function addVaultsAndStrategies(address[] memory _vaults, address[] memory _strategies) external;
+
+  function addStrategy(address _strategy) external;
 
   function governance() external view returns (address);
 
-  function statController() external view returns (address);
+  function dao() external view returns (address);
 
-  function chamberController() external view returns (address);
+  function bookkeeper() external view returns (address);
 
-  function oracle() external view returns (address);
+  function feeRewardForwarder() external view returns (address);
 
-  function treasury() external view returns (address);
+  function mintHelper() external view returns (address);
 
-  function fightCalculator() external view returns (address);
+  function rewardToken() external view returns (address);
 
-  function dungeonFactory() external view returns (address);
+  function fundToken() external view returns (address);
 
-  function fightDelay() external view returns (uint);
+  function psVault() external view returns (address);
 
-  function dungeonMultiplierByLevel(uint level) external view returns (uint);
+  function fund() external view returns (address);
 
-  function validHeroes(address hero) external view returns (bool);
+  function distributor() external view returns (address);
 
-  function validDungeons(address dungeon) external view returns (bool);
+  function announcer() external view returns (address);
 
-  function validItems(address item) external view returns (bool);
+  function vaultController() external view returns (address);
 
-  function heroes(uint id) external view returns (address);
+  function whiteList(address _target) external view returns (bool);
 
-  function dungeons(uint id) external view returns (address);
+  function vaults(address _target) external view returns (bool);
 
-  function items(uint id) external view returns (address);
+  function strategies(address _target) external view returns (bool);
 
-  function heroesLength() external view returns (uint);
+  function psNumerator() external view returns (uint256);
 
-  function dungeonsLength() external view returns (uint);
+  function psDenominator() external view returns (uint256);
 
-  function itemsLength() external view returns (uint);
+  function fundNumerator() external view returns (uint256);
 
-  function dungeonImplementationsByLevel(uint level, uint index) external view returns (address);
+  function fundDenominator() external view returns (uint256);
 
-  function dungeonImplementationsLength(uint level) external view returns (uint);
+  function isAllowedUser(address _adr) external view returns (bool);
 
-  function minLevelForTreasury(address token) external view returns (uint);
+  function isDao(address _adr) external view returns (bool);
 
-  function registerDungeon(address dungeon_) external;
+  function isHardWorker(address _adr) external view returns (bool);
 
+  function isRewardDistributor(address _adr) external view returns (bool);
+
+  function isPoorRewardConsumer(address _adr) external view returns (bool);
+
+  function isValidVault(address _vault) external view returns (bool);
+
+  function isValidStrategy(address _strategy) external view returns (bool);
+
+  function rebalance(address _strategy) external;
+
+  // ************ DAO ACTIONS *************
+  function setPSNumeratorDenominator(uint256 numerator, uint256 denominator) external;
+
+  function setFundNumeratorDenominator(uint256 numerator, uint256 denominator) external;
+
+  function changeWhiteListStatus(address[] calldata _targets, bool status) external;
 }
