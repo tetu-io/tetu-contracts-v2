@@ -1,0 +1,14 @@
+comment: false
+github_checks:
+  annotations: false
+coverage:
+  status:
+    patch:
+      default:
+        target: 60%
+    project:
+      default:
+        threshold: 1%
+ignore:
+  - "contracts/test"
+  - "contracts/integrations"
