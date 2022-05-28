@@ -1,0 +1,92 @@
+<svg version="1.0" id="Layer_1" xmlns="http://www.w3.org/2000/svg"
+  xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 600 900"
+  enable-background="new 0 0 600 900" xml:space="preserve">
+  <style>.base { fill: black; font-family: Impact; font-size: 50px; }</style>
+  <rect fill="none" width="600" height="900"/>
+  <rect fill="#193180" width="600" height="900"/>
+  <rect fill="none" width="600" height="900"/>
+  <rect fill="none" width="600" height="900"/>
+  <rect fill="none" width="600" height="900"/>
+  <g>
+	<path fill="#4899F8" d="M0,900h600V522.2C454.4,517.2,107.4,456.8,60.2,0H0V900z"/>
+</g>
+  <g>
+	<defs>
+		<rect id="SVGID_1_" width="600" height="900"/>
+	</defs>
+    <clipPath id="SVGID_00000065064237306328406910000005333321036259357320_">
+	</clipPath>
+</g>
+  <g>
+	<defs>
+		<rect id="SVGID_00000090974408737242688800000003581792125385792435_" width="600" height="900"/>
+	</defs>
+    <clipPath id="SVGID_00000043455832583452547330000017062200693625529499_">
+		<use xlink:href="#SVGID_00000090974408737242688800000003581792125385792435_"
+      overflow="visible"/>
+	</clipPath>
+    <path opacity="0.4" clip-path="url(#SVGID_00000043455832583452547330000017062200693625529499_)"
+      fill="#82B0F4" d="M50-103.1
+		c2.4,585.2,438.2,630.7,572,630.7c17.2,0,29.9-0.7,36.7-1.2l-21.5,382.8h-671V-103.1H50 M54.9-108.1h-93.7V914.2H642l22-393.3
+		c0,0-15.7,1.7-42.1,1.7C484.2,522.6,54.9,475.8,54.9-108.1L54.9-108.1z"/>
+</g>
+  <rect fill="none" width="600" height="900"/>
+  <rect fill="none" width="600" height="900"/>
+  <rect fill="none" width="600" height="900"/>
+  <rect fill="none" width="600" height="900"/>
+  <rect fill="none" width="600" height="900"/>
+  <g>
+	<defs>
+		<rect id="SVGID_00000181806906464864876650000014176553062554934923_" width="600" height="900"/>
+	</defs>
+    <clipPath id="SVGID_00000142862775126731080930000013814461149799061897_">
+		<use xlink:href="#SVGID_00000181806906464864876650000014176553062554934923_"
+      overflow="visible"/>
+	</clipPath>
+</g>
+  <g>
+	<defs>
+		<rect id="SVGID_00000034062961259315101250000016190671774726565031_" width="600" height="900"/>
+	</defs>
+    <clipPath id="SVGID_00000022537947432762252980000016124224299509335711_">
+		<use xlink:href="#SVGID_00000034062961259315101250000016190671774726565031_"
+      overflow="visible"/>
+	</clipPath>
+    <path opacity="0.4" clip-path="url(#SVGID_00000022537947432762252980000016124224299509335711_)"
+      fill="#82B0F4" d="M50-103.1
+		c2.4,585.2,438.2,630.7,572,630.7c17.2,0,29.9-0.7,36.7-1.2l-21.5,382.8h-671V-103.1H50 M54.9-108.1h-93.7V914.2H642l22-393.3
+		c0,0-15.7,1.7-42.1,1.7C484.2,522.6,54.9,475.8,54.9-108.1L54.9-108.1z"/>
+</g>
+  <rect fill="none" width="600" height="900"/>
+  <circle fill="#1B184E" cx="385.6" cy="212.1" r="180.4"/>
+  <circle fill="#04A8F0" cx="385.6" cy="142.2" r="42.3"/>
+  <path fill-rule="evenodd" clip-rule="evenodd" fill="#686DF1" d="M385.6,208.8c43.1,0,78-34.9,78-78c-1.8-21.1,16.2-21.1,21.1-15.4
+	c0.4,0.3,0.7,0.7,1.1,1.2c16.7,21.5,26.6,48.4,26.6,77.7c0,25.8-24.4,42.2-50.2,42.2H309c-25.8,0-50.2-16.4-50.2-42.2
+	c0-29.3,9.9-56.3,26.6-77.7c0.3-0.4,0.7-0.8,1.1-1.2c4.9-5.7,22.9-5.7,21.1,15.4l0,0C307.6,173.9,342.5,208.8,385.6,208.8z"/>
+  <path fill="#04A8F0" d="M372.3,335.9l-35.5-51.2c-7.5-10.8,0.2-25.5,13.3-25.5h35.5h35.5c13.1,0,20.8,14.7,13.3,25.5l-35.5,51.2
+	C392.5,345.2,378.7,345.2,372.3,335.9z"/>
+  <g>
+	<text transform="matrix(1 0 0 1 50.2441 464.0205)" fill="#EAECFE"
+    font-family="'TimesNewRomanPS-BoldMT'" font-size="40px">ID:</text>
+    <text transform="matrix(1 0 0 1 50.2441 506.0205)" fill="#97D0FF"
+      font-family="'TimesNewRomanPSMT'" font-size="40px">142857</text>
+</g>
+  <g>
+	<text transform="matrix(1 0 0 1 50.2441 579.7952)" fill="#EAECFE"
+    font-family="'TimesNewRomanPS-BoldMT'" font-size="40px">Balance:</text>
+    <text transform="matrix(1 0 0 1 50.2441 621.7952)" fill="#97D0FF"
+      font-family="'TimesNewRomanPSMT'" font-size="40px">12345,1234567890987654321</text>
+</g>
+  <g>
+	<text transform="matrix(1 0 0 1 50.2441 695.57)" fill="#EAECFE"
+    font-family="'TimesNewRomanPS-BoldMT'" font-size="40px">Locked end:</text>
+    <text transform="matrix(1 0 0 1 50.2441 737.57)" fill="#97D0FF"
+      font-family="'TimesNewRomanPSMT'" font-size="40px">22.08.2023 19.40</text>
+</g>
+  <g>
+	<text transform="matrix(1 0 0 1 50.2441 811.3447)" fill="#EAECFE"
+    font-family="'TimesNewRomanPS-BoldMT'" font-size="40px">Value:</text>
+    <text transform="matrix(1 0 0 1 50.2441 853.3447)" fill="#97D0FF"
+      font-family="'TimesNewRomanPSMT'" font-size="40px">111111111111111111111111</text>
+</g>
+</svg>

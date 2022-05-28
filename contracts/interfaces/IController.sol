@@ -68,4 +68,9 @@ interface IController {
   function setFundNumeratorDenominator(uint256 numerator, uint256 denominator) external;
 
   function changeWhiteListStatus(address[] calldata _targets, bool status) external;
+
+
+  function voter() external view returns (address);
+
+  function vePawnshop() external view returns (address);
 }

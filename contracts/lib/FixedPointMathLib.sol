@@ -31,6 +31,10 @@ library FixedPointMathLib {
     // Equivalent to (x * WAD) / y rounded up.
   }
 
+  function positiveInt128(int128 value) internal pure returns (int128) {
+    return value < 0 ? int128(0) : value;
+  }
+
   /*//////////////////////////////////////////////////////////////
   //LOW LEVEL FIXED POINT OPERATIONS
   //////////////////////////////////////////////////////////////*/
