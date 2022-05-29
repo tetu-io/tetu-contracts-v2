@@ -347,13 +347,6 @@ contract DystVoter is IVoter, ReentrancyGuard {
     }
   }
 
-  /// @dev Batch claim rewards from given gauges.
-  function claimRewards(address[] memory _gauges, address[][] memory _tokens) external {
-    for (uint i = 0; i < _gauges.length; i++) {
-      IGauge(_gauges[i]).getReward(msg.sender, _tokens[i]);
-    }
-  }
-
   /// @dev Batch claim rewards from given bribe contracts for given tokenId.
   function claimBribes(address[] memory _bribes, address[][] memory _tokens, uint _tokenId) external {
     require(IVeTetu(ve).isApprovedOrOwner(msg.sender, _tokenId), "!owner");
@@ -367,13 +360,6 @@ contract DystVoter is IVoter, ReentrancyGuard {
     require(IVeTetu(ve).isApprovedOrOwner(msg.sender, _tokenId), "!owner");
     for (uint i = 0; i < _bribes.length; i++) {
       IBribe(_bribes[i]).getRewardForOwner(_tokenId, _tokens[i]);
-    }
-  }
-
-  /// @dev Move fees from deposited pools to bribes for given gauges.
-  function distributeFees(address[] memory _gauges) external {
-    for (uint i = 0; i < _gauges.length; i++) {
-      IGauge(_gauges[i]).claimFees();
     }
   }
 

@@ -8,33 +8,60 @@ import "../openzeppelin/SafeERC20.sol";
 import "../openzeppelin/ReentrancyGuard.sol";
 import "../lib/CheckpointLib.sol";
 import "../interfaces/IMultiPool.sol";
+import "../openzeppelin/Initializable.sol";
 
-abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool {
+abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool, Initializable {
   using SafeERC20 for IERC20;
   using CheckpointLib for mapping(uint => CheckpointLib.Checkpoint);
 
+  // *************************************************************
+  //                        CONSTANTS
+  // *************************************************************
+
+  /// @dev Version of this contract. Adjust manually on each code modification.
+  string public constant MULTI_POOL_VERSION = "1.0.0";
   /// @dev Rewards are released over 7 days
-  uint internal constant DURATION = 7 days;
-  uint internal constant PRECISION = 10 ** 18;
-  uint internal constant MAX_REWARD_TOKENS = 10;
+  uint internal constant _DURATION = 7 days;
+  /// @dev Precision for internal calculations
+  uint internal constant _PRECISION = 10 ** 18;
+  /// @dev Max reward tokens per 1 staking token
+  uint internal constant _MAX_REWARD_TOKENS = 10;
+
+  // *************************************************************
+  //                        VARIABLES
+  //              Keep names and ordering!
+  //     Add only in the bottom and adjust __gap variable
+  // *************************************************************
 
   /// @dev Operator can add/remove reward tokens
   address public operator;
 
+  /// @dev Supply adjusted on derived balance logic. Use for rewards boost.
   mapping(address => uint) public override derivedSupply;
+  /// @dev Staking token virtual balance. Can be adjusted regarding rewards boost logic.
   mapping(address => mapping(address => uint)) public override derivedBalances;
+  /// @dev User virtual balance of staking token.
   mapping(address => mapping(address => uint)) public override balanceOf;
+  /// @dev Total amount of attached staking tokens
+  mapping(address => uint) public override totalSupply;
 
   /// @dev Reward rate with precision 1e18
   mapping(address => mapping(address => uint)) public rewardRate;
+  /// @dev Reward finish period in timestamp.
   mapping(address => mapping(address => uint)) public periodFinish;
+  /// @dev Last updated time for reward token for internal calculations.
   mapping(address => mapping(address => uint)) public lastUpdateTime;
+  /// @dev Part of SNX pool logic. Internal snapshot of reward per token value.
   mapping(address => mapping(address => uint)) public rewardPerTokenStored;
 
+  /// @dev Timestamp of the last claim action.
   mapping(address => mapping(address => mapping(address => uint))) public lastEarn;
+  /// @dev Snapshot of user's reward per token for internal calculations.
   mapping(address => mapping(address => mapping(address => uint))) public userRewardPerTokenStored;
 
+  /// @dev Allowed reward tokens for staking token
   mapping(address => address[]) public override rewardTokens;
+  /// @dev Allowed reward tokens for staking token stored in map for fast check.
   mapping(address => mapping(address => bool)) public override isRewardToken;
 
   /// @notice A record of balance checkpoints for each account, by index
@@ -50,23 +77,36 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool {
   /// @notice The number of checkpoints for each token
   mapping(address => mapping(address => uint)) public rewardPerTokenNumCheckpoints;
 
+  // *************************************************************
+  //                        EVENTS
+  // *************************************************************
+
   event BalanceIncreased(address indexed token, address indexed account, uint amount);
   event BalanceDecreased(address indexed token, address indexed account, uint amount);
   event NotifyReward(address indexed from, address token, address indexed reward, uint amount);
-  event ClaimRewards(address indexed from, address token, address indexed reward, uint amount, address recepient);
+  event ClaimRewards(address indexed account, address token, address indexed reward, uint amount, address recepient);
 
-  constructor(address _operator) {
+  // *************************************************************
+  //                        INIT
+  // *************************************************************
+
+  /// @dev Operator will able to add/remove reward tokens
+  function __MultiPool_init(address _operator) internal onlyInitializing {
     operator = _operator;
   }
+
+  // *************************************************************
+  //                        RESTRICTIONS
+  // *************************************************************
 
   modifier onlyOperator() {
     require(msg.sender == operator, "Not operator");
     _;
   }
 
-  //**************************************************************************
+  // *************************************************************
   //                            VIEWS
-  //**************************************************************************
+  // *************************************************************
 
   /// @dev Should return true for whitelisted for rewards tokens
   function isStakeToken(address token) public view override virtual returns (bool);
@@ -101,7 +141,7 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool {
     uint _periodFinish = periodFinish[stakeToken][rewardToken];
     if (block.timestamp >= _periodFinish) return 0;
     uint _remaining = _periodFinish - block.timestamp;
-    return _remaining * rewardRate[stakeToken][rewardToken] / PRECISION;
+    return _remaining * rewardRate[stakeToken][rewardToken] / _PRECISION;
   }
 
   /// @dev Approximate of earned rewards ready to claim
@@ -109,21 +149,20 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool {
     return _earned(stakeToken, rewardToken, account);
   }
 
-  //**************************************************************************
-  //************************ OPERATOR ACTIONS ********************************
-  //**************************************************************************
+  // *************************************************************
+  //                  OPERATOR ACTIONS
+  // *************************************************************
 
+  /// @dev Whitelist reward token for staking token. Only operator can do it.
   function registerRewardToken(address stakeToken, address rewardToken) external override onlyOperator {
-    _registerRewardToken(stakeToken, rewardToken);
-  }
-
-  function _registerRewardToken(address stakeToken, address rewardToken) internal {
-    require(rewardTokens[stakeToken].length < MAX_REWARD_TOKENS, "Too many reward tokens");
+    require(rewardTokens[stakeToken].length < _MAX_REWARD_TOKENS, "Too many reward tokens");
     require(!isRewardToken[stakeToken][rewardToken], "Already registered");
     isRewardToken[stakeToken][rewardToken] = true;
     rewardTokens[stakeToken].push(rewardToken);
   }
 
+  /// @dev Remove from whitelist reward token for staking token. Only operator can do it.
+  ///      We assume that the first token can not be removed.
   function removeRewardToken(address stakeToken, address rewardToken) external override onlyOperator {
     require(periodFinish[stakeToken][rewardToken] < block.timestamp, "Rewards not ended");
     require(isRewardToken[stakeToken][rewardToken], "Not reward token");
@@ -147,9 +186,9 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool {
     rewardTokens[stakeToken].pop();
   }
 
-  //**************************************************************************
-  //************************ USER ACTIONS ************************************
-  //**************************************************************************
+  // *************************************************************
+  //                      USER ACTIONS
+  // *************************************************************
 
   /// @dev Assume to be called when linked token balance changes.
   function _registerBalanceIncreasing(
@@ -157,7 +196,7 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool {
     address account,
     uint amount
   ) internal virtual nonReentrant {
-    require(isStakeToken(stakingToken), "Zero amount");
+    require(isStakeToken(stakingToken), "Staking token not allowed");
     require(amount > 0, "Zero amount");
 
     _increaseBalance(stakingToken, account, amount);
@@ -170,6 +209,7 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool {
     uint amount
   ) internal virtual {
     _updateRewardForAllTokens(stakingToken);
+    totalSupply[stakingToken] += amount;
     balanceOf[stakingToken][account] += amount;
     _updateDerivedBalanceAndWriteCheckpoints(stakingToken, account);
   }
@@ -180,6 +220,7 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool {
     address account,
     uint amount
   ) internal nonReentrant virtual {
+    require(isStakeToken(stakingToken), "Staking token not allowed");
     _decreaseBalance(stakingToken, account, amount);
     emit BalanceDecreased(stakingToken, account, amount);
   }
@@ -190,6 +231,7 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool {
     uint amount
   ) internal virtual {
     _updateRewardForAllTokens(stakingToken);
+    totalSupply[stakingToken] -= amount;
     balanceOf[stakingToken][account] -= amount;
     _updateDerivedBalanceAndWriteCheckpoints(stakingToken, account);
   }
@@ -229,9 +271,9 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool {
     _writeSupplyCheckpoint(stakingToken);
   }
 
-  //**************************************************************************
-  //************************ REWARDS CALCULATIONS ****************************
-  //**************************************************************************
+  // *************************************************************
+  //                    REWARDS CALCULATIONS
+  // *************************************************************
 
   /// @dev Earned is an estimation, it won't be exact till the supply > rewardPerToken calculations have run
   function _earned(
@@ -262,7 +304,7 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool {
         CheckpointLib.Checkpoint memory cp1 = checkpoints[stakingToken][account][i + 1];
         (uint _rewardPerTokenStored0,) = getPriorRewardPerToken(stakingToken, rewardToken, cp0.timestamp);
         (uint _rewardPerTokenStored1,) = getPriorRewardPerToken(stakingToken, rewardToken, cp1.timestamp);
-        reward += cp0.value * (_rewardPerTokenStored1 - _rewardPerTokenStored0) / PRECISION;
+        reward += cp0.value * (_rewardPerTokenStored1 - _rewardPerTokenStored0) / _PRECISION;
       }
     }
 
@@ -273,15 +315,16 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool {
       _rewardPerTokenStored,
       userRewardPerTokenStored[stakingToken][rewardToken][account]
     )
-    ) / PRECISION;
+    ) / _PRECISION;
     return reward;
   }
 
+  /// @dev Supposed to be implemented in a parent contract
+  ///      Adjust user balance with some logic, like boost logic.
   function _derivedBalance(
     address stakingToken,
     address account
   ) internal virtual view returns (uint) {
-    // supposed to be implemented in a parent contract
     return balanceOf[stakingToken][account];
   }
 
@@ -387,9 +430,9 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool {
     return Math.min(block.timestamp, periodFinish[stakeToken][rewardToken]);
   }
 
-  //**************************************************************************
-  //************************ NOTIFY ******************************************
-  //**************************************************************************
+  // *************************************************************
+  //                         NOTIFY
+  // *************************************************************
 
   function _notifyRewardAmount(
     address stakingToken,
@@ -406,21 +449,21 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool {
 
     if (block.timestamp >= periodFinish[stakingToken][rewardToken]) {
       IERC20(rewardToken).safeTransferFrom(msg.sender, address(this), amount);
-      rewardRate[stakingToken][rewardToken] = amount * PRECISION / DURATION;
+      rewardRate[stakingToken][rewardToken] = amount * _PRECISION / _DURATION;
     } else {
       uint _remaining = periodFinish[stakingToken][rewardToken] - block.timestamp;
       uint _left = _remaining * rewardRate[stakingToken][rewardToken];
       IERC20(rewardToken).safeTransferFrom(msg.sender, address(this), amount);
-      rewardRate[stakingToken][rewardToken] = (amount * PRECISION + _left) / DURATION;
+      rewardRate[stakingToken][rewardToken] = (amount * _PRECISION + _left) / _DURATION;
     }
 
-    periodFinish[stakingToken][rewardToken] = block.timestamp + DURATION;
+    periodFinish[stakingToken][rewardToken] = block.timestamp + _DURATION;
     emit NotifyReward(msg.sender, stakingToken, rewardToken, amount);
   }
 
-  //**************************************************************************
-  //************************ CHECKPOINTS *************************************
-  //**************************************************************************
+  // *************************************************************
+  //                          CHECKPOINTS
+  // *************************************************************
 
   /// @notice Determine the prior balance for an account as of a block number
   /// @dev Block number must be a finalized block or else this function will revert to prevent misinformation.
@@ -487,9 +530,8 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool {
     uint timestamp
   ) internal {
     uint _nCheckPoints = rewardPerTokenNumCheckpoints[stakingToken][rewardToken];
-    CheckpointLib.Checkpoint storage cp = rewardPerTokenCheckpoints[stakingToken][rewardToken][_nCheckPoints - 1];
-    if (_nCheckPoints > 0 && cp.timestamp == timestamp) {
-      cp.value = reward;
+    if (_nCheckPoints > 0 && rewardPerTokenCheckpoints[stakingToken][rewardToken][_nCheckPoints - 1].timestamp == timestamp) {
+      rewardPerTokenCheckpoints[stakingToken][rewardToken][_nCheckPoints - 1].value = reward;
     } else {
       rewardPerTokenCheckpoints[stakingToken][rewardToken][_nCheckPoints] = CheckpointLib.Checkpoint(timestamp, reward);
       rewardPerTokenNumCheckpoints[stakingToken][rewardToken] = _nCheckPoints + 1;
@@ -500,12 +542,18 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool {
     uint _nCheckPoints = supplyNumCheckpoints[stakingToken];
     uint _timestamp = block.timestamp;
 
-    CheckpointLib.Checkpoint storage cp = supplyCheckpoints[stakingToken][_nCheckPoints - 1];
-    if (_nCheckPoints > 0 && cp.timestamp == _timestamp) {
-      cp.value = derivedSupply[stakingToken];
+    if (_nCheckPoints > 0 && supplyCheckpoints[stakingToken][_nCheckPoints - 1].timestamp == _timestamp) {
+      supplyCheckpoints[stakingToken][_nCheckPoints - 1].value = derivedSupply[stakingToken];
     } else {
       supplyCheckpoints[stakingToken][_nCheckPoints] = CheckpointLib.Checkpoint(_timestamp, derivedSupply[stakingToken]);
       supplyNumCheckpoints[stakingToken] = _nCheckPoints + 1;
     }
   }
+
+  /**
+* @dev This empty reserved space is put in place to allow future versions to add new
+     * variables without shifting down storage in the inheritance chain.
+     * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+     */
+  uint[38] private __gap;
 }

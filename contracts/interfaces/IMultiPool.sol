@@ -4,6 +4,8 @@ pragma solidity 0.8.4;
 
 interface IMultiPool {
 
+  function totalSupply(address stakingToken) external view returns (uint);
+
   function derivedSupply(address stakingToken) external view returns (uint);
 
   function derivedBalances(address stakingToken, address account) external view returns (uint);
