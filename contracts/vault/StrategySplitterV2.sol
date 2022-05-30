@@ -88,7 +88,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, IStrategySplitte
   /// @dev Only for linked Vault or Governance/Controller.
   ///      Use for functions that should have strict access.
   function _restricted() internal view {
-    address c = _controller();
+    address c = controller();
     require(msg.sender == _VAULT_SLOT.getAddress()
     || msg.sender == c
       || IController(c).governance() == msg.sender,
@@ -98,7 +98,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, IStrategySplitte
   /// @dev Extended strict access with including HardWorkers addresses
   ///      Use for functions that should be called by HardWorkers
   function _onlyOperators() internal view {
-    address c = _controller();
+    address c = controller();
     require(msg.sender == _VAULT_SLOT.getAddress()
     || msg.sender == c
     || IController(c).governance() == msg.sender

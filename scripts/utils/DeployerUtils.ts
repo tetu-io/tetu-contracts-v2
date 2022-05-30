@@ -15,7 +15,8 @@ import {
   MockVoter,
   ProxyControlled,
   TetuVoter,
-  VeTetu
+  VeTetu,
+  VeTetu__factory
 } from "../../typechain";
 import {VerifyUtils} from "./VerifyUtils";
 
@@ -128,7 +129,13 @@ export class DeployerUtils {
   }
 
   public static async deployVeTetu(signer: SignerWithAddress, token: string, controller: string) {
-    return await DeployerUtils.deployContract(signer, 'VeTetu', token, controller) as VeTetu;
+    const logic = await DeployerUtils.deployContract(signer, 'VeTetu');
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled', logic.address) as ProxyControlled;
+    await VeTetu__factory.connect(proxy.address, signer).init(
+      token,
+      controller
+    )
+    return VeTetu__factory.connect(proxy.address, signer);
   }
 
   public static async deployTetuVoter(signer: SignerWithAddress, ve: string) {

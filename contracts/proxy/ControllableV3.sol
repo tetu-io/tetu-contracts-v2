@@ -51,21 +51,13 @@ abstract contract ControllableV3 is Initializable, IControllable {
   }
 
   /// @dev Return true if given address is controller
-  function isController(address _value) external override view returns (bool) {
-    return _isController(_value);
-  }
-
-  function _isController(address _value) internal view returns (bool) {
-    return _value == _controller();
+  function isController(address _value) public override view returns (bool) {
+    return _value == controller();
   }
 
   /// @notice Return true if given address is setup as governance in Controller
-  function isGovernance(address _value) external override view returns (bool) {
-    return _isGovernance(_value);
-  }
-
-  function _isGovernance(address _value) internal view returns (bool) {
-    return IController(_controller()).governance() == _value;
+  function isGovernance(address _value) public override view returns (bool) {
+    return IController(controller()).governance() == _value;
   }
 
   /// @dev Contract upgrade counter
@@ -81,11 +73,7 @@ abstract contract ControllableV3 is Initializable, IControllable {
   // ************* SETTERS/GETTERS *******************
 
   /// @notice Return controller address saved in the contract slot
-  function controller() external view override returns (address) {
-    return _controller();
-  }
-
-  function _controller() internal view returns (address result) {
+  function controller() public view override returns (address) {
     return _CONTROLLER_SLOT.getAddress();
   }
 

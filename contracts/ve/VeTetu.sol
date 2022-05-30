@@ -12,70 +12,88 @@ import "../interfaces/IERC721Receiver.sol";
 import "../interfaces/IController.sol";
 import "../openzeppelin/ReentrancyGuard.sol";
 import "../openzeppelin/SafeERC20.sol";
+import "../proxy/ControllableV3.sol";
 
-contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard {
+contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, ControllableV3 {
   using SafeERC20 for IERC20;
+
+  // *************************************************************
+  //                        CONSTANTS
+  // *************************************************************
 
   uint internal constant WEEK = 1 weeks;
   uint internal constant MAX_TIME = 1 * 365 * 86400;
-  int128 internal constant I_MAX_TIME = 4 * 365 * 86400;
+  int128 internal constant I_MAX_TIME = 1 * 365 * 86400;
   uint internal constant MULTIPLIER = 1 ether;
-
-  address immutable public override token;
-  uint public supply;
-  mapping(uint => LockedBalance) public locked;
-
-  mapping(uint => uint) public ownershipChange;
-
-  uint public override epoch;
-  /// @dev epoch -> unsigned point
-  mapping(uint => Point) internal _pointHistory;
-  /// @dev user -> Point[userEpoch]
-  mapping(uint => Point[1000000000]) internal _userPointHistory;
-
-  mapping(uint => uint) public override userPointEpoch;
-  mapping(uint => int128) public slopeChanges; // time -> signed slope change
-
-  mapping(uint => uint) public attachments;
-  mapping(uint => bool) public voted;
-  address public controller;
 
   string constant public override name = "veTETU";
   string constant public override symbol = "veTETU";
   uint8 constant public decimals = 18;
 
+  /// @dev ERC165 interface ID of ERC165
+  bytes4 internal constant _ERC165_INTERFACE_ID = 0x01ffc9a7;
+  /// @dev ERC165 interface ID of ERC721
+  bytes4 internal constant _ERC721_INTERFACE_ID = 0x80ac58cd;
+  /// @dev ERC165 interface ID of ERC721Metadata
+  bytes4 internal constant _ERC721_METADATA_INTERFACE_ID = 0x5b5e139f;
+
+  // *************************************************************
+  //                        VARIABLES
+  //                Keep names and ordering!
+  //                 Add only in the bottom.
+  // *************************************************************
+
+  /// @dev Underlying token
+  address public override token;
+  /// @dev Total locked tokens
+  uint public supply;
   /// @dev Current count of token
   uint public tokenId;
 
+  // --- CHECKPOINTS LOGIC
+
+  /// @dev Epoch counter. Update each week.
+  uint public override epoch;
+  /// @dev epoch -> unsigned point
+  mapping(uint => Point) internal _pointHistory;
+  /// @dev user -> Point[userEpoch]
+  mapping(uint => Point[1000000000]) internal _userPointHistory;
+  /// @dev veId -> Personal epoch counter
+  mapping(uint => uint) public override userPointEpoch;
+  /// @dev time -> signed slope change
+  mapping(uint => int128) public slopeChanges;
+
+  // --- LOCK
+  /// @dev veId -> Info about users locked amount and end date
+  mapping(uint => LockedBalance) public locked;
+  /// @dev veId -> Attachments counter. With positive counter user unable to transfer NFT
+  mapping(uint => uint) public attachments;
+  /// @dev veId -> have voted. With vote NFT unable to transfer
+  mapping(uint => bool) public voted;
+
+  // --- STATISTICS
+
+  /// @dev veId -> Block number when last time NFT owner changed
+  mapping(uint => uint) public ownershipChange;
   /// @dev Mapping from NFT ID to the address that owns it.
   mapping(uint => address) public idToOwner;
-
   /// @dev Mapping from NFT ID to approved address.
   mapping(uint => address) public idToApprovals;
-
   /// @dev Mapping from owner address to count of his tokens.
   mapping(address => uint) public ownerToNFTokenCount;
-
   /// @dev Mapping from owner address to mapping of index to tokenIds
   mapping(address => mapping(uint => uint)) public ownerToNFTokenIdList;
-
   /// @dev Mapping from NFT ID to index of owner
   mapping(uint => uint) public tokenToOwnerIndex;
-
   /// @dev Mapping from owner address to mapping of operator addresses.
   mapping(address => mapping(address => bool)) public ownerToOperators;
 
   /// @dev Mapping of interface id to bool about whether or not it's supported
   mapping(bytes4 => bool) internal _supportedInterfaces;
 
-  /// @dev ERC165 interface ID of ERC165
-  bytes4 internal constant _ERC165_INTERFACE_ID = 0x01ffc9a7;
-
-  /// @dev ERC165 interface ID of ERC721
-  bytes4 internal constant _ERC721_INTERFACE_ID = 0x80ac58cd;
-
-  /// @dev ERC165 interface ID of ERC721Metadata
-  bytes4 internal constant _ERC721_METADATA_INTERFACE_ID = 0x5b5e139f;
+  // *************************************************************
+  //                        EVENTS
+  // *************************************************************
 
   event Deposit(
     address indexed provider,
@@ -88,11 +106,18 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard {
   event Withdraw(address indexed provider, uint tokenId, uint value, uint ts);
   event Supply(uint prevSupply, uint supply);
 
-  /// @notice Contract constructor
-  /// @param token_ `ERC20CRV` token address
-  constructor(address token_, address controller_) {
+  // *************************************************************
+  //                        INIT
+  // *************************************************************
+
+  /// @dev Proxy initialization. Call it after contract deploy.
+  /// @param token_ Underlying ERC20 token
+  /// @param controller_ Central contract of the protocol
+  function init(address token_, address controller_) external initializer {
+    __Controllable_init(controller_);
+
     token = token_;
-    controller = controller_;
+
     _pointHistory[0].blk = block.number;
     _pointHistory[0].ts = block.timestamp;
 
@@ -106,12 +131,18 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard {
     emit Transfer(address(this), address(0), tokenId);
   }
 
+  // *************************************************************
+  //                        VIEWS
+  // *************************************************************
+
+  /// @dev Voter should handle attach/detach and vote actions
   function voter() public view returns (address) {
-    return IController(controller).voter();
+    return IController(controller()).voter();
   }
 
+  /// @dev Pawnshop will be able to transfer this NFT.
   function vePawnshop() public view returns (address) {
-    return IController(controller).vePawnshop();
+    return IController(controller()).vePawnshop();
   }
 
   /// @dev Interface identification is specified in ERC-165.
@@ -185,7 +216,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard {
   /// @param _spender address of the spender to query
   /// @param _tokenId uint ID of the token to be transferred
   /// @return bool whether the msg.sender is approved for the given token ID, is an operator of the owner, or is the owner of the token
-  function _isApprovedOrOwner(address _spender, uint _tokenId) internal view returns (bool) {
+  function isApprovedOrOwner(address _spender, uint _tokenId) public view override returns (bool) {
     address owner = idToOwner[_tokenId];
     bool spenderIsOwner = owner == _spender;
     bool spenderIsApproved = _spender == idToApprovals[_tokenId];
@@ -193,9 +224,61 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard {
     return spenderIsOwner || spenderIsApproved || spenderIsApprovedForAll;
   }
 
-  function isApprovedOrOwner(address _spender, uint _tokenId) external view override returns (bool) {
-    return _isApprovedOrOwner(_spender, _tokenId);
+  function balanceOfNFT(uint _tokenId) external view override returns (uint) {
+    // flash NFT protection
+    if (ownershipChange[_tokenId] == block.number) {
+      return 0;
+    }
+    return _balanceOfNFT(_tokenId, block.timestamp);
   }
+
+  function balanceOfNFTAt(uint _tokenId, uint _t) external view returns (uint) {
+    return _balanceOfNFT(_tokenId, _t);
+  }
+
+  function totalSupply() external view returns (uint) {
+    return totalSupplyAtT(block.timestamp);
+  }
+
+  function balanceOfAtNFT(uint _tokenId, uint _block) external view returns (uint) {
+    return _balanceOfAtNFT(_tokenId, _block);
+  }
+
+  function userPointHistory(uint _tokenId, uint _loc) external view override returns (Point memory) {
+    return _userPointHistory[_tokenId][_loc];
+  }
+
+  function pointHistory(uint _loc) external view override returns (Point memory) {
+    return _pointHistory[_loc];
+  }
+
+  // *************************************************************
+  //                        VOTER ACTIONS
+  // *************************************************************
+
+  function voting(uint _tokenId) external override {
+    require(msg.sender == voter(), "!voter");
+    voted[_tokenId] = true;
+  }
+
+  function abstain(uint _tokenId) external override {
+    require(msg.sender == voter(), "!voter");
+    voted[_tokenId] = false;
+  }
+
+  function attachToken(uint _tokenId) external override {
+    require(msg.sender == voter(), "!voter");
+    attachments[_tokenId] = attachments[_tokenId] + 1;
+  }
+
+  function detachToken(uint _tokenId) external override {
+    require(msg.sender == voter(), "!voter");
+    attachments[_tokenId] = attachments[_tokenId] - 1;
+  }
+
+  // *************************************************************
+  //                        NFT LOGIC
+  // *************************************************************
 
   /// @dev Add a NFT to an index mapping to a given address
   /// @param _to address of the receiver
@@ -274,7 +357,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard {
     address _sender
   ) internal {
     require(attachments[_tokenId] == 0 && !voted[_tokenId], "attached");
-    require(_isApprovedOrOwner(_sender, _tokenId), "!owner sender");
+    require(isApprovedOrOwner(_sender, _tokenId), "!owner sender");
     require(_to != address(0), "dst is zero");
     // from address will be checked in _removeTokenFrom()
 
@@ -550,6 +633,10 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard {
     }
   }
 
+  // *************************************************************
+  //                  DEPOSIT/WITHDRAW LOGIC
+  // *************************************************************
+
   /// @notice Deposit and lock tokens for a user
   /// @param _tokenId NFT that holds lock
   /// @param _value Amount to deposit
@@ -589,47 +676,6 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard {
 
     emit Deposit(from, _tokenId, _value, _locked.end, depositType, block.timestamp);
     emit Supply(supplyBefore, supplyBefore + _value);
-  }
-
-  function voting(uint _tokenId) external override {
-    require(msg.sender == voter(), "!voter");
-    voted[_tokenId] = true;
-  }
-
-  function abstain(uint _tokenId) external override {
-    require(msg.sender == voter(), "!voter");
-    voted[_tokenId] = false;
-  }
-
-  function attachToken(uint _tokenId) external override {
-    require(msg.sender == voter(), "!voter");
-    attachments[_tokenId] = attachments[_tokenId] + 1;
-  }
-
-  function detachToken(uint _tokenId) external override {
-    require(msg.sender == voter(), "!voter");
-    attachments[_tokenId] = attachments[_tokenId] - 1;
-  }
-
-  function merge(uint _from, uint _to) external {
-    require(attachments[_from] == 0 && !voted[_from], "attached");
-    require(_from != _to, "the same");
-    require(_isApprovedOrOwner(msg.sender, _from), "!owner from");
-    require(_isApprovedOrOwner(msg.sender, _to), "!owner to");
-
-    LockedBalance memory _locked0 = locked[_from];
-    LockedBalance memory _locked1 = locked[_to];
-    uint value0 = uint(int256(_locked0.amount));
-    uint end = _locked0.end >= _locked1.end ? _locked0.end : _locked1.end;
-
-    locked[_from] = LockedBalance(0, 0);
-    _checkpoint(_from, _locked0, LockedBalance(0, 0));
-    _burn(_from);
-    _depositFor(_to, value0, end, _locked1, DepositType.MERGE_TYPE);
-  }
-
-  function blockNumber() external view returns (uint) {
-    return block.number;
   }
 
   /// @notice Record global data to checkpoint
@@ -691,7 +737,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard {
     LockedBalance memory _locked = locked[_tokenId];
     require(_locked.amount > 0, 'No existing lock found');
     require(_locked.end > block.timestamp, 'Cannot add to expired lock. Withdraw');
-    require(_isApprovedOrOwner(msg.sender, _tokenId), "!owner");
+    require(isApprovedOrOwner(msg.sender, _tokenId), "!owner");
     require(_value > 0, "zero value");
 
     _depositFor(_tokenId, _value, 0, _locked, DepositType.INCREASE_LOCK_AMOUNT);
@@ -707,7 +753,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard {
     require(_locked.end > block.timestamp, 'Lock expired');
     require(unlockTime > _locked.end, 'Can only increase lock duration');
     require(unlockTime <= block.timestamp + MAX_TIME, 'Voting lock can be 1 year max');
-    require(_isApprovedOrOwner(msg.sender, _tokenId), "!owner");
+    require(isApprovedOrOwner(msg.sender, _tokenId), "!owner");
 
     _depositFor(_tokenId, 0, unlockTime, _locked, DepositType.INCREASE_UNLOCK_TIME);
   }
@@ -715,7 +761,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard {
   /// @notice Withdraw all tokens for `_tokenId`
   /// @dev Only possible if the lock has expired
   function withdraw(uint _tokenId) external nonReentrant {
-    require(_isApprovedOrOwner(msg.sender, _tokenId), "!owner");
+    require(isApprovedOrOwner(msg.sender, _tokenId), "!owner");
     require(attachments[_tokenId] == 0 && !voted[_tokenId], "attached");
     LockedBalance memory _locked = locked[_tokenId];
     require(block.timestamp >= _locked.end, "The lock did not expire");
@@ -799,18 +845,6 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard {
     );
   }
 
-  function balanceOfNFT(uint _tokenId) external view override returns (uint) {
-    // flash NFT protection
-    if (ownershipChange[_tokenId] == block.number) {
-      return 0;
-    }
-    return _balanceOfNFT(_tokenId, block.timestamp);
-  }
-
-  function balanceOfNFTAt(uint _tokenId, uint _t) external view returns (uint) {
-    return _balanceOfNFT(_tokenId, _t);
-  }
-
   /// @notice Measure voting power of `_tokenId` at block height `_block`
   /// @dev Adheres to MiniMe `balanceOfAt` interface: https://github.com/Giveth/minime
   /// @param _tokenId User's wallet NFT
@@ -861,9 +895,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard {
     return uint(uint128(FixedPointMathLib.positiveInt128(uPoint.bias)));
   }
 
-  function balanceOfAtNFT(uint _tokenId, uint _block) external view returns (uint) {
-    return _balanceOfAtNFT(_tokenId, _block);
-  }
+
 
   /// @notice Calculate total voting power at some point in the past
   /// @param point The point (bias/slope) to start search from
@@ -899,10 +931,6 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard {
     return _supplyAt(lastPoint, t);
   }
 
-  function totalSupply() external view returns (uint) {
-    return totalSupplyAtT(block.timestamp);
-  }
-
   /// @notice Calculate total voting power at some point in the past
   /// @param _block Block to calculate the total voting power at
   /// @return Total voting power at `_block`
@@ -930,6 +958,19 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard {
     // Now dt contains info on how far are we beyond point
     return _supplyAt(point, point.ts + dt);
   }
+
+  function _burn(uint _tokenId) internal {
+    address owner = ownerOf(_tokenId);
+    // Clear approval
+    approve(address(0), _tokenId);
+    // Remove token
+    _removeTokenFrom(msg.sender, _tokenId);
+    emit Transfer(owner, address(0), _tokenId);
+  }
+
+  // *************************************************************
+  //                        URI
+  // *************************************************************
 
   function _tokenURI(uint _tokenId, uint _balanceOf, uint _locked_end, uint _value) internal pure returns (string memory output) {
     output = '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin meet" viewBox="0 0 350 350"><style>.base { fill: black; font-family: Impact; font-size: 50px; }</style><rect width="100%" height="100%" fill="#aaaaff" /><text x="10" y="60" class="base">';
@@ -962,23 +1003,6 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard {
       value /= 10;
     }
     return string(buffer);
-  }
-
-  function _burn(uint _tokenId) internal {
-    address owner = ownerOf(_tokenId);
-    // Clear approval
-    approve(address(0), _tokenId);
-    // Remove token
-    _removeTokenFrom(msg.sender, _tokenId);
-    emit Transfer(owner, address(0), _tokenId);
-  }
-
-  function userPointHistory(uint _tokenId, uint _loc) external view override returns (Point memory) {
-    return _userPointHistory[_tokenId][_loc];
-  }
-
-  function pointHistory(uint _loc) external view override returns (Point memory) {
-    return _pointHistory[_loc];
   }
 
 }

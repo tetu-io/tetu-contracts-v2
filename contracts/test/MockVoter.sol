@@ -28,5 +28,12 @@ contract MockVoter {
     // noop
   }
 
+  function voting(uint id) external {
+    IVeTetu(ve).voting(id);
+  }
+
+  function abstain(uint id) external {
+    IVeTetu(ve).abstain(id);
+  }
 
 }

@@ -8,6 +8,7 @@ contract ControllerMinimal {
 
   address public governance;
   address public voter;
+  address public vePawnshop;
 
   constructor (address governance_) {
     governance = governance_;
@@ -15,6 +16,10 @@ contract ControllerMinimal {
 
   function setVoter(address _voter) external {
     voter = _voter;
+  }
+
+  function setVePawnshop(address _vePawnshop) external {
+    vePawnshop = _vePawnshop;
   }
 
   function updateProxies(address[] memory proxies, address[] memory newLogics) external {
