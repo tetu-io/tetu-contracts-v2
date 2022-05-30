@@ -364,4 +364,8 @@ describe("veTETU tests", function () {
     await ve.balanceOfNFTAt(1, 0);
   });
 
+  it("ve flesh transfer + supply checks", async function () {
+    await pawnshop.veFlashTransfer(ve.address, 1);
+  });
+
 });

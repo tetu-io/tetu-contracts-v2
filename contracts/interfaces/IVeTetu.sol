@@ -54,4 +54,6 @@ interface IVeTetu {
   function voting(uint tokenId) external;
 
   function abstain(uint tokenId) external;
+
+  function totalSupplyAt(uint _block) external view returns (uint);
 }
