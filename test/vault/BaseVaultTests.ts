@@ -59,7 +59,7 @@ describe("Base Vaults tests", function () {
 
     const tx = await vault.deposit(amount, signer2.address)
     const rec = await tx.wait();
-    expect(rec.gasUsed).eq(158308)
+    expect(rec.gasUsed).below(158309)
 
     const expectedShares = await vault.convertToShares(amount);
     await vault.deposit(amount, signer.address)

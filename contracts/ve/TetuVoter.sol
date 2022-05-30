@@ -14,19 +14,14 @@ import "../interfaces/IMultiPool.sol";
 import "../openzeppelin/SafeERC20.sol";
 import "../openzeppelin/ReentrancyGuard.sol";
 
-contract DystVoter is IVoter, ReentrancyGuard {
+contract TetuVoter is IVoter, ReentrancyGuard {
   using SafeERC20 for IERC20;
 
   /// @dev The ve token that governs these contracts
   address public immutable override ve;
-  /// @dev DystFactory
-  address public immutable factory;
   address public immutable token;
-  address public immutable gaugeFactory;
-  address public immutable bribeFactory;
   /// @dev Rewards are released over 7 days
   uint internal constant DURATION = 7 days;
-  address public minter;
 
   /// @dev Total voting weight
   uint public totalWeight;
@@ -65,21 +60,9 @@ contract DystVoter is IVoter, ReentrancyGuard {
   event Detach(address indexed owner, address indexed gauge, uint tokenId);
   event Whitelisted(address indexed whitelister, address indexed token);
 
-  constructor(address _ve, address _factory, address _gaugeFactory, address _bribeFactory) {
+  constructor(address _ve) {
     ve = _ve;
-    factory = _factory;
     token = IVeTetu(_ve).token();
-    gaugeFactory = _gaugeFactory;
-    bribeFactory = _bribeFactory;
-    minter = msg.sender;
-  }
-
-  function initialize(address[] memory _tokens, address _minter) external {
-    require(msg.sender == minter, "!minter");
-    for (uint i = 0; i < _tokens.length; i++) {
-      _whitelist(_tokens[i]);
-    }
-    minter = _minter;
   }
 
   /// @dev Amount of tokens required to be hold for whitelisting.
@@ -222,33 +205,33 @@ contract DystVoter is IVoter, ReentrancyGuard {
     IMultiPool(pool).removeRewardToken(stakingToken, rewardToken);
   }
 
-  /// @dev Create gauge for given pool. Only for a pool with whitelisted tokens.
-  function createGauge(address stakingToken) external returns (address) {
-    require(gauges[stakingToken] == address(0x0), "exists");
-    //todo
-    //    require(IFactory(factory).isPair(_pool), "!pool");
-    //    (address tokenA, address tokenB) = IPair(_pool).tokens();
-    //    require(isWhitelisted[tokenA] && isWhitelisted[tokenB], "!whitelisted");
-
-    address[] memory allowedRewards = new address[](3);
-    //    allowedRewards[0] = tokenA;
-    //    allowedRewards[1] = tokenB;
-    //    if (token != tokenA && token != tokenB) {
-    //      allowedRewards[2] = token;
-    //    }
-
-    address _bribe = IBribeFactory(bribeFactory).createBribe(allowedRewards);
-    address _gauge = IGaugeFactory(gaugeFactory).createGauge(stakingToken, _bribe, ve, allowedRewards);
-    IERC20(token).safeIncreaseAllowance(_gauge, type(uint).max);
-    bribes[_gauge] = _bribe;
-    gauges[stakingToken] = _gauge;
-    poolForGauge[_gauge] = stakingToken;
-    isGauge[_gauge] = true;
-    _updateFor(_gauge);
-    stakingTokens.push(stakingToken);
-    emit GaugeCreated(_gauge, msg.sender, _bribe, stakingToken);
-    return _gauge;
-  }
+  //  /// @dev Create gauge for given pool. Only for a pool with whitelisted tokens.
+  //  function createGauge(address stakingToken) external returns (address) {
+  //    require(gauges[stakingToken] == address(0x0), "exists");
+  //    //todo
+  //    //    require(IFactory(factory).isPair(_pool), "!pool");
+  //    //    (address tokenA, address tokenB) = IPair(_pool).tokens();
+  //    //    require(isWhitelisted[tokenA] && isWhitelisted[tokenB], "!whitelisted");
+  //
+  //    address[] memory allowedRewards = new address[](3);
+  //    //    allowedRewards[0] = tokenA;
+  //    //    allowedRewards[1] = tokenB;
+  //    //    if (token != tokenA && token != tokenB) {
+  //    //      allowedRewards[2] = token;
+  //    //    }
+  //
+  //    address _bribe = IBribeFactory(bribeFactory).createBribe(allowedRewards);
+  //    address _gauge = IGaugeFactory(gaugeFactory).createGauge(stakingToken, _bribe, ve, allowedRewards);
+  //    IERC20(token).safeIncreaseAllowance(_gauge, type(uint).max);
+  //    bribes[_gauge] = _bribe;
+  //    gauges[stakingToken] = _gauge;
+  //    poolForGauge[_gauge] = stakingToken;
+  //    isGauge[_gauge] = true;
+  //    _updateFor(_gauge);
+  //    stakingTokens.push(stakingToken);
+  //    emit GaugeCreated(_gauge, msg.sender, _bribe, stakingToken);
+  //    return _gauge;
+  //  }
 
   /// @dev A gauge should be able to attach a token for preventing transfers/withdraws.
   function attachTokenToGauge(uint tokenId, address account) external override {
@@ -396,9 +379,9 @@ contract DystVoter is IVoter, ReentrancyGuard {
     }
   }
 
-//  function distributeForGauges(address[] memory _gauges) external {
-//    for (uint x = 0; x < _gauges.length; x++) {
-//      _distribute(_gauges[x]);
-//    }
-//  }
+  //  function distributeForGauges(address[] memory _gauges) external {
+  //    for (uint x = 0; x < _gauges.length; x++) {
+  //      _distribute(_gauges[x]);
+  //    }
+  //  }
 }

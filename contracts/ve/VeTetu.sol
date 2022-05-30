@@ -45,37 +45,37 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard {
   uint8 constant public decimals = 18;
 
   /// @dev Current count of token
-  uint internal tokenId;
+  uint public tokenId;
 
   /// @dev Mapping from NFT ID to the address that owns it.
-  mapping(uint => address) internal idToOwner;
+  mapping(uint => address) public idToOwner;
 
   /// @dev Mapping from NFT ID to approved address.
-  mapping(uint => address) internal idToApprovals;
+  mapping(uint => address) public idToApprovals;
 
   /// @dev Mapping from owner address to count of his tokens.
-  mapping(address => uint) internal ownerToNFTokenCount;
+  mapping(address => uint) public ownerToNFTokenCount;
 
   /// @dev Mapping from owner address to mapping of index to tokenIds
-  mapping(address => mapping(uint => uint)) internal ownerToNFTokenIdList;
+  mapping(address => mapping(uint => uint)) public ownerToNFTokenIdList;
 
   /// @dev Mapping from NFT ID to index of owner
-  mapping(uint => uint) internal tokenToOwnerIndex;
+  mapping(uint => uint) public tokenToOwnerIndex;
 
   /// @dev Mapping from owner address to mapping of operator addresses.
-  mapping(address => mapping(address => bool)) internal ownerToOperators;
+  mapping(address => mapping(address => bool)) public ownerToOperators;
 
   /// @dev Mapping of interface id to bool about whether or not it's supported
-  mapping(bytes4 => bool) internal supportedInterfaces;
+  mapping(bytes4 => bool) internal _supportedInterfaces;
 
   /// @dev ERC165 interface ID of ERC165
-  bytes4 internal constant ERC165_INTERFACE_ID = 0x01ffc9a7;
+  bytes4 internal constant _ERC165_INTERFACE_ID = 0x01ffc9a7;
 
   /// @dev ERC165 interface ID of ERC721
-  bytes4 internal constant ERC721_INTERFACE_ID = 0x80ac58cd;
+  bytes4 internal constant _ERC721_INTERFACE_ID = 0x80ac58cd;
 
   /// @dev ERC165 interface ID of ERC721Metadata
-  bytes4 internal constant ERC721_METADATA_INTERFACE_ID = 0x5b5e139f;
+  bytes4 internal constant _ERC721_METADATA_INTERFACE_ID = 0x5b5e139f;
 
   event Deposit(
     address indexed provider,
@@ -96,9 +96,9 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard {
     _pointHistory[0].blk = block.number;
     _pointHistory[0].ts = block.timestamp;
 
-    supportedInterfaces[ERC165_INTERFACE_ID] = true;
-    supportedInterfaces[ERC721_INTERFACE_ID] = true;
-    supportedInterfaces[ERC721_METADATA_INTERFACE_ID] = true;
+    _supportedInterfaces[_ERC165_INTERFACE_ID] = true;
+    _supportedInterfaces[_ERC721_INTERFACE_ID] = true;
+    _supportedInterfaces[_ERC721_METADATA_INTERFACE_ID] = true;
 
     // mint-ish
     emit Transfer(address(0), address(this), tokenId);
@@ -117,7 +117,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard {
   /// @dev Interface identification is specified in ERC-165.
   /// @param _interfaceID Id of the interface
   function supportsInterface(bytes4 _interfaceID) external view override returns (bool) {
-    return supportedInterfaces[_interfaceID];
+    return _supportedInterfaces[_interfaceID];
   }
 
   /// @notice Get the most recently recorded rate of voting power decrease for `_tokenId`

@@ -8,10 +8,14 @@ import {Libraries} from "hardhat-deploy/dist/types";
 import {parseUnits} from "ethers/lib/utils";
 import {
   ControllerMinimal,
+  MockStakingToken,
   MockToken,
   MockVault,
   MockVault__factory,
-  ProxyControlled
+  MockVoter,
+  ProxyControlled,
+  TetuVoter,
+  VeTetu
 } from "../../typechain";
 import {VerifyUtils} from "./VerifyUtils";
 
@@ -84,6 +88,10 @@ export class DeployerUtils {
     return token;
   }
 
+  public static async deployMockStakingToken(signer: SignerWithAddress, gauge: string, name = 'MOCK', decimals = 18) {
+    return await DeployerUtils.deployContract(signer, 'MockStakingToken', name + '_MOCK_TOKEN', name, decimals, gauge) as MockStakingToken;
+  }
+
   public static async deployMockController(signer: SignerWithAddress) {
     return await DeployerUtils.deployContract(signer, 'ControllerMinimal', signer.address) as ControllerMinimal;
   }
@@ -117,6 +125,18 @@ export class DeployerUtils {
       }
     )
     return vault;
+  }
+
+  public static async deployVeTetu(signer: SignerWithAddress, token: string, controller: string) {
+    return await DeployerUtils.deployContract(signer, 'VeTetu', token, controller) as VeTetu;
+  }
+
+  public static async deployTetuVoter(signer: SignerWithAddress, ve: string) {
+    return await DeployerUtils.deployContract(signer, 'TetuVoter', ve) as TetuVoter;
+  }
+
+  public static async deployMockVoter(signer: SignerWithAddress, ve: string) {
+    return await DeployerUtils.deployContract(signer, 'MockVoter', ve) as MockVoter;
   }
 
 }

@@ -20,7 +20,11 @@ interface IGauge {
     address account
   ) external;
 
-  function handleBalanceChange(address account, uint veId) external;
+  function attachVe(address stakingToken, address account, uint veId) external;
+
+  function detachVe(address stakingToken, address account, uint veId) external;
+
+  function handleBalanceChange(address account) external;
 
   function notifyRewardAmount(address stakingToken, address token, uint amount) external;
 
