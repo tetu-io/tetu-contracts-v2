@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.4;
 
-import "../lib/Base64.sol";
 import "../lib/FixedPointMathLib.sol";
 import "../interfaces/IERC20.sol";
 import "../interfaces/IERC721.sol";
@@ -10,12 +9,35 @@ import "../interfaces/IERC721Metadata.sol";
 import "../interfaces/IVeTetu.sol";
 import "../interfaces/IERC721Receiver.sol";
 import "../interfaces/IController.sol";
+import "../interfaces/IVoter.sol";
 import "../openzeppelin/ReentrancyGuard.sol";
 import "../openzeppelin/SafeERC20.sol";
 import "../proxy/ControllableV3.sol";
+import "./VeTetuLogo.sol";
 
 contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, ControllableV3 {
   using SafeERC20 for IERC20;
+
+  // Only for internal usage
+  struct DepositInfo {
+    address stakingToken;
+    uint tokenId;
+    uint value;
+    uint unlockTime;
+    int128 lockedAmount;
+    int128 lockedDerivedAmount;
+    uint lockedEnd;
+    DepositType depositType;
+  }
+
+  // Only for internal usage
+  struct CheckpointInfo {
+    uint tokenId;
+    int128 oldDerivedAmount;
+    int128 newDerivedAmount;
+    uint oldEnd;
+    uint newEnd;
+  }
 
   // *************************************************************
   //                        CONSTANTS
@@ -25,10 +47,11 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   uint internal constant MAX_TIME = 1 * 365 * 86400;
   int128 internal constant I_MAX_TIME = 1 * 365 * 86400;
   uint internal constant MULTIPLIER = 1 ether;
+  int128 internal constant WEIGHT_DENOMINATOR = int128(100);
+  uint internal constant MAX_ATTACHMENTS = 3;
 
   string constant public override name = "veTETU";
   string constant public override symbol = "veTETU";
-  uint8 constant public decimals = 18;
 
   /// @dev ERC165 interface ID of ERC165
   bytes4 internal constant _ERC165_INTERFACE_ID = 0x01ffc9a7;
@@ -43,12 +66,22 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   //                 Add only in the bottom.
   // *************************************************************
 
-  /// @dev Underlying token
-  address public override token;
-  /// @dev Total locked tokens
-  uint public supply;
+  /// @dev Underlying tokens info
+  address[] public override tokens;
+  /// @dev token => weight
+  mapping(address => int128) public tokenWeights;
+  /// @dev token => is allowed for deposits
+  mapping(address => bool) public isValidToken;
+  /// @dev token => Total locked tokens
+  mapping(address => uint) public supply;
   /// @dev Current count of token
   uint public tokenId;
+  /// @dev veId => stakingToken => Locked amount
+  mapping(uint => mapping(address => int128)) public lockedAmounts;
+  /// @dev veId => Amount based on weights aka power
+  mapping(uint => int128) public lockedDerivedAmount;
+  /// @dev veId => Lock end timestamp
+  mapping(uint => uint) public lockedEnd;
 
   // --- CHECKPOINTS LOGIC
 
@@ -64,12 +97,11 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   mapping(uint => int128) public slopeChanges;
 
   // --- LOCK
-  /// @dev veId -> Info about users locked amount and end date
-  mapping(uint => LockedBalance) public locked;
+
   /// @dev veId -> Attachments counter. With positive counter user unable to transfer NFT
-  mapping(uint => uint) public attachments;
+  mapping(uint => uint) public override attachments;
   /// @dev veId -> have voted. With vote NFT unable to transfer
-  mapping(uint => bool) public voted;
+  mapping(uint => bool) public override voted;
 
   // --- STATISTICS
 
@@ -96,6 +128,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   // *************************************************************
 
   event Deposit(
+    address indexed stakingToken,
     address indexed provider,
     uint tokenId,
     uint value,
@@ -103,8 +136,8 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     DepositType depositType,
     uint ts
   );
-  event Withdraw(address indexed provider, uint tokenId, uint value, uint ts);
-  event Supply(uint prevSupply, uint supply);
+  event Withdraw(address indexed stakingToken, address indexed provider, uint tokenId, uint value, uint ts);
+  event Supply(address indexed stakingToken, uint prevSupply, uint supply);
 
   // *************************************************************
   //                        INIT
@@ -116,7 +149,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   function init(address token_, address controller_) external initializer {
     __Controllable_init(controller_);
 
-    token = token_;
+    _addToken(token_, WEIGHT_DENOMINATOR);
 
     _pointHistory[0].blk = block.number;
     _pointHistory[0].ts = block.timestamp;
@@ -129,6 +162,21 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     emit Transfer(address(0), address(this), tokenId);
     // burn-ish
     emit Transfer(address(this), address(0), tokenId);
+  }
+
+  // *************************************************************
+  //                        TOKENS
+  // *************************************************************
+
+  function addToken(address token, int128 weight) external {
+    require(isGovernance(msg.sender), "Not governance");
+    _addToken(token, weight);
+  }
+
+  function _addToken(address token, int128 weight) internal {
+    tokens.push(token);
+    tokenWeights[token] = weight;
+    isValidToken[token] = true;
   }
 
   // *************************************************************
@@ -165,13 +213,6 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   /// @return Epoch time of the checkpoint
   function userPointHistoryTs(uint _tokenId, uint _idx) external view returns (uint) {
     return _userPointHistory[_tokenId][_idx].ts;
-  }
-
-  /// @notice Get timestamp when `_tokenId`'s lock finishes
-  /// @param _tokenId User NFT
-  /// @return Epoch time of the lock end
-  function lockedEnd(uint _tokenId) external view returns (uint) {
-    return locked[_tokenId].end;
   }
 
   /// @dev Returns the number of NFTs owned by `_owner`.
@@ -268,7 +309,9 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
 
   function attachToken(uint _tokenId) external override {
     require(msg.sender == voter(), "!voter");
-    attachments[_tokenId] = attachments[_tokenId] + 1;
+    uint count = attachments[_tokenId];
+    require(count < MAX_ATTACHMENTS, "Too many attachments");
+    attachments[_tokenId] = count + 1;
   }
 
   function detachToken(uint _tokenId) external override {
@@ -356,10 +399,14 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     uint _tokenId,
     address _sender
   ) internal {
-    require(attachments[_tokenId] == 0 && !voted[_tokenId], "attached");
     require(isApprovedOrOwner(_sender, _tokenId), "!owner sender");
     require(_to != address(0), "dst is zero");
     // from address will be checked in _removeTokenFrom()
+
+    if(attachments[_tokenId] != 0 || voted[_tokenId]) {
+      IVoter(voter()).detachTokenFromAll(_tokenId, _sender);
+    }
+    require(attachments[_tokenId] == 0 && !voted[_tokenId], "attached");
 
     if (idToApprovals[_tokenId] != address(0)) {
       // Reset approvals
@@ -372,8 +419,6 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     // Log the transfer
     emit Transfer(_from, _to, _tokenId);
   }
-
-  /* TRANSFER FUNCTIONS */
 
   /// @dev Transfers forbidden for veTETU
   function transferFrom(
@@ -504,41 +549,34 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   }
 
   /// @notice Record global and per-user data to checkpoint
-  /// @param _tokenId NFT token ID. No user checkpoint if 0
-  /// @param oldLocked Pevious locked amount / end lock time for the user
-  /// @param newLocked New locked amount / end lock time for the user
-  function _checkpoint(
-    uint _tokenId,
-    LockedBalance memory oldLocked,
-    LockedBalance memory newLocked
-  ) internal {
+  function _checkpoint(CheckpointInfo memory info) internal {
     Point memory uOld;
     Point memory uNew;
     int128 oldDSlope = 0;
     int128 newDSlope = 0;
     uint _epoch = epoch;
 
-    if (_tokenId != 0) {
+    if (info.tokenId != 0) {
       // Calculate slopes and biases
       // Kept at zero when they have to
-      if (oldLocked.end > block.timestamp && oldLocked.amount > 0) {
-        uOld.slope = oldLocked.amount / I_MAX_TIME;
-        uOld.bias = uOld.slope * int128(int256(oldLocked.end - block.timestamp));
+      if (info.oldEnd > block.timestamp && info.oldDerivedAmount > 0) {
+        uOld.slope = info.oldDerivedAmount / I_MAX_TIME;
+        uOld.bias = uOld.slope * int128(int256(info.oldEnd - block.timestamp));
       }
-      if (newLocked.end > block.timestamp && newLocked.amount > 0) {
-        uNew.slope = newLocked.amount / I_MAX_TIME;
-        uNew.bias = uNew.slope * int128(int256(newLocked.end - block.timestamp));
+      if (info.newEnd > block.timestamp && info.newDerivedAmount > 0) {
+        uNew.slope = info.newDerivedAmount / I_MAX_TIME;
+        uNew.bias = uNew.slope * int128(int256(info.newEnd - block.timestamp));
       }
 
       // Read values of scheduled changes in the slope
       // oldLocked.end can be in the past and in the future
       // newLocked.end can ONLY by in the FUTURE unless everything expired: than zeros
-      oldDSlope = slopeChanges[oldLocked.end];
-      if (newLocked.end != 0) {
-        if (newLocked.end == oldLocked.end) {
+      oldDSlope = slopeChanges[info.oldEnd];
+      if (info.newEnd != 0) {
+        if (info.newEnd == info.oldEnd) {
           newDSlope = oldDSlope;
         } else {
-          newDSlope = slopeChanges[newLocked.end];
+          newDSlope = slopeChanges[info.newEnd];
         }
       }
     }
@@ -591,7 +629,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     epoch = _epoch;
     // Now pointHistory is filled until t=now
 
-    if (_tokenId != 0) {
+    if (info.tokenId != 0) {
       // If last point was in this block, the slope change has been applied already
       // But in such case we have 0 slope(s)
       lastPoint.slope = FixedPointMathLib.positiveInt128(lastPoint.slope + (uNew.slope - uOld.slope));
@@ -601,35 +639,35 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     // Record the changed point into history
     _pointHistory[_epoch] = lastPoint;
 
-    if (_tokenId != 0) {
+    if (info.tokenId != 0) {
       // Schedule the slope changes (slope is going down)
       // We subtract newUserSlope from [newLocked.end]
       // and add old_user_slope to [old_locked.end]
-      if (oldLocked.end > block.timestamp) {
+      if (info.oldEnd > block.timestamp) {
         // old_dslope was <something> - u_old.slope, so we cancel that
         oldDSlope += uOld.slope;
-        if (newLocked.end == oldLocked.end) {
+        if (info.newEnd == info.oldEnd) {
           oldDSlope -= uNew.slope;
           // It was a new deposit, not extension
         }
-        slopeChanges[oldLocked.end] = oldDSlope;
+        slopeChanges[info.oldEnd] = oldDSlope;
       }
 
-      if (newLocked.end > block.timestamp) {
-        if (newLocked.end > oldLocked.end) {
+      if (info.newEnd > block.timestamp) {
+        if (info.newEnd > info.oldEnd) {
           newDSlope -= uNew.slope;
           // old slope disappeared at this point
-          slopeChanges[newLocked.end] = newDSlope;
+          slopeChanges[info.newEnd] = newDSlope;
         }
         // else: we recorded it already in oldDSlope
       }
       // Now handle user history
-      uint userEpoch = userPointEpoch[_tokenId] + 1;
+      uint userEpoch = userPointEpoch[info.tokenId] + 1;
 
-      userPointEpoch[_tokenId] = userEpoch;
+      userPointEpoch[info.tokenId] = userEpoch;
       uNew.ts = block.timestamp;
       uNew.blk = block.number;
-      _userPointHistory[_tokenId][userEpoch] = uNew;
+      _userPointHistory[info.tokenId][userEpoch] = uNew;
     }
   }
 
@@ -638,151 +676,262 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   // *************************************************************
 
   /// @notice Deposit and lock tokens for a user
-  /// @param _tokenId NFT that holds lock
-  /// @param _value Amount to deposit
-  /// @param unlockTime New time when to unlock the tokens, or 0 if unchanged
-  /// @param lockedBalance Previous locked amount / timestamp
-  /// @param depositType The type of deposit
-  function _depositFor(
-    uint _tokenId,
-    uint _value,
-    uint unlockTime,
-    LockedBalance memory lockedBalance,
-    DepositType depositType
-  ) internal {
-    LockedBalance memory _locked = lockedBalance;
-    uint supplyBefore = supply;
+  function _depositFor(DepositInfo memory info) internal {
+    require(isValidToken[info.stakingToken], "Not valid token");
 
-    supply = supplyBefore + _value;
-    LockedBalance memory oldLocked;
-    (oldLocked.amount, oldLocked.end) = (_locked.amount, _locked.end);
+    // update supply
+    uint supplyBefore = supply[info.stakingToken];
+    supply[info.stakingToken] = supplyBefore + info.value;
+
+
+    // calculate new amounts
+    int128 newAmount = info.lockedAmount + int128(int256(info.value));
+    int128 newLockedDerivedAmount = _calculateDerivedAmount(
+      info.lockedAmount,
+      info.lockedDerivedAmount,
+      newAmount,
+      tokenWeights[info.stakingToken]
+    );
+
     // Adding to existing lock, or if a lock is expired - creating a new one
-    _locked.amount += int128(int256(_value));
-    if (unlockTime != 0) {
-      _locked.end = unlockTime;
+    uint newLockedEnd = info.lockedEnd;
+    if (info.unlockTime != 0) {
+      lockedEnd[info.tokenId] = info.unlockTime;
+      newLockedEnd = info.unlockTime;
     }
-    locked[_tokenId] = _locked;
 
-    // Possibilities:
-    // Both old_locked.end could be current or expired (>/< block.timestamp)
-    // value == 0 (extend lock) or value > 0 (add to lock or extend lock)
-    // _locked.end > block.timestamp (always)
-    _checkpoint(_tokenId, oldLocked, _locked);
+    // update chain info
+    lockedAmounts[info.tokenId][info.stakingToken] = newAmount;
+    lockedDerivedAmount[info.tokenId] = newLockedDerivedAmount;
 
+    // update checkpoint
+    _checkpoint(CheckpointInfo(
+        info.tokenId,
+        info.lockedDerivedAmount,
+        newLockedDerivedAmount,
+        info.lockedEnd,
+        newLockedEnd
+      ));
+
+    // move tokens to this contract, if necessary
     address from = msg.sender;
-    if (_value != 0 && depositType != DepositType.MERGE_TYPE) {
-      IERC20(token).safeTransferFrom(from, address(this), _value);
+    if (info.value != 0 && info.depositType != DepositType.MERGE_TYPE) {
+      IERC20(info.stakingToken).safeTransferFrom(from, address(this), info.value);
     }
 
-    emit Deposit(from, _tokenId, _value, _locked.end, depositType, block.timestamp);
-    emit Supply(supplyBefore, supplyBefore + _value);
+    emit Deposit(info.stakingToken, from, info.tokenId, info.value, newLockedEnd, info.depositType, block.timestamp);
+    emit Supply(info.stakingToken, supplyBefore, supplyBefore + info.value);
+  }
+
+  function _calculateDerivedAmount(
+    int128 currentAmount,
+    int128 oldDerivedAmount,
+    int128 newAmount,
+    int128 weight
+  ) internal pure returns (int128) {
+    // subtract current derived balance
+    if (oldDerivedAmount != 0 && currentAmount != 0) {
+      int128 currentDerivedAmount = currentAmount * weight / WEIGHT_DENOMINATOR;
+      if (oldDerivedAmount > currentDerivedAmount) {
+        oldDerivedAmount -= currentDerivedAmount;
+      } else {
+        // in case of some kind of mistake better to set to zero than revert
+        oldDerivedAmount = 0;
+      }
+    }
+
+    // recalculate derived amount with new amount
+    return oldDerivedAmount + (newAmount * weight / WEIGHT_DENOMINATOR);
   }
 
   /// @notice Record global data to checkpoint
   function checkpoint() external override {
-    _checkpoint(0, LockedBalance(0, 0), LockedBalance(0, 0));
+    _checkpoint(CheckpointInfo(0, 0, 0, 0, 0));
+  }
+
+  function _lockInfo(address stakingToken, uint veId) internal view returns (
+    int128 _lockedAmount,
+    int128 _lockedDerivedAmount,
+    uint _lockedEnd
+  ) {
+    _lockedAmount = lockedAmounts[veId][stakingToken];
+    _lockedDerivedAmount = lockedDerivedAmount[veId];
+    _lockedEnd = lockedEnd[veId];
   }
 
   /// @notice Deposit `_value` tokens for `_tokenId` and add to the lock
   /// @dev Anyone (even a smart contract) can deposit for someone else, but
   ///      cannot extend their locktime and deposit for a brand new user
+  /// @param _token Token for deposit. Should be whitelisted in this contract.
   /// @param _tokenId lock NFT
   /// @param _value Amount to add to user's lock
-  function depositFor(uint _tokenId, uint _value) external nonReentrant override {
+  function depositFor(address _token, uint _tokenId, uint _value) external nonReentrant override {
     require(_value > 0, "zero value");
-    LockedBalance memory _locked = locked[_tokenId];
-    require(_locked.amount > 0, 'No existing lock found');
-    require(_locked.end > block.timestamp, 'Cannot add to expired lock. Withdraw');
-    _depositFor(_tokenId, _value, 0, _locked, DepositType.DEPOSIT_FOR_TYPE);
+    (int128 _lockedAmount,int128 _lockedDerivedAmount,uint _lockedEnd) = _lockInfo(_token, _tokenId);
+    require(_lockedAmount > 0, 'No existing lock found');
+    require(_lockedEnd > block.timestamp, 'Cannot add to expired lock. Withdraw');
+    _depositFor(DepositInfo(
+        _token,
+        _tokenId,
+        _value,
+        0,
+        _lockedAmount,
+        _lockedDerivedAmount,
+        _lockedEnd,
+        DepositType.DEPOSIT_FOR_TYPE
+      ));
   }
 
   /// @notice Deposit `_value` tokens for `_to` and lock for `_lock_duration`
+  /// @param _token Token for deposit. Should be whitelisted in this contract.
   /// @param _value Amount to deposit
   /// @param _lockDuration Number of seconds to lock tokens for (rounded down to nearest week)
   /// @param _to Address to deposit
-  function _createLock(uint _value, uint _lockDuration, address _to) internal returns (uint) {
+  function _createLock(address _token, uint _value, uint _lockDuration, address _to) internal returns (uint) {
     require(_value > 0, "zero value");
     // Lock time is rounded down to weeks
     uint unlockTime = (block.timestamp + _lockDuration) / WEEK * WEEK;
-    require(unlockTime > block.timestamp, 'Can only lock until time in the future');
+    require(unlockTime > block.timestamp, '1 week min lock period');
     require(unlockTime <= block.timestamp + MAX_TIME, 'Voting lock can be 1 year max');
 
     ++tokenId;
     uint _tokenId = tokenId;
     _mint(_to, _tokenId);
 
-    _depositFor(_tokenId, _value, unlockTime, locked[_tokenId], DepositType.CREATE_LOCK_TYPE);
+    (int128 _lockedAmount,int128 _lockedDerivedAmount,uint _lockedEnd) = _lockInfo(_token, _tokenId);
+
+    _depositFor(DepositInfo(
+        _token,
+        _tokenId,
+        _value,
+        unlockTime,
+        _lockedAmount,
+        _lockedDerivedAmount,
+        _lockedEnd,
+        DepositType.CREATE_LOCK_TYPE
+      ));
     return _tokenId;
   }
 
   /// @notice Deposit `_value` tokens for `_to` and lock for `_lock_duration`
+  /// @param _token Token for deposit. Should be whitelisted in this contract.
   /// @param _value Amount to deposit
   /// @param _lockDuration Number of seconds to lock tokens for (rounded down to nearest week)
   /// @param _to Address to deposit
-  function createLockFor(uint _value, uint _lockDuration, address _to)
+  function createLockFor(address _token, uint _value, uint _lockDuration, address _to)
   external nonReentrant override returns (uint) {
-    return _createLock(_value, _lockDuration, _to);
+    return _createLock(_token, _value, _lockDuration, _to);
   }
 
   /// @notice Deposit `_value` tokens for `msg.sender` and lock for `_lock_duration`
   /// @param _value Amount to deposit
   /// @param _lockDuration Number of seconds to lock tokens for (rounded down to nearest week)
-  function createLock(uint _value, uint _lockDuration) external nonReentrant returns (uint) {
-    return _createLock(_value, _lockDuration, msg.sender);
+  function createLock(address _token, uint _value, uint _lockDuration) external nonReentrant returns (uint) {
+    return _createLock(_token, _value, _lockDuration, msg.sender);
   }
 
   /// @notice Deposit `_value` additional tokens for `_tokenId` without modifying the unlock time
+  /// @param _token Token for deposit. Should be whitelisted in this contract.
+  /// @param _tokenId ve token ID
   /// @param _value Amount of tokens to deposit and add to the lock
-  function increaseAmount(uint _tokenId, uint _value) external nonReentrant {
-    LockedBalance memory _locked = locked[_tokenId];
-    require(_locked.amount > 0, 'No existing lock found');
-    require(_locked.end > block.timestamp, 'Cannot add to expired lock. Withdraw');
+  function increaseAmount(address _token, uint _tokenId, uint _value) external nonReentrant {
+    (int128 _lockedAmount,int128 _lockedDerivedAmount,uint _lockedEnd) = _lockInfo(_token, _tokenId);
+    require(_lockedAmount > 0, 'No existing lock found');
+    require(_lockedEnd > block.timestamp, 'Cannot add to expired lock. Withdraw');
     require(isApprovedOrOwner(msg.sender, _tokenId), "!owner");
     require(_value > 0, "zero value");
 
-    _depositFor(_tokenId, _value, 0, _locked, DepositType.INCREASE_LOCK_AMOUNT);
+    _depositFor(DepositInfo(
+        _token,
+        _tokenId,
+        _value,
+        0,
+        _lockedAmount,
+        _lockedDerivedAmount,
+        _lockedEnd,
+        DepositType.INCREASE_LOCK_AMOUNT
+      ));
   }
 
   /// @notice Extend the unlock time for `_tokenId`
+  /// @param _token Token for deposit. Should be whitelisted in this contract.
+  /// @param _tokenId ve token ID
   /// @param _lockDuration New number of seconds until tokens unlock
-  function increaseUnlockTime(uint _tokenId, uint _lockDuration) external nonReentrant {
-    LockedBalance memory _locked = locked[_tokenId];
+  function increaseUnlockTime(address _token, uint _tokenId, uint _lockDuration) external nonReentrant {
+    (int128 _lockedAmount,int128 _lockedDerivedAmount,uint _lockedEnd) = _lockInfo(_token, _tokenId);
     // Lock time is rounded down to weeks
     uint unlockTime = (block.timestamp + _lockDuration) / WEEK * WEEK;
-    require(_locked.amount > 0, 'Nothing is locked');
-    require(_locked.end > block.timestamp, 'Lock expired');
-    require(unlockTime > _locked.end, 'Can only increase lock duration');
+    require(_lockedAmount > 0, 'Nothing is locked');
+    require(_lockedEnd > block.timestamp, 'Lock expired');
+    require(unlockTime > _lockedEnd, 'Can only increase lock duration');
     require(unlockTime <= block.timestamp + MAX_TIME, 'Voting lock can be 1 year max');
     require(isApprovedOrOwner(msg.sender, _tokenId), "!owner");
 
-    _depositFor(_tokenId, 0, unlockTime, _locked, DepositType.INCREASE_UNLOCK_TIME);
+    _depositFor(DepositInfo(
+        _token,
+        _tokenId,
+        0,
+        unlockTime,
+        _lockedAmount,
+        _lockedDerivedAmount,
+        _lockedEnd,
+        DepositType.INCREASE_UNLOCK_TIME
+      ));
   }
 
   /// @notice Withdraw all tokens for `_tokenId`
   /// @dev Only possible if the lock has expired
-  function withdraw(uint _tokenId) external nonReentrant {
+  function withdraw(address stakingToken, uint _tokenId) external nonReentrant {
     require(isApprovedOrOwner(msg.sender, _tokenId), "!owner");
     require(attachments[_tokenId] == 0 && !voted[_tokenId], "attached");
-    LockedBalance memory _locked = locked[_tokenId];
-    require(block.timestamp >= _locked.end, "The lock did not expire");
 
-    uint value = uint(int256(_locked.amount));
-    locked[_tokenId] = LockedBalance(0, 0);
-    uint supplyBefore = supply;
-    supply = supplyBefore - value;
+    (int128 oldLockedAmount,int128 oldLockedDerivedAmount,uint oldLockedEnd) =
+    _lockInfo(stakingToken, _tokenId);
+    require(block.timestamp >= oldLockedEnd, "The lock did not expire");
+    require(oldLockedAmount > 0, "Zero locked");
 
-    // old_locked can have either expired <= timestamp or zero end
-    // _locked has only 0 end
-    // Both can have >= 0 amount
-    _checkpoint(_tokenId, _locked, LockedBalance(0, 0));
 
-    IERC20(token).safeTransfer(msg.sender, value);
+    int128 newLockedDerivedAmount = _calculateDerivedAmount(
+      oldLockedAmount,
+      oldLockedDerivedAmount,
+      0,
+      tokenWeights[stakingToken]
+    );
+
+    // if no tokens set lock to zero
+    uint newLockEnd = oldLockedEnd;
+    if (newLockedDerivedAmount == 0) {
+      lockedEnd[_tokenId] = 0;
+      newLockEnd = 0;
+    }
+
+    // update derived amount
+    lockedDerivedAmount[_tokenId] = newLockedDerivedAmount;
+
+    // set locked amount to zero, we will withdraw all
+    lockedAmounts[_tokenId][stakingToken] = 0;
+
+    // update supplied amount for token
+    uint supplyBefore = supply[stakingToken];
+    supply[stakingToken] = supplyBefore - uint(int256(oldLockedAmount));
+
+    // update checkpoint
+    _checkpoint(CheckpointInfo(
+        _tokenId,
+        oldLockedDerivedAmount,
+        newLockedDerivedAmount,
+        oldLockedEnd,
+        newLockEnd
+      ));
 
     // Burn the NFT
     _burn(_tokenId);
 
-    emit Withdraw(msg.sender, _tokenId, value, block.timestamp);
-    emit Supply(supplyBefore, supplyBefore - value);
+    IERC20(stakingToken).safeTransfer(msg.sender, uint(int256(oldLockedAmount)));
+
+
+    emit Withdraw(stakingToken, msg.sender, _tokenId, uint(int256(oldLockedAmount)), block.timestamp);
+    emit Supply(stakingToken, supplyBefore, supplyBefore - uint(int256(oldLockedAmount)));
   }
 
   // The following ERC20/minime-compatible methods are not real balanceOf and supply!
@@ -835,13 +984,14 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   /// @param _tokenId Token ID to fetch URI for.
   function tokenURI(uint _tokenId) external view override returns (string memory) {
     require(idToOwner[_tokenId] != address(0), "Query for nonexistent token");
-    LockedBalance memory _locked = locked[_tokenId];
+
+    uint _lockedEnd = lockedEnd[_tokenId];
     return
-    _tokenURI(
+    VeTetuLogo.tokenURI(
       _tokenId,
       _balanceOfNFT(_tokenId, block.timestamp),
-      _locked.end,
-      uint(int256(_locked.amount))
+      block.timestamp > _lockedEnd ? block.timestamp - _lockedEnd : 0,
+      uint(int256(lockedDerivedAmount[_tokenId]))
     );
   }
 
@@ -966,43 +1116,6 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     // Remove token
     _removeTokenFrom(msg.sender, _tokenId);
     emit Transfer(owner, address(0), _tokenId);
-  }
-
-  // *************************************************************
-  //                        URI
-  // *************************************************************
-
-  function _tokenURI(uint _tokenId, uint _balanceOf, uint _locked_end, uint _value) internal pure returns (string memory output) {
-    output = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900"><style>.base{font-size:40px;}</style><rect fill="#193180" width="600" height="900"/><path fill="#4899F8" d="M0,900h600V522.2C454.4,517.2,107.4,456.8,60.2,0H0V900z"/><circle fill="#1B184E" cx="385" cy="212" r="180"/><circle fill="#04A8F0" cx="385" cy="142" r="42"/><path fill-rule="evenodd" clip-rule="evenodd" fill="#686DF1" d="M385.6,208.8c43.1,0,78-34.9,78-78c-1.8-21.1,16.2-21.1,21.1-15.4c0.4,0.3,0.7,0.7,1.1,1.2c16.7,21.5,26.6,48.4,26.6,77.7c0,25.8-24.4,42.2-50.2,42.2H309c-25.8,0-50.2-16.4-50.2-42.2c0-29.3,9.9-56.3,26.6-77.7c0.3-0.4,0.7-0.8,1.1-1.2c4.9-5.7,22.9-5.7,21.1,15.4l0,0C307.6,173.9,342.5,208.8,385.6,208.8z"/><path fill="#04A8F0" d="M372.3,335.9l-35.5-51.2c-7.5-10.8,0.2-25.5,13.3-25.5h35.5h35.5c13.1,0,20.8,14.7,13.3,25.5l-35.5,51.2C392.5,345.2,378.7,345.2,372.3,335.9z"/>';
-    output = string(abi.encodePacked(output, '<text transform="matrix(1 0 0 1 50 464)" fill="#EAECFE" class="base">ID:</text><text transform="matrix(1 0 0 1 50 506)" fill="#97D0FF" class="base">', _toString(_tokenId), '</text>'));
-    output = string(abi.encodePacked(output, '<text transform="matrix(1 0 0 1 50 579)" fill="#EAECFE" class="base">Balance:</text><text transform="matrix(1 0 0 1 50 621)" fill="#97D0FF" class="base">', _toString(_balanceOf), '</text>'));
-    output = string(abi.encodePacked(output, '<text transform="matrix(1 0 0 1 50 695)" fill="#EAECFE" class="base">Locked end:</text><text transform="matrix(1 0 0 1 50 737)" fill="#97D0FF" class="base">', _toString(_locked_end), '</text>'));
-    output = string(abi.encodePacked(output, '<text transform="matrix(1 0 0 1 50 811)" fill="#EAECFE" class="base">Value:</text><text transform="matrix(1 0 0 1 50 853)" fill="#97D0FF" class="base">', _toString(_value), '</text></svg>'));
-
-    string memory json = Base64.encode(bytes(string(abi.encodePacked('{"name": "veDYST #', _toString(_tokenId), '", "description": "Locked TETU tokens", "image": "data:image/svg+xml;base64,', Base64.encode(bytes(output)), '"}'))));
-    output = string(abi.encodePacked('data:application/json;base64,', json));
-  }
-
-  function _toString(uint value) internal pure returns (string memory) {
-    // Inspired by OraclizeAPI's implementation - MIT license
-    // https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
-
-    if (value == 0) {
-      return "0";
-    }
-    uint temp = value;
-    uint digits;
-    while (temp != 0) {
-      digits++;
-      temp /= 10;
-    }
-    bytes memory buffer = new bytes(digits);
-    while (value != 0) {
-      digits -= 1;
-      buffer[digits] = bytes1(uint8(48 + uint(value % 10)));
-      value /= 10;
-    }
-    return string(buffer);
   }
 
 }

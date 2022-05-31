@@ -36,4 +36,13 @@ contract MockVoter {
     IVeTetu(ve).abstain(id);
   }
 
+  function detachTokenFromAll(uint tokenId, address) external {
+    while (ve.attachments(tokenId) > 0) {
+      ve.detachToken(tokenId);
+    }
+    if (ve.voted(tokenId)) {
+      IVeTetu(ve).abstain(tokenId);
+    }
+  }
+
 }

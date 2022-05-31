@@ -142,7 +142,7 @@ describe("multi gauge tests", function () {
   // ************* ATTACH/DETACH
 
   it("attach/detach test", async function () {
-    await ve.createLock(parseUnits('1'), LOCK_PERIOD);
+    await ve.createLock(tetu.address, parseUnits('1'), LOCK_PERIOD);
     await gauge.attachVe(stakingToken.address, owner.address, 1)
     expect(await ve.attachments(1)).eq(1);
     await gauge.detachVe(stakingToken.address, owner.address, 1)
@@ -150,7 +150,7 @@ describe("multi gauge tests", function () {
   });
 
   it("attach and full withdraw test", async function () {
-    await ve.createLock(parseUnits('1'), LOCK_PERIOD);
+    await ve.createLock(tetu.address, parseUnits('1'), LOCK_PERIOD);
     await gauge.attachVe(stakingToken.address, owner.address, 1)
     expect(await ve.attachments(1)).eq(1);
     await stakingToken.transfer(user.address, FULL_AMOUNT);
@@ -162,14 +162,14 @@ describe("multi gauge tests", function () {
   });
 
   it("attach for wrong token revert", async function () {
-    await ve.createLock(parseUnits('1'), LOCK_PERIOD);
+    await ve.createLock(tetu.address, parseUnits('1'), LOCK_PERIOD);
     await expect(gauge.attachVe(rewardToken2.address, owner.address, 1)).revertedWith("Wrong staking token");
   });
 
   it("attach for wrong ve revert", async function () {
-    await ve.createLock(parseUnits('1'), LOCK_PERIOD);
+    await ve.createLock(tetu.address, parseUnits('1'), LOCK_PERIOD);
     await gauge.attachVe(stakingToken.address, owner.address, 1);
-    await ve.createLock(parseUnits('1'), LOCK_PERIOD);
+    await ve.createLock(tetu.address, parseUnits('1'), LOCK_PERIOD);
     await expect(gauge.attachVe(stakingToken.address, owner.address, 2)).revertedWith("Wrong ve");
   });
 
@@ -178,14 +178,14 @@ describe("multi gauge tests", function () {
   });
 
   it("detach for wrong token revert", async function () {
-    await ve.createLock(parseUnits('1'), LOCK_PERIOD);
+    await ve.createLock(tetu.address, parseUnits('1'), LOCK_PERIOD);
     await expect(gauge.detachVe(rewardToken2.address, owner.address, 1)).revertedWith("Wrong staking token");
   });
 
   it("detach for wrong ve revert", async function () {
-    await ve.createLock(parseUnits('1'), LOCK_PERIOD);
+    await ve.createLock(tetu.address, parseUnits('1'), LOCK_PERIOD);
     await gauge.attachVe(stakingToken.address, owner.address, 1);
-    await ve.createLock(parseUnits('1'), LOCK_PERIOD);
+    await ve.createLock(tetu.address, parseUnits('1'), LOCK_PERIOD);
     await expect(gauge.detachVe(stakingToken.address, owner.address, 2)).revertedWith("Wrong ve");
   });
 

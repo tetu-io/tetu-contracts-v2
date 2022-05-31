@@ -62,7 +62,7 @@ contract TetuVoter is IVoter, ReentrancyGuard {
 
   constructor(address _ve) {
     ve = _ve;
-    token = IVeTetu(_ve).token();
+    token = IVeTetu(_ve).tokens(0);
   }
 
   /// @dev Amount of tokens required to be hold for whitelisting.
@@ -234,7 +234,7 @@ contract TetuVoter is IVoter, ReentrancyGuard {
   //  }
 
   /// @dev A gauge should be able to attach a token for preventing transfers/withdraws.
-  function attachTokenToGauge(uint tokenId, address account) external override {
+  function attachTokenToGauge(address, uint tokenId, address account) external override {
     require(isGauge[msg.sender], "!gauge");
     if (tokenId > 0) {
       IVeTetu(ve).attachToken(tokenId);
@@ -249,12 +249,18 @@ contract TetuVoter is IVoter, ReentrancyGuard {
   }
 
   /// @dev Detach given token.
-  function detachTokenFromGauge(uint tokenId, address account) external override {
+  function detachTokenFromGauge(address, uint tokenId, address account) external override {
     require(isGauge[msg.sender], "!gauge");
     if (tokenId > 0) {
       IVeTetu(ve).detachToken(tokenId);
     }
     emit Detach(account, msg.sender, tokenId);
+  }
+
+  /// @dev Detach given token from all gauges and votes
+  function detachTokenFromAll(uint , address ) external view override {
+    require(msg.sender == ve, "!ve");
+    // todo
   }
 
   /// @dev Emit withdraw event for easily handling external actions.

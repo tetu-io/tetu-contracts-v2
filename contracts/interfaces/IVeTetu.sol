@@ -22,18 +22,17 @@ interface IVeTetu {
   * and per block could be fairly bad b/c Ethereum changes blocktimes.
   * What we can do is to extrapolate ***At functions */
 
-  struct LockedBalance {
-    int128 amount;
-    uint end;
-  }
+  function attachments(uint tokenId) external view returns (uint);
 
-  function token() external view returns (address);
+  function voted(uint tokenId) external view returns (bool);
+
+  function tokens(uint idx) external view returns (address);
 
   function balanceOfNFT(uint) external view returns (uint);
 
   function isApprovedOrOwner(address, uint) external view returns (bool);
 
-  function createLockFor(uint, uint, address) external returns (uint);
+  function createLockFor(address _token, uint, uint, address) external returns (uint);
 
   function userPointEpoch(uint tokenId) external view returns (uint);
 
@@ -45,7 +44,7 @@ interface IVeTetu {
 
   function checkpoint() external;
 
-  function depositFor(uint tokenId, uint value) external;
+  function depositFor(address _token, uint _tokenId, uint _value) external;
 
   function attachToken(uint tokenId) external;
 

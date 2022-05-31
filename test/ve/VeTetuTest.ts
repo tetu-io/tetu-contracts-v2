@@ -42,8 +42,8 @@ describe("veTETU tests", function () {
     await tetu.mint(owner2.address, parseUnits('100'));
     await tetu.approve(ve.address, Misc.MAX_UINT);
     await tetu.connect(owner2).approve(ve.address, Misc.MAX_UINT);
-    await ve.createLock(parseUnits('1'), LOCK_PERIOD);
-    await ve.connect(owner2).createLock(parseUnits('1'), LOCK_PERIOD);
+    await ve.createLock(tetu.address, parseUnits('1'), LOCK_PERIOD);
+    await ve.connect(owner2).createLock(tetu.address, parseUnits('1'), LOCK_PERIOD);
 
     await ve.setApprovalForAll(pawnshop.address, true);
     await ve.connect(owner2).setApprovalForAll(pawnshop.address, true);
@@ -67,8 +67,8 @@ describe("veTETU tests", function () {
   });
 
   it("double transfer with multiple tokens test", async function () {
-    await ve.createLock(parseUnits('1'), LOCK_PERIOD);
-    await ve.createLock(parseUnits('1'), LOCK_PERIOD);
+    await ve.createLock(tetu.address, parseUnits('1'), LOCK_PERIOD);
+    await ve.createLock(tetu.address, parseUnits('1'), LOCK_PERIOD);
     await pawnshop.doubleTransfer(ve.address, owner.address, pawnshop.address, 1)
   });
 
@@ -86,7 +86,7 @@ describe("veTETU tests", function () {
   it("transfer from not owner revert", async function () {
     await tetu.mint(owner3.address, parseUnits('100'));
     await tetu.connect(owner3).approve(ve.address, Misc.MAX_UINT);
-    await ve.connect(owner3).createLock(parseUnits('1'), LOCK_PERIOD);
+    await ve.connect(owner3).createLock(tetu.address, parseUnits('1'), LOCK_PERIOD);
     await expect(pawnshop.transfer(ve.address, owner3.address, pawnshop.address, 3)).revertedWith('!owner sender')
   });
 
@@ -101,9 +101,14 @@ describe("veTETU tests", function () {
     await pawnshop.transfer(ve.address, pawnshop.address, owner.address, 1);
   });
 
-  it("transferFrom with attached token revert test", async function () {
+  it("transferFrom with attached token auto detach test", async function () {
     await voter.attachTokenToGauge(1, Misc.ZERO_ADDRESS);
-    await expect(pawnshop.transfer(ve.address, owner.address, pawnshop.address, 1)).revertedWith('attached')
+    await voter.voting(1);
+    expect(await ve.attachments(1)).eq(1)
+    expect(await ve.voted(1)).eq(true)
+    await pawnshop.transfer(ve.address, owner.address, pawnshop.address, 1)
+    expect(await ve.attachments(1)).eq(0);
+    expect(await ve.voted(1)).eq(false);
   });
 
   it("transferFrom not owner revert test", async function () {
@@ -143,7 +148,7 @@ describe("veTETU tests", function () {
   });
 
   it("mint to zero dst revert test", async function () {
-    await expect(ve.createLockFor(1, LOCK_PERIOD, Misc.ZERO_ADDRESS)).revertedWith('zero dst')
+    await expect(ve.createLockFor(tetu.address, 1, LOCK_PERIOD, Misc.ZERO_ADDRESS)).revertedWith('zero dst')
   });
 
   it("voting revert", async function () {
@@ -171,96 +176,96 @@ describe("veTETU tests", function () {
   });
 
   it("deposit for test", async function () {
-    await ve.depositFor(1, parseUnits('1'));
+    await ve.depositFor(tetu.address, 1, parseUnits('1'));
   });
 
   it("deposit for test", async function () {
-    await ve.increaseAmount(1, parseUnits('1'));
+    await ve.increaseAmount(tetu.address, 1, parseUnits('1'));
   });
 
   it("deposit zero revert", async function () {
-    await expect(ve.depositFor(1, 0)).revertedWith('zero value')
+    await expect(ve.depositFor(tetu.address, 1, 0)).revertedWith('zero value')
   });
 
   it("deposit for not locked revert", async function () {
-    await expect(ve.depositFor(99, 1)).revertedWith('No existing lock found')
+    await expect(ve.depositFor(tetu.address, 99, 1)).revertedWith('No existing lock found')
   });
 
   it("deposit for expired revert", async function () {
     await voter.attachTokenToGauge(1, Misc.ZERO_ADDRESS);
     await TimeUtils.advanceBlocksOnTs(LOCK_PERIOD * 2);
-    await expect(ve.depositFor(1, 1)).revertedWith('Cannot add to expired lock. Withdraw')
+    await expect(ve.depositFor(tetu.address, 1, 1)).revertedWith('Cannot add to expired lock. Withdraw')
   });
 
   it("create lock zero value revert", async function () {
-    await expect(ve.createLock(0, 1)).revertedWith('zero value')
+    await expect(ve.createLock(tetu.address, 0, 1)).revertedWith('zero value')
   });
 
   it("create lock zero period revert", async function () {
-    await expect(ve.createLock(1, 0)).revertedWith('Can only lock until time in the future')
+    await expect(ve.createLock(tetu.address, 1, 0)).revertedWith('1 week min lock period')
   });
 
   it("create lock too big period revert", async function () {
-    await expect(ve.createLock(1, 1e12)).revertedWith('Voting lock can be 1 year max')
+    await expect(ve.createLock(tetu.address, 1, 1e12)).revertedWith('Voting lock can be 1 year max')
   });
 
   it("increaseAmount not owner revert", async function () {
-    await expect(ve.increaseAmount(2, 1)).revertedWith('!owner')
+    await expect(ve.increaseAmount(tetu.address, 2, 1)).revertedWith('!owner')
   });
 
   it("increaseAmount zero value revert", async function () {
-    await expect(ve.increaseAmount(1, 0)).revertedWith('zero value')
+    await expect(ve.increaseAmount(tetu.address, 1, 0)).revertedWith('zero value')
   });
 
   it("increaseAmount not locked revert", async function () {
     await TimeUtils.advanceBlocksOnTs(LOCK_PERIOD * 2);
-    await ve.withdraw(1);
-    await expect(ve.increaseAmount(1, 1)).revertedWith('No existing lock found')
+    await ve.withdraw(tetu.address, 1);
+    await expect(ve.increaseAmount(tetu.address, 1, 1)).revertedWith('No existing lock found')
   });
 
   it("increaseAmount expired revert", async function () {
     await TimeUtils.advanceBlocksOnTs(LOCK_PERIOD * 2);
-    await expect(ve.increaseAmount(1, 1)).revertedWith('Cannot add to expired lock. Withdraw')
+    await expect(ve.increaseAmount(tetu.address, 1, 1)).revertedWith('Cannot add to expired lock. Withdraw')
   });
 
   it("increaseUnlockTime not owner revert", async function () {
     await TimeUtils.advanceBlocksOnTs(WEEK * 10);
-    await expect(ve.increaseUnlockTime(2, LOCK_PERIOD)).revertedWith('!owner')
+    await expect(ve.increaseUnlockTime(tetu.address, 2, LOCK_PERIOD)).revertedWith('!owner')
   });
 
   it("increaseUnlockTime lock expired revert", async function () {
     await voter.attachTokenToGauge(1, Misc.ZERO_ADDRESS);
     await TimeUtils.advanceBlocksOnTs(LOCK_PERIOD * 2);
-    await expect(ve.increaseUnlockTime(1, 1)).revertedWith('Lock expired')
+    await expect(ve.increaseUnlockTime(tetu.address, 1, 1)).revertedWith('Lock expired')
   });
 
   it("increaseUnlockTime not locked revert", async function () {
     await TimeUtils.advanceBlocksOnTs(LOCK_PERIOD * 2);
-    await ve.withdraw(1);
-    await expect(ve.increaseUnlockTime(1, LOCK_PERIOD)).revertedWith('Nothing is locked')
+    await ve.withdraw(tetu.address, 1);
+    await expect(ve.increaseUnlockTime(tetu.address, 1, LOCK_PERIOD)).revertedWith('Nothing is locked')
   });
 
   it("increaseUnlockTime zero extend revert", async function () {
     await voter.attachTokenToGauge(1, Misc.ZERO_ADDRESS);
-    await expect(ve.increaseUnlockTime(1, 0)).revertedWith('Can only increase lock duration')
+    await expect(ve.increaseUnlockTime(tetu.address, 1, 0)).revertedWith('Can only increase lock duration')
   });
 
   it("increaseUnlockTime too big extend revert", async function () {
     await voter.attachTokenToGauge(1, Misc.ZERO_ADDRESS);
-    await expect(ve.increaseUnlockTime(1, 1e12)).revertedWith('Voting lock can be 1 year max')
+    await expect(ve.increaseUnlockTime(tetu.address, 1, 1e12)).revertedWith('Voting lock can be 1 year max')
   });
 
   it("withdraw not owner revert", async function () {
-    await expect(ve.withdraw(2)).revertedWith('!owner')
+    await expect(ve.withdraw(tetu.address, 2)).revertedWith('!owner')
   });
 
   it("withdraw attached revert", async function () {
     await voter.attachTokenToGauge(1, Misc.ZERO_ADDRESS);
-    await expect(ve.withdraw(1)).revertedWith('attached');
+    await expect(ve.withdraw(tetu.address, 1)).revertedWith('attached');
   });
 
   it("withdraw not expired revert", async function () {
-    await expect(ve.withdraw(1)).revertedWith('The lock did not expire');
+    await expect(ve.withdraw(tetu.address, 1)).revertedWith('The lock did not expire');
   });
 
   it("balanceOfNFT zero epoch test", async function () {
@@ -352,8 +357,8 @@ describe("veTETU tests", function () {
 
   it("increase_unlock_time test", async function () {
     await TimeUtils.advanceBlocksOnTs(WEEK * 10);
-    await ve.increaseUnlockTime(1, LOCK_PERIOD);
-    await expect(ve.increaseUnlockTime(1, LOCK_PERIOD * 2)).revertedWith('Voting lock can be 1 year max');
+    await ve.increaseUnlockTime(tetu.address, 1, LOCK_PERIOD);
+    await expect(ve.increaseUnlockTime(tetu.address, 1, LOCK_PERIOD * 2)).revertedWith('Voting lock can be 1 year max');
   });
 
   it("tokenURI test", async function () {
@@ -366,6 +371,10 @@ describe("veTETU tests", function () {
 
   it("ve flesh transfer + supply checks", async function () {
     await pawnshop.veFlashTransfer(ve.address, 1);
+  });
+
+  it("ve flesh transfer + supply checks", async function () {
+    await expect(ve.createLock(owner.address, parseUnits('1'), LOCK_PERIOD)).revertedWith('Not valid token');
   });
 
 });

@@ -25,7 +25,9 @@ const hre = require("hardhat");
 const log: Logger = new Logger(logSettings);
 
 
-const libraries = new Map<string, string>([]);
+const libraries = new Map<string, string>([
+  ['VeTetu', 'VeTetuLogo']
+]);
 
 export class DeployerUtils {
 
