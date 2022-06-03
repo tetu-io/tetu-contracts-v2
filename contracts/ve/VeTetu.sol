@@ -45,6 +45,8 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   //                        CONSTANTS
   // *************************************************************
 
+  /// @dev Version of this contract. Adjust manually on each code modification.
+  string public constant VE_VERSION = "1.0.0";
   uint internal constant WEEK = 1 weeks;
   uint internal constant MAX_TIME = 1 * 365 * 86400;
   int128 internal constant I_MAX_TIME = 1 * 365 * 86400;

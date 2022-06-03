@@ -123,7 +123,8 @@ contract MultiGauge is StakelessMultiPoolBase, ControllableV3, IGauge {
   }
 
   function detachVe(address stakingToken, address account, uint veId) external override {
-    require(IERC721(ve).ownerOf(veId) == account, "Not ve token owner");
+    require(IERC721(ve).ownerOf(veId) == account
+      || msg.sender == address(voter), "Not ve token owner or voter");
     require(isStakeToken(stakingToken), "Wrong staking token");
 
     _updateRewardForAllTokens(stakingToken);

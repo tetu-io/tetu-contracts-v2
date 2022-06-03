@@ -36,6 +36,10 @@ interface IController {
 
   function vaults(address _target) external view returns (bool);
 
+  function vaultsList() external view returns (address[] memory);
+
+  function vaultsListLength() external view returns (uint);
+
   function strategies(address _target) external view returns (bool);
 
   function psNumerator() external view returns (uint256);

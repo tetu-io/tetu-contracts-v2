@@ -13,41 +13,65 @@ import "../interfaces/IBribe.sol";
 import "../interfaces/IMultiPool.sol";
 import "../openzeppelin/SafeERC20.sol";
 import "../openzeppelin/ReentrancyGuard.sol";
+import "../proxy/ControllableV3.sol";
+import "../openzeppelin/EnumerableSet.sol";
 
-contract TetuVoter is IVoter, ReentrancyGuard {
+contract TetuVoter is ReentrancyGuard, ControllableV3 {
   using SafeERC20 for IERC20;
+  using EnumerableSet for EnumerableSet.AddressSet;
+
+  // *************************************************************
+  //                        CONSTANTS
+  // *************************************************************
+
+  /// @dev Version of this contract. Adjust manually on each code modification.
+  string public constant VOTER_VERSION = "1.0.0";
+  /// @dev Rewards are released over 7 days
+  uint internal constant _DURATION = 7 days;
+  uint internal constant _MAX_VOTES = 10;
+
+  // *************************************************************
+  //                        VARIABLES
+  //                Keep names and ordering!
+  //                 Add only in the bottom.
+  // *************************************************************
 
   /// @dev The ve token that governs these contracts
-  address public immutable override ve;
-  address public immutable token;
-  /// @dev Rewards are released over 7 days
-  uint internal constant DURATION = 7 days;
+  address public ve;
+  address public token;
+  address public gauge;
+  address public bribe;
+
+  // --- VOTES
 
   /// @dev Total voting weight
   uint public totalWeight;
-
-  /// @dev All tokens viable for incentives
-  address[] public stakingTokens;
-  /// @dev pool => gauge
-  mapping(address => address) public gauges;
-  /// @dev gauge => pool
-  mapping(address => address) public poolForGauge;
-  /// @dev gauge => bribe
-  mapping(address => address) public bribes;
-  /// @dev pool => weight
+  /// @dev vault => weight
   mapping(address => int256) public weights;
-  /// @dev nft => pool => votes
+  /// @dev nft => vault => votes
   mapping(uint => mapping(address => int256)) public votes;
-  /// @dev nft => pools
-  mapping(uint => address[]) public poolVote;
+  /// @dev nft => vaults addresses voted for
+  mapping(uint => address[]) public vaultsVotes;
   /// @dev nft => total voting weight of user
   mapping(uint => uint) public usedWeights;
-  mapping(address => bool) public isGauge;
-  mapping(address => bool) public isWhitelisted;
 
+  // --- ATTACHMENTS
+
+  /// @dev veId => Attached staking token
+  mapping(uint => EnumerableSet.AddressSet) private attachedStakingTokens;
+
+  // --- REWARDS
+
+  /// @dev Global index for accumulated distro
   uint public index;
+  /// @dev vault => Saved global index for accumulated distro
   mapping(address => uint) public supplyIndex;
+  /// @dev vault => Available to distribute reward amount
   mapping(address => uint) public claimable;
+
+  // *************************************************************
+  //                        EVENTS
+  // *************************************************************
 
   event GaugeCreated(address indexed gauge, address creator, address indexed bribe, address indexed pool);
   event Voted(address indexed voter, uint tokenId, int256 weight);
@@ -56,106 +80,58 @@ contract TetuVoter is IVoter, ReentrancyGuard {
   event Withdraw(address indexed lp, address indexed gauge, uint tokenId, uint amount);
   event NotifyReward(address indexed sender, address indexed reward, uint amount);
   event DistributeReward(address indexed sender, address indexed gauge, uint amount);
-  event Attach(address indexed owner, address indexed gauge, uint tokenId);
-  event Detach(address indexed owner, address indexed gauge, uint tokenId);
+  event Attach(address indexed owner, address indexed gauge, address indexed stakingToken, uint tokenId);
+  event Detach(address indexed owner, address indexed gauge, address indexed stakingToken, uint tokenId);
   event Whitelisted(address indexed whitelister, address indexed token);
 
-  constructor(address _ve) {
+  // *************************************************************
+  //                        INIT
+  // *************************************************************
+
+  function init(
+    address controller,
+    address _ve,
+    address _rewardToken,
+    address _gauge,
+    address _bribe
+  ) external initializer {
+    __Controllable_init(controller);
     ve = _ve;
-    token = IVeTetu(_ve).tokens(0);
+    token = _rewardToken;
+    gauge = _gauge;
+    bribe = _bribe;
   }
 
-  /// @dev Amount of tokens required to be hold for whitelisting.
-  function listingFee() external view returns (uint) {
-    return _listingFee();
+  // *************************************************************
+  //                        VIEWS
+  // *************************************************************
+
+  function isVault(address _vault) public view returns (bool) {
+    return IController(controller()).isValidVault(_vault);
   }
 
-  /// @dev 20% of circulation supply.
-  function _listingFee() internal view returns (uint) {
-    return (IERC20(token).totalSupply() - IERC20(ve).totalSupply()) / 5;
+  function validVaults() public view returns (address[] memory) {
+    return IController(controller()).vaultsList();
   }
+
+  function validVaultsLength() public view returns (uint) {
+    return IController(controller()).vaultsListLength();
+  }
+
+  // *************************************************************
+  //                     GOV ACTIONS
+  // *************************************************************
+
+  // *************************************************************
+  //                        VOTES
+  // *************************************************************
 
   /// @dev Remove all votes for given tokenId.
+  ///      Ve token should be able to remove votes on transfer/withdraw
   function reset(uint _tokenId) external {
-    require(IVeTetu(ve).isApprovedOrOwner(msg.sender, _tokenId), "!owner");
+    require(IVeTetu(ve).isApprovedOrOwner(msg.sender, _tokenId) || msg.sender == ve, "!owner");
     _reset(_tokenId);
     IVeTetu(ve).abstain(_tokenId);
-  }
-
-  function _reset(uint _tokenId) internal {
-    address[] storage _poolVote = poolVote[_tokenId];
-    uint _poolVoteCnt = _poolVote.length;
-    int256 _totalWeight = 0;
-
-    for (uint i = 0; i < _poolVoteCnt; i ++) {
-      address _pool = _poolVote[i];
-      int256 _votes = votes[_tokenId][_pool];
-      _updateFor(gauges[_pool]);
-      weights[_pool] -= _votes;
-      votes[_tokenId][_pool] -= _votes;
-      if (_votes > 0) {
-        IBribe(bribes[gauges[_pool]])._withdraw(uint(_votes), _tokenId);
-        _totalWeight += _votes;
-      } else {
-        _totalWeight -= _votes;
-      }
-      emit Abstained(_tokenId, _votes);
-    }
-    totalWeight -= uint(_totalWeight);
-    usedWeights[_tokenId] = 0;
-    delete poolVote[_tokenId];
-  }
-
-  /// @dev Resubmit exist votes for given token. For internal purposes.
-  function poke(uint _tokenId) external {
-    address[] memory _poolVote = poolVote[_tokenId];
-    uint _poolCnt = _poolVote.length;
-    int256[] memory _weights = new int256[](_poolCnt);
-
-    for (uint i = 0; i < _poolCnt; i ++) {
-      _weights[i] = votes[_tokenId][_poolVote[i]];
-    }
-
-    _vote(_tokenId, _poolVote, _weights);
-  }
-
-  function _vote(uint _tokenId, address[] memory _poolVote, int256[] memory _weights) internal {
-    _reset(_tokenId);
-    uint _poolCnt = _poolVote.length;
-    int256 _weight = int256(IVeTetu(ve).balanceOfNFT(_tokenId));
-    int256 _totalVoteWeight = 0;
-    int256 _totalWeight = 0;
-    int256 _usedWeight = 0;
-
-    for (uint i = 0; i < _poolCnt; i++) {
-      _totalVoteWeight += _weights[i] > 0 ? _weights[i] : - _weights[i];
-    }
-
-    for (uint i = 0; i < _poolCnt; i++) {
-      address _pool = _poolVote[i];
-      address _gauge = gauges[_pool];
-
-      int256 _poolWeight = _weights[i] * _weight / _totalVoteWeight;
-      require(votes[_tokenId][_pool] == 0, "duplicate pool");
-      require(_poolWeight != 0, "zero power");
-      _updateFor(_gauge);
-
-      poolVote[_tokenId].push(_pool);
-
-      weights[_pool] += _poolWeight;
-      votes[_tokenId][_pool] += _poolWeight;
-      if (_poolWeight > 0) {
-        IBribe(bribes[_gauge])._deposit(uint(_poolWeight), _tokenId);
-      } else {
-        _poolWeight = - _poolWeight;
-      }
-      _usedWeight += _poolWeight;
-      _totalWeight += _poolWeight;
-      emit Voted(msg.sender, _tokenId, _poolWeight);
-    }
-    if (_usedWeight > 0) IVeTetu(ve).voting(_tokenId);
-    totalWeight += uint(_totalWeight);
-    usedWeights[_tokenId] = uint(_usedWeight);
   }
 
   /// @dev Vote for given pools using a vote power of given tokenId. Reset previous votes.
@@ -165,117 +141,169 @@ contract TetuVoter is IVoter, ReentrancyGuard {
     _vote(tokenId, _poolVote, _weights);
   }
 
-  /// @dev Add token to whitelist. Only pools with whitelisted tokens can be added to gauge.
-  function whitelist(address _token, uint _tokenId) external {
-    require(_tokenId > 0, "!token");
-    require(msg.sender == IERC721(ve).ownerOf(_tokenId), "!owner");
-    require(IVeTetu(ve).balanceOfNFT(_tokenId) > _listingFee(), "!power");
-    _whitelist(_token);
+  function _vote(uint _tokenId, address[] memory _vaultVotes, int256[] memory _weights) internal {
+    _reset(_tokenId);
+    uint length = _vaultVotes.length;
+
+    require(length <= _MAX_VOTES, "Too many votes");
+
+    int256 _weight = int256(IVeTetu(ve).balanceOfNFT(_tokenId));
+    int256 _totalVoteWeight = 0;
+    int256 _totalWeight = 0;
+    int256 _usedWeight = 0;
+
+    for (uint i = 0; i < length; i++) {
+      _totalVoteWeight += _weights[i] > 0 ? _weights[i] : - _weights[i];
+    }
+
+    for (uint i = 0; i < length; i++) {
+      address _vault = _vaultVotes[i];
+      require(isVault(_vault), "Invalid vault");
+
+      int256 _vaultWeight = _weights[i] * _weight / _totalVoteWeight;
+      require(votes[_tokenId][_vault] == 0, "duplicate vault");
+      require(_vaultWeight != 0, "zero power");
+      _updateFor(_vault);
+
+      vaultsVotes[_tokenId].push(_vault);
+
+      weights[_vault] += _vaultWeight;
+      votes[_tokenId][_vault] += _vaultWeight;
+      if (_vaultWeight > 0) {
+        IBribe(bribe)._deposit(_vault, uint(_vaultWeight), _tokenId);
+      } else {
+        _vaultWeight = - _vaultWeight;
+      }
+      _usedWeight += _vaultWeight;
+      _totalWeight += _vaultWeight;
+      emit Voted(msg.sender, _tokenId, _vaultWeight);
+    }
+    if (_usedWeight > 0) IVeTetu(ve).voting(_tokenId);
+    totalWeight += uint(_totalWeight);
+    usedWeights[_tokenId] = uint(_usedWeight);
   }
 
-  function _whitelist(address _token) internal {
-    require(!isWhitelisted[_token], "already whitelisted");
-    isWhitelisted[_token] = true;
-    emit Whitelisted(msg.sender, _token);
+  /// @dev Remove all votes for given veId
+  function _reset(uint _tokenId) internal {
+    address[] storage _vaultsVotes = vaultsVotes[_tokenId];
+    uint length = _vaultsVotes.length;
+    int256 _totalWeight = 0;
+
+    for (uint i = 0; i < length; i ++) {
+      address _vault = _vaultsVotes[i];
+      int256 _votes = votes[_tokenId][_vault];
+      _updateFor(_vault);
+      weights[_vault] -= _votes;
+      votes[_tokenId][_vault] = 0;
+      if (_votes > 0) {
+        IBribe(bribe)._withdraw(_vault, uint(_votes), _tokenId);
+        _totalWeight += _votes;
+      } else {
+        _totalWeight -= _votes;
+      }
+      emit Abstained(_tokenId, _votes);
+    }
+    totalWeight -= uint(_totalWeight);
+    usedWeights[_tokenId] = 0;
+    delete vaultsVotes[_tokenId];
   }
 
-  /// @dev Add a token to a pool as possible reward.
-  function registerRewardToken(
-    address stakingToken,
-    address rewardToken,
-    address pool,
-    uint _tokenId
-  ) external {
-    require(_tokenId > 0, "!token");
-    require(msg.sender == IERC721(ve).ownerOf(_tokenId), "!owner");
-    require(IVeTetu(ve).balanceOfNFT(_tokenId) > _listingFee(), "!power");
-    IMultiPool(pool).registerRewardToken(stakingToken, rewardToken);
-  }
-
-  /// @dev Remove a token from a pool allowed rewards list.
-  function removeRewardToken(
-    address stakingToken,
-    address rewardToken,
-    address pool,
-    uint _tokenId
-  ) external {
-    require(_tokenId > 0, "!token");
-    require(msg.sender == IERC721(ve).ownerOf(_tokenId), "!owner");
-    require(IVeTetu(ve).balanceOfNFT(_tokenId) > _listingFee(), "!power");
-    IMultiPool(pool).removeRewardToken(stakingToken, rewardToken);
-  }
-
-  //  /// @dev Create gauge for given pool. Only for a pool with whitelisted tokens.
-  //  function createGauge(address stakingToken) external returns (address) {
-  //    require(gauges[stakingToken] == address(0x0), "exists");
-  //    //todo
-  //    //    require(IFactory(factory).isPair(_pool), "!pool");
-  //    //    (address tokenA, address tokenB) = IPair(_pool).tokens();
-  //    //    require(isWhitelisted[tokenA] && isWhitelisted[tokenB], "!whitelisted");
-  //
-  //    address[] memory allowedRewards = new address[](3);
-  //    //    allowedRewards[0] = tokenA;
-  //    //    allowedRewards[1] = tokenB;
-  //    //    if (token != tokenA && token != tokenB) {
-  //    //      allowedRewards[2] = token;
-  //    //    }
-  //
-  //    address _bribe = IBribeFactory(bribeFactory).createBribe(allowedRewards);
-  //    address _gauge = IGaugeFactory(gaugeFactory).createGauge(stakingToken, _bribe, ve, allowedRewards);
-  //    IERC20(token).safeIncreaseAllowance(_gauge, type(uint).max);
-  //    bribes[_gauge] = _bribe;
-  //    gauges[stakingToken] = _gauge;
-  //    poolForGauge[_gauge] = stakingToken;
-  //    isGauge[_gauge] = true;
-  //    _updateFor(_gauge);
-  //    stakingTokens.push(stakingToken);
-  //    emit GaugeCreated(_gauge, msg.sender, _bribe, stakingToken);
-  //    return _gauge;
-  //  }
+  // *************************************************************
+  //                        ATTACH/DETACH
+  // *************************************************************
 
   /// @dev A gauge should be able to attach a token for preventing transfers/withdraws.
-  function attachTokenToGauge(address, uint tokenId, address account) external override {
-    require(isGauge[msg.sender], "!gauge");
+  function attachTokenToGauge(address stakingToken, uint tokenId, address account) external  {
+    require(gauge == msg.sender, "!gauge");
     if (tokenId > 0) {
       IVeTetu(ve).attachToken(tokenId);
+      require(attachedStakingTokens[tokenId].add(stakingToken), "Already attached");
     }
-    emit Attach(account, msg.sender, tokenId);
-  }
-
-  /// @dev Emit deposit event for easily handling external actions.
-  function emitDeposit(uint tokenId, address account, uint amount) external override {
-    require(isGauge[msg.sender], "!gauge");
-    emit Deposit(account, msg.sender, tokenId, amount);
+    emit Attach(account, msg.sender, stakingToken, tokenId);
   }
 
   /// @dev Detach given token.
-  function detachTokenFromGauge(address, uint tokenId, address account) external override {
-    require(isGauge[msg.sender], "!gauge");
+  function detachTokenFromGauge(address stakingToken, uint tokenId, address account) external  {
+    require(gauge == msg.sender, "!gauge");
     if (tokenId > 0) {
       IVeTetu(ve).detachToken(tokenId);
+      require(attachedStakingTokens[tokenId].remove(stakingToken), "Attach not found");
     }
-    emit Detach(account, msg.sender, tokenId);
+    emit Detach(account, msg.sender, stakingToken, tokenId);
   }
 
   /// @dev Detach given token from all gauges and votes
-  function detachTokenFromAll(uint , address ) external view override {
+  ///      It could be pretty expensive call.
+  ///      Need to have restrictions for max attached tokens and votes.
+  function detachTokenFromAll(uint tokenId, address account) external  {
     require(msg.sender == ve, "!ve");
-    // todo
+
+    _reset(tokenId);
+
+    EnumerableSet.AddressSet storage tokens = attachedStakingTokens[tokenId];
+    uint length = tokens.length();
+    for (uint i; i < length; ++i) {
+      address stakingToken = tokens.at(i);
+      IGauge(gauge).detachVe(stakingToken, account, tokenId);
+    }
   }
 
-  /// @dev Emit withdraw event for easily handling external actions.
-  function emitWithdraw(uint tokenId, address account, uint amount) external override {
-    require(isGauge[msg.sender], "!gauge");
-    emit Withdraw(account, msg.sender, tokenId, amount);
+  // *************************************************************
+  //                    UPDATE INDEXES
+  // *************************************************************
+
+  /// @dev Update given vaults.
+  function updateFor(address[] memory _vaults) external {
+    for (uint i = 0; i < _vaults.length; i++) {
+      _updateFor(_vaults[i]);
+    }
   }
 
-  /// @dev Length of staking tokens
-  function stakingTokensLength() external view returns (uint) {
-    return stakingTokens.length;
+  /// @dev Update vaults by indexes in a range.
+  function updateForRange(uint start, uint end) public {
+    address[] memory _vaults = validVaults();
+    for (uint i = start; i < end; i++) {
+      _updateFor(_vaults[i]);
+    }
   }
 
-  /// @dev Add rewards to this contract. Usually it is DystMinter.
-  function notifyRewardAmount(uint amount) external override {
+  /// @dev Update all gauges.
+  function updateAll() external {
+    updateForRange(0, validVaultsLength());
+  }
+
+  /// @dev Update reward info for given gauge.
+  function updateVault(address _vault) external {
+    _updateFor(_vault);
+  }
+
+  function _updateFor(address _vault) internal {
+    int256 _supplied = weights[_vault];
+    if (_supplied > 0) {
+      uint _supplyIndex = supplyIndex[_vault];
+      // get global index for accumulated distro
+      uint _index = index;
+      // update vault current position to global position
+      supplyIndex[_vault] = _index;
+      // see if there is any difference that need to be accrued
+      uint _delta = _index - _supplyIndex;
+      if (_delta > 0) {
+        // add accrued difference for each supplied token
+        uint _share = uint(_supplied) * _delta / 1e18;
+        claimable[_vault] += _share;
+      }
+    } else {
+      // new users are set to the default global state
+      supplyIndex[_vault] = index;
+    }
+  }
+
+  // *************************************************************
+  //                        REWARDS
+  // *************************************************************
+
+  /// @dev Add rewards to this contract. It will be distributed to vaults.
+  function notifyRewardAmount(uint amount) external {
     require(amount != 0, "zero amount");
     uint _totalWeight = totalWeight;
     // without votes rewards can not be added
@@ -290,104 +318,34 @@ contract TetuVoter is IVoter, ReentrancyGuard {
     emit NotifyReward(msg.sender, token, amount);
   }
 
-  /// @dev Update given gauges.
-  function updateFor(address[] memory _gauges) external {
-    for (uint i = 0; i < _gauges.length; i++) {
-      _updateFor(_gauges[i]);
-    }
+  /// @dev Notify rewards for given vault. Anyone can call
+  function distribute(address _vault) external {
+    _distribute(_vault);
   }
 
-  /// @dev Update gauges by indexes in a range.
-  function updateForRange(uint start, uint end) public {
-    for (uint i = start; i < end; i++) {
-      _updateFor(gauges[stakingTokens[i]]);
-    }
-  }
-
-  /// @dev Update all gauges.
-  function updateAll() external {
-    updateForRange(0, stakingTokens.length);
-  }
-
-  /// @dev Update reward info for given gauge.
-  function updateGauge(address _gauge) external {
-    _updateFor(_gauge);
-  }
-
-  function _updateFor(address _gauge) internal {
-    address _pool = poolForGauge[_gauge];
-    int256 _supplied = weights[_pool];
-    if (_supplied > 0) {
-      uint _supplyIndex = supplyIndex[_gauge];
-      // get global index for accumulated distro
-      uint _index = index;
-      // update _gauge current position to global position
-      supplyIndex[_gauge] = _index;
-      // see if there is any difference that need to be accrued
-      uint _delta = _index - _supplyIndex;
-      if (_delta > 0) {
-        // add accrued difference for each supplied token
-        uint _share = uint(_supplied) * _delta / 1e18;
-        claimable[_gauge] += _share;
-      }
-    } else {
-      // new users are set to the default global state
-      supplyIndex[_gauge] = index;
-    }
-  }
-
-  /// @dev Batch claim rewards from given bribe contracts for given tokenId.
-  function claimBribes(address[] memory _bribes, address[][] memory _tokens, uint _tokenId) external {
-    require(IVeTetu(ve).isApprovedOrOwner(msg.sender, _tokenId), "!owner");
-    for (uint i = 0; i < _bribes.length; i++) {
-      IBribe(_bribes[i]).getRewardForOwner(_tokenId, _tokens[i]);
-    }
-  }
-
-  /// @dev Claim fees from given bribes.
-  function claimFees(address[] memory _bribes, address[][] memory _tokens, uint _tokenId) external {
-    require(IVeTetu(ve).isApprovedOrOwner(msg.sender, _tokenId), "!owner");
-    for (uint i = 0; i < _bribes.length; i++) {
-      IBribe(_bribes[i]).getRewardForOwner(_tokenId, _tokens[i]);
-    }
-  }
-
-  /// @dev Get emission from minter and notify rewards for given gauge.
-  function distribute(address stakingToken, address _gauge) external override {
-    _distribute(stakingToken, _gauge);
-  }
-
-  function _distribute(address stakingToken, address pool) internal nonReentrant {
-    //todo
-    //    IMinter(minter).updatePeriod();
-    _updateFor(pool);
-    uint _claimable = claimable[pool];
-    if (_claimable / DURATION > 0) {
-      claimable[pool] = 0;
-      IGauge(pool).notifyRewardAmount(stakingToken, token, _claimable);
-      emit DistributeReward(msg.sender, pool, _claimable);
-    }
-  }
-
-  /// @dev Distribute rewards for all staking tokens.
+  /// @dev Distribute rewards to all valid vaults.
   function distributeAll() external {
-    uint length = stakingTokens.length;
+    uint length = validVaultsLength();
+    address[] memory _vaults = validVaults();
     for (uint x; x < length; x++) {
-      address stakingToken = stakingTokens[x];
-      _distribute(stakingToken, gauges[stakingToken]);
+      _distribute(_vaults[x]);
     }
   }
 
-  function distributeForPoolsInRange(uint start, uint finish) external {
+  function distributeFor(uint start, uint finish) external {
+    address[] memory _vaults = validVaults();
     for (uint x = start; x < finish; x++) {
-      address stakingToken = stakingTokens[x];
-      _distribute(stakingToken, gauges[stakingToken]);
+      _distribute(_vaults[x]);
     }
   }
 
-  //  function distributeForGauges(address[] memory _gauges) external {
-  //    for (uint x = 0; x < _gauges.length; x++) {
-  //      _distribute(_gauges[x]);
-  //    }
-  //  }
+  function _distribute(address _vault) internal nonReentrant {
+    _updateFor(_vault);
+    uint _claimable = claimable[_vault];
+    if (_claimable / _DURATION > 0) {
+      claimable[_vault] = 0;
+      IGauge(gauge).notifyRewardAmount(_vault, token, _claimable);
+      emit DistributeReward(msg.sender, _vault, _claimable);
+    }
+  }
 }
