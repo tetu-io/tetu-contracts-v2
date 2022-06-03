@@ -64,7 +64,11 @@ export class DeployerUtils {
         signer
       )) as T;
     }
-    const instance = await _factory.deploy(...args, {gasLimit: 19_000_000});
+    let gas = 19_000_000;
+    if (hre.network.name === 'hardhat') {
+      gas = 999_999_999;
+    }
+    const instance = await _factory.deploy(...args, {gasLimit: gas});
     log.info('Deploy tx:', instance.deployTransaction.hash);
     await instance.deployed();
 

@@ -44,7 +44,7 @@ interface IVeTetu {
 
   function checkpoint() external;
 
-  function depositFor(address _token, uint _tokenId, uint _value) external;
+  function increaseAmount(address _token, uint _tokenId, uint _value) external;
 
   function attachToken(uint tokenId) external;
 

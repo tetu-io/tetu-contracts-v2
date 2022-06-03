@@ -12,13 +12,13 @@ contract MockVoter {
     ve = IVeTetu(_ve);
   }
 
-  function attachTokenToGauge(uint tokenId, address) external {
+  function attachTokenToGauge(address, uint tokenId, address) external {
     if (tokenId > 0) {
       ve.attachToken(tokenId);
     }
   }
 
-  function detachTokenFromGauge(uint tokenId, address) external {
+  function detachTokenFromGauge(address, uint tokenId, address) external {
     if (tokenId > 0) {
       ve.detachToken(tokenId);
     }

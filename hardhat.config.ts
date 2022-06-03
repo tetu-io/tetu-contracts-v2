@@ -71,6 +71,7 @@ export default {
       allowUnlimitedContractSize: true,
       chainId: argv.hardhatChainId,
       timeout: 99999999,
+      blockGasLimit: 0x1fffffffffffff,
       gas: argv.hardhatChainId === 1 ? 19_000_000 :
         argv.hardhatChainId === 137 ? 19_000_000 :
           argv.hardhatChainId === 250 ? 11_000_000 :
@@ -92,7 +93,7 @@ export default {
         path: "m/44'/60'/0'/0",
         accountsBalance: "100000000000000000000000000000"
       },
-      loggingEnabled: true
+      // loggingEnabled: true
     },
     ftm: {
       url: argv.ftmRpcUrl || '',

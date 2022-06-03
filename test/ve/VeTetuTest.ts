@@ -1,11 +1,19 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {ethers} from "hardhat";
 import chai from "chai";
-import {parseUnits} from "ethers/lib/utils";
-import {MockPawnshop, MockToken, MockVoter, VeTetu} from "../../typechain";
+import {formatUnits, parseUnits} from "ethers/lib/utils";
+import {
+  IERC20__factory,
+  IERC20Metadata, IERC20Metadata__factory,
+  MockPawnshop,
+  MockToken,
+  MockVoter, ProxyControlled,
+  VeTetu, VeTetu__factory
+} from "../../typechain";
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {Misc} from "../../scripts/utils/Misc";
+import {BigNumber} from "ethers";
 
 const {expect} = chai;
 
@@ -21,6 +29,7 @@ describe("veTETU tests", function () {
   let owner2: SignerWithAddress;
   let owner3: SignerWithAddress;
   let tetu: MockToken;
+  let underlying2: MockToken;
 
   let ve: VeTetu;
   let voter: MockVoter;
@@ -31,6 +40,7 @@ describe("veTETU tests", function () {
     snapshotBefore = await TimeUtils.snapshot();
     [owner, owner2, owner3] = await ethers.getSigners();
 
+    underlying2 = await DeployerUtils.deployMockToken(owner, 'UNDERLYING2', 6);
     tetu = await DeployerUtils.deployMockToken(owner, 'TETU', 18);
     const controller = await DeployerUtils.deployMockController(owner);
     ve = await DeployerUtils.deployVeTetu(owner, tetu.address, controller.address);
@@ -102,7 +112,7 @@ describe("veTETU tests", function () {
   });
 
   it("transferFrom with attached token auto detach test", async function () {
-    await voter.attachTokenToGauge(1, Misc.ZERO_ADDRESS);
+    await voter.attachTokenToGauge(Misc.ZERO_ADDRESS, 1, Misc.ZERO_ADDRESS);
     await voter.voting(1);
     expect(await ve.attachments(1)).eq(1)
     expect(await ve.voted(1)).eq(true)
@@ -171,30 +181,20 @@ describe("veTETU tests", function () {
     await expect(ve.attachToken(1)).revertedWith('!voter')
   });
 
+  it("attach too many revert", async function () {
+    const max = await ve.MAX_ATTACHMENTS();
+    for (let i = 0; i < max.toNumber(); i++) {
+      await voter.attachTokenToGauge(Misc.ZERO_ADDRESS, 1, Misc.ZERO_ADDRESS);
+    }
+    await expect(voter.attachTokenToGauge(Misc.ZERO_ADDRESS, 1, Misc.ZERO_ADDRESS)).revertedWith('Too many attachments');
+  });
+
   it("detach revert", async function () {
     await expect(ve.detachToken(1)).revertedWith('!voter')
   });
 
-  it("deposit for test", async function () {
-    await ve.depositFor(tetu.address, 1, parseUnits('1'));
-  });
-
-  it("deposit for test", async function () {
+  it("increaseAmount for test", async function () {
     await ve.increaseAmount(tetu.address, 1, parseUnits('1'));
-  });
-
-  it("deposit zero revert", async function () {
-    await expect(ve.depositFor(tetu.address, 1, 0)).revertedWith('zero value')
-  });
-
-  it("deposit for not locked revert", async function () {
-    await expect(ve.depositFor(tetu.address, 99, 1)).revertedWith('No existing lock found')
-  });
-
-  it("deposit for expired revert", async function () {
-    await voter.attachTokenToGauge(1, Misc.ZERO_ADDRESS);
-    await TimeUtils.advanceBlocksOnTs(LOCK_PERIOD * 2);
-    await expect(ve.depositFor(tetu.address, 1, 1)).revertedWith('Cannot add to expired lock. Withdraw')
   });
 
   it("create lock zero value revert", async function () {
@@ -209,12 +209,12 @@ describe("veTETU tests", function () {
     await expect(ve.createLock(tetu.address, 1, 1e12)).revertedWith('Voting lock can be 1 year max')
   });
 
-  it("increaseAmount not owner revert", async function () {
-    await expect(ve.increaseAmount(tetu.address, 2, 1)).revertedWith('!owner')
+  it("increaseAmount zero value revert", async function () {
+    await expect(ve.increaseAmount(tetu.address, 1, 0)).revertedWith('zero value')
   });
 
   it("increaseAmount zero value revert", async function () {
-    await expect(ve.increaseAmount(tetu.address, 1, 0)).revertedWith('zero value')
+    await expect(ve.increaseAmount(underlying2.address, 1, 1)).revertedWith('Not valid token')
   });
 
   it("increaseAmount not locked revert", async function () {
@@ -230,29 +230,29 @@ describe("veTETU tests", function () {
 
   it("increaseUnlockTime not owner revert", async function () {
     await TimeUtils.advanceBlocksOnTs(WEEK * 10);
-    await expect(ve.increaseUnlockTime(tetu.address, 2, LOCK_PERIOD)).revertedWith('!owner')
+    await expect(ve.increaseUnlockTime(2, LOCK_PERIOD)).revertedWith('!owner')
   });
 
   it("increaseUnlockTime lock expired revert", async function () {
-    await voter.attachTokenToGauge(1, Misc.ZERO_ADDRESS);
+    await voter.attachTokenToGauge(Misc.ZERO_ADDRESS, 1, Misc.ZERO_ADDRESS);
     await TimeUtils.advanceBlocksOnTs(LOCK_PERIOD * 2);
-    await expect(ve.increaseUnlockTime(tetu.address, 1, 1)).revertedWith('Lock expired')
+    await expect(ve.increaseUnlockTime(1, 1)).revertedWith('Lock expired')
   });
 
   it("increaseUnlockTime not locked revert", async function () {
     await TimeUtils.advanceBlocksOnTs(LOCK_PERIOD * 2);
     await ve.withdraw(tetu.address, 1);
-    await expect(ve.increaseUnlockTime(tetu.address, 1, LOCK_PERIOD)).revertedWith('Nothing is locked')
+    await expect(ve.increaseUnlockTime(1, LOCK_PERIOD)).revertedWith('Nothing is locked')
   });
 
   it("increaseUnlockTime zero extend revert", async function () {
-    await voter.attachTokenToGauge(1, Misc.ZERO_ADDRESS);
-    await expect(ve.increaseUnlockTime(tetu.address, 1, 0)).revertedWith('Can only increase lock duration')
+    await voter.attachTokenToGauge(Misc.ZERO_ADDRESS, 1, Misc.ZERO_ADDRESS);
+    await expect(ve.increaseUnlockTime(1, 0)).revertedWith('Can only increase lock duration')
   });
 
   it("increaseUnlockTime too big extend revert", async function () {
-    await voter.attachTokenToGauge(1, Misc.ZERO_ADDRESS);
-    await expect(ve.increaseUnlockTime(tetu.address, 1, 1e12)).revertedWith('Voting lock can be 1 year max')
+    await voter.attachTokenToGauge(Misc.ZERO_ADDRESS, 1, Misc.ZERO_ADDRESS);
+    await expect(ve.increaseUnlockTime(1, 1e12)).revertedWith('Voting lock can be 1 year max')
   });
 
   it("withdraw not owner revert", async function () {
@@ -260,8 +260,18 @@ describe("veTETU tests", function () {
   });
 
   it("withdraw attached revert", async function () {
-    await voter.attachTokenToGauge(1, Misc.ZERO_ADDRESS);
+    await voter.attachTokenToGauge(Misc.ZERO_ADDRESS, 1, Misc.ZERO_ADDRESS);
     await expect(ve.withdraw(tetu.address, 1)).revertedWith('attached');
+  });
+
+  it("withdraw voted revert", async function () {
+    await voter.voting(1);
+    await expect(ve.withdraw(tetu.address, 1)).revertedWith('attached');
+  });
+
+  it("withdraw zero revert", async function () {
+    await TimeUtils.advanceBlocksOnTs(LOCK_PERIOD)
+    await expect(ve.withdraw(underlying2.address, 1)).revertedWith("Zero locked");
   });
 
   it("withdraw not expired revert", async function () {
@@ -357,8 +367,8 @@ describe("veTETU tests", function () {
 
   it("increase_unlock_time test", async function () {
     await TimeUtils.advanceBlocksOnTs(WEEK * 10);
-    await ve.increaseUnlockTime(tetu.address, 1, LOCK_PERIOD);
-    await expect(ve.increaseUnlockTime(tetu.address, 1, LOCK_PERIOD * 2)).revertedWith('Voting lock can be 1 year max');
+    await ve.increaseUnlockTime(1, LOCK_PERIOD);
+    await expect(ve.increaseUnlockTime(1, LOCK_PERIOD * 2)).revertedWith('Voting lock can be 1 year max');
   });
 
   it("tokenURI test", async function () {
@@ -373,8 +383,184 @@ describe("veTETU tests", function () {
     await pawnshop.veFlashTransfer(ve.address, 1);
   });
 
-  it("ve flesh transfer + supply checks", async function () {
+  it("invalid token lock revert", async function () {
     await expect(ve.createLock(owner.address, parseUnits('1'), LOCK_PERIOD)).revertedWith('Not valid token');
   });
 
+  it("add token from non gov revert", async function () {
+    await expect(ve.connect(owner2).addToken(underlying2.address, parseUnits('1'))).revertedWith('Not governance');
+  });
+
+  it("token wrong decimals revert", async function () {
+    const controller = await DeployerUtils.deployMockController(owner);
+    const logic = await DeployerUtils.deployContract(owner, 'VeTetu');
+    const proxy = await DeployerUtils.deployContract(owner, 'ProxyControlled', logic.address) as ProxyControlled;
+    await expect(VeTetu__factory.connect(proxy.address, owner).init(
+      underlying2.address,
+      controller.address
+    )).revertedWith('Token wrong decimals')
+  });
+
+  it("deposit/withdraw test", async function () {
+    let balTETU = await tetu.balanceOf(owner.address);
+
+    await TimeUtils.advanceBlocksOnTs(LOCK_PERIOD);
+
+    await ve.withdraw(tetu.address, 1)
+    await ve.connect(owner2).withdraw(tetu.address, 2);
+
+    expect(await underlying2.balanceOf(ve.address)).eq(0);
+    expect(await tetu.balanceOf(ve.address)).eq(0);
+
+    expect(await tetu.balanceOf(owner.address)).eq(balTETU.add(parseUnits('1')));
+
+    balTETU = await tetu.balanceOf(owner.address);
+    const balUNDERLYING2 = await underlying2.balanceOf(owner.address);
+
+    await ve.addToken(underlying2.address, parseUnits('10'));
+
+    await ve.createLock(tetu.address, parseUnits('0.77'), LOCK_PERIOD)
+    await TimeUtils.advanceNBlocks(5);
+    await underlying2.approve(ve.address, Misc.MAX_UINT);
+    await ve.increaseAmount(underlying2.address, 3, parseUnits('0.33', 6))
+    expect(await underlying2.balanceOf(owner.address)).eq(balUNDERLYING2.sub(parseUnits('0.33', 6)));
+    await ve.increaseAmount(underlying2.address, 3, parseUnits('0.37', 6))
+    expect(await underlying2.balanceOf(owner.address)).eq(balUNDERLYING2.sub(parseUnits('0.7', 6)));
+
+    expect(formatUnits(await ve.lockedDerivedAmount(3))).eq('0.84');
+    expect(+formatUnits(await ve.balanceOfNFT(3))).above(0.83);
+
+    await TimeUtils.advanceBlocksOnTs(LOCK_PERIOD / 2);
+
+    expect(+formatUnits(await ve.balanceOfNFT(3))).above(0.41);
+
+    await TimeUtils.advanceBlocksOnTs(LOCK_PERIOD / 2);
+
+    await ve.withdraw(underlying2.address, 3);
+    await ve.withdraw(tetu.address, 3);
+
+    expect(await ve.ownerOf(3)).eq(Misc.ZERO_ADDRESS);
+
+    expect(await underlying2.balanceOf(ve.address)).eq(0);
+    expect(await tetu.balanceOf(ve.address)).eq(0);
+
+    expect(await underlying2.balanceOf(owner.address)).eq(balUNDERLYING2);
+    expect(await tetu.balanceOf(owner.address)).eq(balTETU);
+  });
+
+  it("deposit/withdraw in a loop", async function () {
+    // clear all locks
+    await TimeUtils.advanceBlocksOnTs(LOCK_PERIOD);
+    await ve.withdraw(tetu.address, 1)
+    await ve.connect(owner2).withdraw(tetu.address, 2);
+
+    // prepare
+    await ve.addToken(underlying2.address, parseUnits('10'));
+    await tetu.mint(owner2.address, parseUnits('1000000000'))
+    await underlying2.mint(owner2.address, parseUnits('1000000000'))
+    await underlying2.approve(ve.address, Misc.MAX_UINT);
+    await underlying2.connect(owner2).approve(ve.address, Misc.MAX_UINT);
+
+    const balTETUOwner1 = await tetu.balanceOf(owner.address);
+    const balUNDERLYING2Owner1 = await underlying2.balanceOf(owner.address);
+    const balTETUOwner2 = await tetu.balanceOf(owner2.address);
+    const balUNDERLYING2Owner2 = await underlying2.balanceOf(owner2.address);
+
+    const loops = 10;
+    const lockDivider = Math.ceil(loops / 3);
+    for (let i = 1; i < loops; i++) {
+      let stakingToken;
+      if (i % 2 === 0) {
+        stakingToken = tetu.address;
+      } else {
+        stakingToken = underlying2.address;
+      }
+      const dec = await IERC20Metadata__factory.connect(stakingToken, owner).decimals();
+      const amount = parseUnits('0.123453', dec).mul(i);
+
+      await depositOrWithdraw(
+        owner,
+        ve,
+        stakingToken,
+        amount,
+        WEEK * Math.ceil(i / lockDivider)
+      );
+      await depositOrWithdraw(
+        owner2,
+        ve,
+        stakingToken,
+        amount,
+        WEEK * Math.ceil(i / lockDivider)
+      );
+      await TimeUtils.advanceBlocksOnTs(WEEK);
+    }
+
+    await TimeUtils.advanceBlocksOnTs(LOCK_PERIOD);
+
+    await withdrawIfExist(owner, ve, tetu.address);
+    await withdrawIfExist(owner, ve, underlying2.address);
+    await withdrawIfExist(owner2, ve, tetu.address);
+    await withdrawIfExist(owner2, ve, underlying2.address);
+
+    expect(await underlying2.balanceOf(ve.address)).eq(0);
+    expect(await tetu.balanceOf(ve.address)).eq(0);
+
+    expect(await underlying2.balanceOf(owner.address)).eq(balUNDERLYING2Owner1);
+    expect(await tetu.balanceOf(owner.address)).eq(balTETUOwner1);
+    expect(await underlying2.balanceOf(owner2.address)).eq(balUNDERLYING2Owner2);
+    expect(await tetu.balanceOf(owner2.address)).eq(balTETUOwner2);
+  });
+
 });
+
+
+async function depositOrWithdraw(
+  owner: SignerWithAddress,
+  ve: VeTetu,
+  stakingToken: string,
+  amount: BigNumber,
+  lock: number,
+) {
+  const veIdLength = await ve.balanceOf(owner.address);
+  expect(veIdLength).below(2);
+  if (veIdLength.isZero()) {
+    console.log('create lock')
+    await ve.connect(owner).createLock(stakingToken, amount, lock);
+  } else {
+    const veId = await ve.tokenOfOwnerByIndex(owner.address, 0);
+    const locked = await ve.lockedAmounts(veId, stakingToken);
+    if (!locked.isZero()) {
+      const lockEnd = (await ve.lockedEnd(veId)).toNumber();
+      const now = (await ve.blockTimestamp()).toNumber()
+      if (now >= lockEnd) {
+        console.log('withdraw', veId.toNumber())
+        await ve.connect(owner).withdraw(stakingToken, veId);
+      } else {
+        console.log('lock not ended yet', lockEnd, lockEnd - now, veId.toNumber());
+      }
+    } else {
+      console.log('no lock for this token')
+    }
+  }
+}
+
+async function withdrawIfExist(
+  owner: SignerWithAddress,
+  ve: VeTetu,
+  stakingToken: string
+) {
+  const veIdLength = await ve.balanceOf(owner.address);
+  expect(veIdLength).below(2);
+  if (!veIdLength.isZero()) {
+    const veId = await ve.tokenOfOwnerByIndex(owner.address, 0);
+    const locked = await ve.lockedAmounts(veId, stakingToken);
+    if (!locked.isZero()) {
+      const lockEnd = (await ve.lockedEnd(veId)).toNumber();
+      const now = (await ve.blockTimestamp()).toNumber()
+      if (now >= lockEnd) {
+        console.log('withdraw', veId.toNumber())
+        await ve.connect(owner).withdraw(stakingToken, veId);
+      }
+    }
+  }
+}
