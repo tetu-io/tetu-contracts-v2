@@ -135,10 +135,10 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
   }
 
   /// @dev Vote for given pools using a vote power of given tokenId. Reset previous votes.
-  function vote(uint tokenId, address[] calldata _poolVote, int256[] calldata _weights) external {
+  function vote(uint tokenId, address[] calldata _vaultVotes, int256[] calldata _weights) external {
     require(IVeTetu(ve).isApprovedOrOwner(msg.sender, tokenId), "!owner");
-    require(_poolVote.length == _weights.length, "!arrays");
-    _vote(tokenId, _poolVote, _weights);
+    require(_vaultVotes.length == _weights.length, "!arrays");
+    _vote(tokenId, _vaultVotes, _weights);
   }
 
   function _vote(uint _tokenId, address[] memory _vaultVotes, int256[] memory _weights) internal {

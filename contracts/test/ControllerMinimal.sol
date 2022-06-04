@@ -25,6 +25,10 @@ contract ControllerMinimal is IController {
     vePawnshop = _vePawnshop;
   }
 
+  function addVault(address vault) external {
+    vaults.push(vault);
+  }
+
   function updateProxies(address[] memory proxies, address[] memory newLogics) external {
     require(proxies.length == newLogics.length, "Wrong arrays");
     for (uint i; i < proxies.length; i++) {

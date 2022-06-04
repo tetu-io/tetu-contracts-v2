@@ -27,6 +27,7 @@ contract MultiBribe is StakelessMultiPoolBase, ControllableV3, IBribe {
 
   /// @dev The ve token used for gauges
   address public ve;
+  address public defaultReward;
 
   // *************************************************************
   //                        EVENTS
@@ -42,11 +43,13 @@ contract MultiBribe is StakelessMultiPoolBase, ControllableV3, IBribe {
   function init(
     address controller_,
     address _operator,
-    address _ve
+    address _ve,
+    address _defaultReward
   ) external initializer {
     __Controllable_init(controller_);
     __MultiPool_init(_operator);
     ve = _ve;
+    defaultReward = _defaultReward;
   }
 
   function voter() public view returns (address) {
@@ -116,6 +119,11 @@ contract MultiBribe is StakelessMultiPoolBase, ControllableV3, IBribe {
   // *************************************************************
 
   function notifyRewardAmount(address vault, address token, uint amount) external override {
+    // add default reward token if not added
+    if (token == defaultReward && !isRewardToken[vault][token]) {
+      isRewardToken[vault][token] = true;
+      rewardTokens[vault].push(token);
+    }
     _notifyRewardAmount(vault, token, amount);
   }
 

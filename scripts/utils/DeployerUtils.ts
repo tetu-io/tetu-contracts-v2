@@ -12,7 +12,7 @@ import {
   MockToken,
   MockVault,
   MockVault__factory,
-  MockVoter, MultiGauge__factory,
+  MockVoter, MultiBribe__factory, MultiGauge__factory,
   ProxyControlled,
   TetuVoter, TetuVoter__factory,
   VeTetu,
@@ -178,6 +178,24 @@ export class DeployerUtils {
       ve,
     );
     return MultiGauge__factory.connect(proxy.address, signer);
+  }
+
+  public static async deployMultiBribe(
+    signer: SignerWithAddress,
+    controller: string,
+    operator: string,
+    ve: string,
+    defaultReward: string,
+  ) {
+    const logic = await DeployerUtils.deployContract(signer, 'MultiBribe');
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled', logic.address);
+    await MultiBribe__factory.connect(proxy.address, signer).init(
+      controller,
+      operator,
+      ve,
+      defaultReward
+    );
+    return MultiBribe__factory.connect(proxy.address, signer);
   }
 
   public static async deployMockVoter(signer: SignerWithAddress, ve: string) {
