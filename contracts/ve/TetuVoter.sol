@@ -170,7 +170,7 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
       weights[_vault] += _vaultWeight;
       votes[_tokenId][_vault] += _vaultWeight;
       if (_vaultWeight > 0) {
-        IBribe(bribe)._deposit(_vault, uint(_vaultWeight), _tokenId);
+        IBribe(bribe).deposit(_vault, uint(_vaultWeight), _tokenId);
       } else {
         _vaultWeight = - _vaultWeight;
       }
@@ -196,7 +196,7 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
       weights[_vault] -= _votes;
       votes[_tokenId][_vault] = 0;
       if (_votes > 0) {
-        IBribe(bribe)._withdraw(_vault, uint(_votes), _tokenId);
+        IBribe(bribe).withdraw(_vault, uint(_votes), _tokenId);
         _totalWeight += _votes;
       } else {
         _totalWeight -= _votes;

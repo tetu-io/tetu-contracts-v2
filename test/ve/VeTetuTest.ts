@@ -428,11 +428,11 @@ describe("veTETU tests", function () {
     expect(await underlying2.balanceOf(owner.address)).eq(balUNDERLYING2.sub(parseUnits('0.7', 6)));
 
     expect(formatUnits(await ve.lockedDerivedAmount(3))).eq('0.84');
-    expect(+formatUnits(await ve.balanceOfNFT(3))).above(0.83);
+    expect(+formatUnits(await ve.balanceOfNFT(3))).above(0.82);
 
     await TimeUtils.advanceBlocksOnTs(LOCK_PERIOD / 2);
 
-    expect(+formatUnits(await ve.balanceOfNFT(3))).above(0.41);
+    expect(+formatUnits(await ve.balanceOfNFT(3))).above(0.4);
 
     await TimeUtils.advanceBlocksOnTs(LOCK_PERIOD / 2);
 

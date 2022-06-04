@@ -54,9 +54,8 @@ describe("multi gauge tests", function () {
     rewardToken2 = await DeployerUtils.deployMockToken(owner, 'REWARD2', 18);
     await rewardToken2.mint(rewarder.address, parseUnits('100'));
 
-    const proxy = await DeployerUtils.deployProxy(owner, 'MultiGauge');
-    gauge = MultiGauge__factory.connect(proxy, owner);
-    await gauge.init(
+    gauge = await DeployerUtils.deployMultiGauge(
+      owner,
       controller.address,
       owner.address,
       ve.address

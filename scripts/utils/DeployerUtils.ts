@@ -12,9 +12,9 @@ import {
   MockToken,
   MockVault,
   MockVault__factory,
-  MockVoter,
+  MockVoter, MultiGauge__factory,
   ProxyControlled,
-  TetuVoter,
+  TetuVoter, TetuVoter__factory,
   VeTetu,
   VeTetu__factory
 } from "../../typechain";
@@ -144,8 +144,40 @@ export class DeployerUtils {
     return VeTetu__factory.connect(proxy.address, signer);
   }
 
-  public static async deployTetuVoter(signer: SignerWithAddress, ve: string) {
-    return await DeployerUtils.deployContract(signer, 'TetuVoter', ve) as TetuVoter;
+  public static async deployTetuVoter(
+    signer: SignerWithAddress,
+    controller: string,
+    ve: string,
+    rewardToken: string,
+    gauge: string,
+    bribe: string,
+  ) {
+    const logic = await DeployerUtils.deployContract(signer, 'TetuVoter');
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled', logic.address) as ProxyControlled;
+    await TetuVoter__factory.connect(proxy.address, signer).init(
+      controller,
+      ve,
+      rewardToken,
+      gauge,
+      bribe,
+    );
+    return TetuVoter__factory.connect(proxy.address, signer);
+  }
+
+  public static async deployMultiGauge(
+    signer: SignerWithAddress,
+    controller: string,
+    operator: string,
+    ve: string,
+  ) {
+    const logic = await DeployerUtils.deployContract(signer, 'MultiGauge');
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled', logic.address);
+    await MultiGauge__factory.connect(proxy.address, signer).init(
+      controller,
+      operator,
+      ve,
+    );
+    return MultiGauge__factory.connect(proxy.address, signer);
   }
 
   public static async deployMockVoter(signer: SignerWithAddress, ve: string) {

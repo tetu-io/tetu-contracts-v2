@@ -102,7 +102,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, IStrategySplitte
     require(msg.sender == _VAULT_SLOT.getAddress()
     || msg.sender == c
     || IController(c).governance() == msg.sender
-      || IController(c).isHardWorker(msg.sender),
+      || IController(c).isOperator(msg.sender),
       "SS: Not Operator");
   }
 

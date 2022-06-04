@@ -27,7 +27,6 @@ contract MultiGauge is StakelessMultiPoolBase, ControllableV3, IGauge {
 
   /// @dev The ve token used for gauges
   address public ve;
-  IVoter public voter;
 
   mapping(address => mapping(address => uint)) public veIds;
   mapping(address => bool) stakingTokens;
@@ -38,7 +37,6 @@ contract MultiGauge is StakelessMultiPoolBase, ControllableV3, IGauge {
 
   event Deposit(address indexed stakingToken, address indexed account, uint amount);
   event Withdraw(address indexed stakingToken, address indexed account, uint amount, bool full, uint veId);
-  event ClaimFees(address indexed from, uint claimed0, uint claimed1);
   event VeTokenLocked(address indexed stakingToken, address indexed account, uint tokenId);
   event VeTokenUnlocked(address indexed stakingToken, address indexed account, uint tokenId);
 
@@ -54,7 +52,10 @@ contract MultiGauge is StakelessMultiPoolBase, ControllableV3, IGauge {
     __Controllable_init(controller_);
     __MultiPool_init(_operator);
     ve = _ve;
-    voter = IVoter(IController(controller_).voter());
+  }
+
+  function voter() public view returns (IVoter) {
+    return IVoter(IController(controller()).voter());
   }
 
   // *************************************************************
@@ -97,7 +98,7 @@ contract MultiGauge is StakelessMultiPoolBase, ControllableV3, IGauge {
   }
 
   function _getReward(address stakingToken, address account, address[] memory tokens) internal {
-    voter.distribute(stakingToken, address(this));
+    voter().distribute(stakingToken, address(this));
     _getReward(stakingToken, account, tokens, account);
   }
 
@@ -113,7 +114,7 @@ contract MultiGauge is StakelessMultiPoolBase, ControllableV3, IGauge {
 
     if (veIds[stakingToken][account] == 0) {
       veIds[stakingToken][account] = veId;
-      voter.attachTokenToGauge(stakingToken, veId, account);
+      voter().attachTokenToGauge(stakingToken, veId, account);
     }
     require(veIds[stakingToken][account] == veId, "Wrong ve");
 
@@ -124,7 +125,7 @@ contract MultiGauge is StakelessMultiPoolBase, ControllableV3, IGauge {
 
   function detachVe(address stakingToken, address account, uint veId) external override {
     require(IERC721(ve).ownerOf(veId) == account
-      || msg.sender == address(voter), "Not ve token owner or voter");
+      || msg.sender == address(voter()), "Not ve token owner or voter");
     require(isStakeToken(stakingToken), "Wrong staking token");
 
     _updateRewardForAllTokens(stakingToken);
@@ -182,7 +183,7 @@ contract MultiGauge is StakelessMultiPoolBase, ControllableV3, IGauge {
   function _unlockVeToken(address stakingToken, address account, uint veId) internal {
     require(veId == veIds[stakingToken][account], "Wrong ve");
     veIds[stakingToken][account] = 0;
-    voter.detachTokenFromGauge(stakingToken, veId, account);
+    voter().detachTokenFromGauge(stakingToken, veId, account);
     emit VeTokenUnlocked(stakingToken, account, veId);
   }
 
