@@ -1,52 +1,60 @@
-
-import {ethers, network} from "hardhat";
+import {ethers} from "hardhat";
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {expect} from "chai";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
-import {SlotsTest, SlotsTest2, SlotsTest2__factory, SlotsTest__factory} from "../../typechain";
+import {
+  ControllerMinimal,
+  SlotsTest,
+  SlotsTest2,
+  SlotsTest2__factory,
+  SlotsTest__factory
+} from "../../typechain";
+import {formatBytes32String} from "ethers/lib/utils";
+import {TimeUtils} from "../TimeUtils";
 
 describe("Various Slots Tests", function () {
+  let snapshotBefore: string;
+  let snapshot: string;
   let signer: SignerWithAddress;
-  let slotsTest2Impl: SlotsTest;
   let slotsTest: SlotsTest;
-  let slotsTest2: SlotsTest2;
-  let deployAndUpgradeLogic2: () => Promise<void>;
+  let controller: ControllerMinimal;
 
   before(async function () {
+    snapshotBefore = await TimeUtils.snapshot();
     [signer] = await ethers.getSigners();
-    const controller = await DeployerUtils.deployMockController(signer);
+    controller = await DeployerUtils.deployMockController(signer);
 
     const proxy = await DeployerUtils.deployProxy(signer, 'SlotsTest');
     slotsTest = SlotsTest__factory.connect(proxy, signer);
     await slotsTest.initialize(controller.address);
 
-    deployAndUpgradeLogic2 = async function() {
-      console.log('deploy SlotsTest2 logic');
-      slotsTest2Impl = await DeployerUtils.deployContract(signer, 'SlotsTest2') as SlotsTest2;
-      await controller.updateProxies([slotsTest.address], [slotsTest2Impl.address]);
-      slotsTest2= SlotsTest2__factory.connect(slotsTest.address, signer);
-    }
-
   });
 
   after(async function () {
+    await TimeUtils.rollback(snapshotBefore);
   });
 
+
   beforeEach(async function () {
+    snapshot = await TimeUtils.snapshot();
   });
 
   afterEach(async function () {
+    await TimeUtils.rollback(snapshot);
   });
 
 
   it("Slots returns same as sets after proxy upgrade", async () => {
-    const values = [11,22,33,44,55];
+    const values = [11, 22, 33, 44, 55];
     for (let i = 0; i < values.length; i++) {
       console.log('set A', i, values[i]);
       await slotsTest.setMapA(i, values[i]);
     }
 
-    await deployAndUpgradeLogic2();
+    console.log('deploy SlotsTest2 logic');
+    const slotsTest2Impl = await DeployerUtils.deployContract(signer, 'SlotsTest2') as SlotsTest2;
+    await controller.updateProxies([slotsTest.address], [slotsTest2Impl.address]);
+    const slotsTest2 = SlotsTest2__factory.connect(slotsTest.address, signer);
 
     // write to new B member to check A will not rewrite
     const mulB = 100;
@@ -63,6 +71,41 @@ describe("Various Slots Tests", function () {
       expect(slotStruct.b).is.eq(values[i] * mulB)
     }
 
+  });
+
+  it("byte32 test", async () => {
+    await slotsTest.setByte32(formatBytes32String('test'))
+    expect(await slotsTest.getBytes32()).eq(formatBytes32String('test'))
+  });
+
+  it("address test", async () => {
+    await slotsTest.setAddress(signer.address)
+    expect(await slotsTest.getAddress()).eq(signer.address)
+  });
+
+  it("uint test", async () => {
+    await slotsTest.setUint(11)
+    expect(await slotsTest.getUint()).eq(11)
+  });
+
+  it("array length test", async () => {
+    await slotsTest.setLength(11)
+    expect(await slotsTest.arrayLength()).eq(11)
+  });
+
+  it("array address test", async () => {
+    await slotsTest["setAt(uint256,address)"](1, signer.address)
+    expect(await slotsTest.addressAt(1)).eq(signer.address)
+  });
+
+  it("array uint test", async () => {
+    await slotsTest["setAt(uint256,uint256)"](1, 11)
+    expect(await slotsTest.uintAt(1)).eq(11)
+  });
+
+  it("array push test", async () => {
+    await slotsTest.push(signer.address)
+    expect(await slotsTest.addressAt(0)).eq(signer.address)
   });
 
 })

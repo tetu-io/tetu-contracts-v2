@@ -1,3 +1,3 @@
 module.exports = {
-  skipFiles: ['test', 'integrations']
+  skipFiles: ['test', 'integrations', 'openzeppelin']
 };

@@ -12,3 +12,4 @@ coverage:
 ignore:
   - "contracts/test"
   - "contracts/integrations"
+  - "contracts/openzeppelin"
