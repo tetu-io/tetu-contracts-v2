@@ -10,7 +10,7 @@ contract ControllerMinimal is IController {
   address public override governance;
   address public override voter;
   address public override vePawnshop;
-  address[] public vaults;
+  address[] public override vaults;
   mapping(address => bool) public operators;
 
   constructor (address governance_) {

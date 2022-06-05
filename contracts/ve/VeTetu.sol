@@ -416,7 +416,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     // from address will be checked in _removeTokenFrom()
 
     if (attachments[_tokenId] != 0 || voted[_tokenId]) {
-      IVoter(voter()).detachTokenFromAll(_tokenId, _sender);
+      IVoter(voter()).detachTokenFromAll(_tokenId, _from);
     }
 
     if (_idToApprovals[_tokenId] != address(0)) {

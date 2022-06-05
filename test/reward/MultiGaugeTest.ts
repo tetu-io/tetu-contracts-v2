@@ -34,6 +34,7 @@ describe("multi gauge tests", function () {
   let tetu: MockToken;
   let rewardToken: MockToken;
   let rewardToken2: MockToken;
+  let rewardTokenDefault: MockToken;
   let gauge: MultiGauge;
   let ve: VeTetu;
 
@@ -53,12 +54,15 @@ describe("multi gauge tests", function () {
     await rewardToken.mint(rewarder.address, BigNumber.from(Misc.MAX_UINT).sub(parseUnits('1000000')));
     rewardToken2 = await DeployerUtils.deployMockToken(owner, 'REWARD2', 18);
     await rewardToken2.mint(rewarder.address, parseUnits('100'));
+    rewardTokenDefault = await DeployerUtils.deployMockToken(owner, 'REWARD_DEFAULT', 18);
+    await rewardTokenDefault.mint(rewarder.address, parseUnits('100'));
 
     gauge = await DeployerUtils.deployMultiGauge(
       owner,
       controller.address,
       owner.address,
-      ve.address
+      ve.address,
+      rewardTokenDefault.address,
     );
 
     stakingToken = await DeployerUtils.deployMockStakingToken(owner, gauge.address, 'VAULT', 18);
@@ -75,8 +79,10 @@ describe("multi gauge tests", function () {
     await tetu.connect(rewarder).approve(ve.address, Misc.MAX_UINT);
     await rewardToken.approve(gauge.address, Misc.MAX_UINT);
     await rewardToken2.approve(gauge.address, Misc.MAX_UINT);
+    await rewardTokenDefault.approve(gauge.address, Misc.MAX_UINT);
     await rewardToken.connect(rewarder).approve(gauge.address, Misc.MAX_UINT);
     await rewardToken2.connect(rewarder).approve(gauge.address, Misc.MAX_UINT);
+    await rewardTokenDefault.connect(rewarder).approve(gauge.address, Misc.MAX_UINT);
   });
 
   after(async function () {
@@ -196,6 +202,7 @@ describe("multi gauge tests", function () {
     expect(await gauge.rewardRate(stakingToken.address, rewardToken.address)).eq(0);
 
     // add reward
+    await gauge.notifyRewardAmount(stakingToken.address, rewardTokenDefault.address, parseUnits('1'));
     await gauge.notifyRewardAmount(stakingToken.address, rewardToken.address, parseUnits('1'));
 
     // check that all metrics are fine

@@ -4,6 +4,8 @@ pragma solidity 0.8.4;
 
 interface IGauge {
 
+  function veIds(address stakingToken, address account) external view returns (uint);
+
   function getReward(
     address stakingToken,
     address account,

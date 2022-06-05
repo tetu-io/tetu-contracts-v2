@@ -25,6 +25,7 @@ describe("multi pool tests", function () {
   let wmatic: MockToken;
   let rewardToken: MockToken;
   let rewardToken2: MockToken;
+  let rewardTokenDefault: MockToken;
   let pool: StakelessMultiPoolMock;
 
 
@@ -41,15 +42,18 @@ describe("multi pool tests", function () {
     await rewardToken.mint(rewarder.address, BigNumber.from(Misc.MAX_UINT).sub(parseUnits('1000000')));
     rewardToken2 = await DeployerUtils.deployMockToken(owner, 'REWARD2', 18);
     await rewardToken2.mint(rewarder.address, parseUnits('100'));
+    rewardTokenDefault = await DeployerUtils.deployMockToken(owner, 'REWARD_DEFAULT', 18);
+    await rewardTokenDefault.mint(rewarder.address, parseUnits('100'));
 
     const proxy = await DeployerUtils.deployProxy(owner, 'StakelessMultiPoolMock');
     pool = StakelessMultiPoolMock__factory.connect(proxy, owner);
-    await pool.init(controller.address, owner.address, [wmatic.address]);
+    await pool.init(controller.address, owner.address, [wmatic.address], rewardTokenDefault.address);
 
     await wmatic.approve(pool.address, parseUnits('999999999'));
     await wmatic.connect(user).approve(pool.address, parseUnits('999999999'));
     await rewardToken.connect(rewarder).approve(pool.address, Misc.MAX_UINT);
     await rewardToken2.connect(rewarder).approve(pool.address, parseUnits('999999999'));
+    await rewardTokenDefault.connect(rewarder).approve(pool.address, parseUnits('999999999'));
 
     await pool.registerRewardToken(wmatic.address, rewardToken.address);
   });
@@ -83,12 +87,11 @@ describe("multi pool tests", function () {
     await pool.registerRewardToken(wmatic.address, owner.address)
     await pool.registerRewardToken(wmatic.address, user.address)
     expect(await pool.rewardTokensLength(wmatic.address)).eq(4);
-    await expect(pool.removeRewardToken(wmatic.address, rewardToken.address)).revertedWith("First token forbidden to remove");
+    await pool.removeRewardToken(wmatic.address, rewardToken.address);
     await pool.removeRewardToken(wmatic.address, rewardToken2.address);
     await pool.removeRewardToken(wmatic.address, owner.address);
     await pool.removeRewardToken(wmatic.address, user.address);
-    await expect(pool.removeRewardToken(wmatic.address, rewardToken.address)).revertedWith('First token should not be removed');
-    expect(await pool.rewardTokensLength(wmatic.address)).eq(1);
+    expect(await pool.rewardTokensLength(wmatic.address)).eq(0);
   });
 
   it("removeRewardToken revert for not finished rewards test", async function () {
@@ -201,6 +204,10 @@ describe("multi pool tests", function () {
     // await expect(pool.connect(rewarder).notifyRewardAmount(wmatic.address, rewardToken.address, 10)).revertedWith('Amount should be higher than remaining rewards');
     await expect(pool.connect(rewarder).notifyRewardAmount(wmatic.address, wmatic.address, 10)).revertedWith("Token not allowed");
     await pool.connect(rewarder).notifyRewardAmount(wmatic.address, rewardToken.address, BigNumber.from(Misc.MAX_UINT).div('10000000000000000000'));
+  });
+
+  it("notify with default token is fine", async function () {
+    await pool.connect(rewarder).notifyRewardAmount(wmatic.address, rewardTokenDefault.address, FULL_REWARD.div(4));
   });
 
   // ***************** THE MAIN LOGIC TESTS *********************************

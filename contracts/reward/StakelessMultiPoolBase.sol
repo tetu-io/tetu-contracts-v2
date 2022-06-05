@@ -35,6 +35,8 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool, Initial
 
   /// @dev Operator can add/remove reward tokens
   address public operator;
+  /// @dev This token will be always allowed as reward
+  address public defaultRewardToken;
 
   /// @dev Supply adjusted on derived balance logic. Use for rewards boost.
   mapping(address => uint) public override derivedSupply;
@@ -91,8 +93,9 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool, Initial
   // *************************************************************
 
   /// @dev Operator will able to add/remove reward tokens
-  function __MultiPool_init(address _operator) internal onlyInitializing {
+  function __MultiPool_init(address _operator, address _defaultRewardToken) internal onlyInitializing {
     operator = _operator;
+    defaultRewardToken = _defaultRewardToken;
   }
 
   // *************************************************************
@@ -169,10 +172,7 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool, Initial
 
     isRewardToken[stakeToken][rewardToken] = false;
     uint length = rewardTokens[stakeToken].length;
-    require(length > 1, "First token should not be removed");
-    // keep the first token as guarantee against malicious actions
-    // assume it will be default platform token
-    uint i = 1;
+    uint i = 0;
     bool found = false;
     for (; i < length; i++) {
       address t = rewardTokens[stakeToken][i];
@@ -181,7 +181,7 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool, Initial
         break;
       }
     }
-    require(found, "First token forbidden to remove");
+    // if isRewardToken map and rewardTokens array changed accordingly the token always exist
     rewardTokens[stakeToken][i] = rewardTokens[stakeToken][length - 1];
     rewardTokens[stakeToken].pop();
   }
@@ -346,6 +346,10 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool, Initial
       (rewardPerTokenStored[stakingToken][rewardToken], lastUpdateTime[stakingToken][rewardToken])
       = _updateRewardPerToken(stakingToken, rewardToken, type(uint).max, true);
     }
+    // update for default token
+    address _defaultRewardToken = defaultRewardToken;
+    (rewardPerTokenStored[stakingToken][_defaultRewardToken], lastUpdateTime[stakingToken][_defaultRewardToken])
+    = _updateRewardPerToken(stakingToken, _defaultRewardToken, type(uint).max, true);
   }
 
   /// @dev Should be called only with properly updated snapshots, or with actualLast=false
@@ -440,7 +444,8 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool, Initial
     uint amount
   ) internal nonReentrant virtual {
     require(amount > 0, "Zero amount");
-    require(isRewardToken[stakingToken][rewardToken], "Token not allowed");
+    require(defaultRewardToken == rewardToken
+      || isRewardToken[stakingToken][rewardToken], "Token not allowed");
     if (rewardRate[stakingToken][rewardToken] == 0) {
       _writeRewardPerTokenCheckpoint(stakingToken, rewardToken, 0, block.timestamp);
     }

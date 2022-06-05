@@ -13,6 +13,8 @@ interface IController {
 
   // --- VAULTS
 
+  function vaults(uint id) external view returns (address);
+
   function vaultsList() external view returns (address[] memory);
 
   function vaultsListLength() external view returns (uint);

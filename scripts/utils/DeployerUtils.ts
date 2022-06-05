@@ -169,6 +169,7 @@ export class DeployerUtils {
     controller: string,
     operator: string,
     ve: string,
+    defaultRewardToken: string,
   ) {
     const logic = await DeployerUtils.deployContract(signer, 'MultiGauge');
     const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled', logic.address);
@@ -176,6 +177,7 @@ export class DeployerUtils {
       controller,
       operator,
       ve,
+      defaultRewardToken,
     );
     return MultiGauge__factory.connect(proxy.address, signer);
   }

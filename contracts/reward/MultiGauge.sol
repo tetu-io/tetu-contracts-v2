@@ -27,8 +27,9 @@ contract MultiGauge is StakelessMultiPoolBase, ControllableV3, IGauge {
 
   /// @dev The ve token used for gauges
   address public ve;
-
-  mapping(address => mapping(address => uint)) public veIds;
+  /// @dev staking token => ve owner => veId
+  mapping(address => mapping(address => uint)) public override veIds;
+  /// @dev Staking token => whitelist status
   mapping(address => bool) stakingTokens;
 
   // *************************************************************
@@ -47,10 +48,11 @@ contract MultiGauge is StakelessMultiPoolBase, ControllableV3, IGauge {
   function init(
     address controller_,
     address _operator,
-    address _ve
+    address _ve,
+    address _defaultRewardToken
   ) external initializer {
     __Controllable_init(controller_);
-    __MultiPool_init(_operator);
+    __MultiPool_init(_operator, _defaultRewardToken);
     ve = _ve;
   }
 
@@ -83,7 +85,20 @@ contract MultiGauge is StakelessMultiPoolBase, ControllableV3, IGauge {
     address stakingToken,
     address account
   ) external override {
-    address[] memory tokens = rewardTokens[stakingToken];
+    _getAllRewards(stakingToken, account);
+  }
+
+  function _getAllRewards(
+    address stakingToken,
+    address account
+  ) internal {
+    address[] storage rts = rewardTokens[stakingToken];
+    uint length = rts.length;
+    address[] memory tokens = new address[](length + 1);
+    for (uint i; i < length; ++i) {
+      tokens[i] = rts[i];
+    }
+    tokens[length] = defaultRewardToken;
     _getReward(stakingToken, account, tokens);
   }
 
@@ -92,8 +107,7 @@ contract MultiGauge is StakelessMultiPoolBase, ControllableV3, IGauge {
     address account
   ) external override {
     for (uint i; i < _stakingTokens.length; i++) {
-      address[] memory tokens = rewardTokens[_stakingTokens[i]];
-      _getReward(_stakingTokens[i], account, tokens);
+      _getAllRewards(_stakingTokens[i], account);
     }
   }
 

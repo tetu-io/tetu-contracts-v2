@@ -10,9 +10,14 @@ contract StakelessMultiPoolMock is StakelessMultiPoolBase, ControllableV3 {
 
   mapping(address => bool) public stakingTokens;
 
-  function init(address controller_, address _operator, address[] memory _stakingTokens) external initializer {
+  function init(
+    address controller_,
+    address _operator,
+    address[] memory _stakingTokens,
+    address _defaultRewardToken
+  ) external initializer {
     __Controllable_init(controller_);
-    __MultiPool_init(_operator);
+    __MultiPool_init(_operator, _defaultRewardToken);
     for (uint i; i < _stakingTokens.length; i++) {
       stakingTokens[_stakingTokens[i]] = true;
     }

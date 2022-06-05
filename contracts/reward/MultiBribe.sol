@@ -27,7 +27,6 @@ contract MultiBribe is StakelessMultiPoolBase, ControllableV3, IBribe {
 
   /// @dev The ve token used for gauges
   address public ve;
-  address public defaultReward;
 
   // *************************************************************
   //                        EVENTS
@@ -47,9 +46,8 @@ contract MultiBribe is StakelessMultiPoolBase, ControllableV3, IBribe {
     address _defaultReward
   ) external initializer {
     __Controllable_init(controller_);
-    __MultiPool_init(_operator);
+    __MultiPool_init(_operator, _defaultReward);
     ve = _ve;
-    defaultReward = _defaultReward;
   }
 
   function voter() public view returns (address) {
@@ -72,8 +70,22 @@ contract MultiBribe is StakelessMultiPoolBase, ControllableV3, IBribe {
     address _vault,
     uint veId
   ) external override {
-    address[] memory tokens = rewardTokens[_vault];
-    _getReward(_vault, veId, tokens, IERC721(ve).ownerOf(veId));
+    _getAllRewards(_vault, veId, IERC721(ve).ownerOf(veId));
+  }
+
+  function _getAllRewards(
+    address _vault,
+    uint veId,
+    address recipient
+  ) internal {
+    address[] storage rts = rewardTokens[_vault];
+    uint length = rts.length;
+    address[] memory tokens = new address[](length + 1);
+    for (uint i; i < length; ++i) {
+      tokens[i] = rts[i];
+    }
+    tokens[length] = defaultRewardToken;
+    _getReward(_vault, veId, tokens, recipient);
   }
 
   function getAllRewardsForTokens(
@@ -82,8 +94,7 @@ contract MultiBribe is StakelessMultiPoolBase, ControllableV3, IBribe {
   ) external override {
     address recipient = IERC721(ve).ownerOf(veId);
     for (uint i; i < _vaults.length; i++) {
-      address[] memory tokens = rewardTokens[_vaults[i]];
-      _getReward(_vaults[i], veId, tokens, recipient);
+      _getAllRewards(_vaults[i], veId, recipient);
     }
   }
 
@@ -119,11 +130,6 @@ contract MultiBribe is StakelessMultiPoolBase, ControllableV3, IBribe {
   // *************************************************************
 
   function notifyRewardAmount(address vault, address token, uint amount) external override {
-    // add default reward token if not added
-    if (token == defaultReward && !isRewardToken[vault][token]) {
-      isRewardToken[vault][token] = true;
-      rewardTokens[vault].push(token);
-    }
     _notifyRewardAmount(vault, token, amount);
   }
 

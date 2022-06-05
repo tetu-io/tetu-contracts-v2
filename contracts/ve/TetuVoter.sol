@@ -58,7 +58,7 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
   // --- ATTACHMENTS
 
   /// @dev veId => Attached staking token
-  mapping(uint => EnumerableSet.AddressSet) private attachedStakingTokens;
+  mapping(uint => EnumerableSet.AddressSet) internal _attachedStakingTokens;
 
   // --- REWARDS
 
@@ -78,7 +78,7 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
   event Abstained(uint tokenId, int256 weight);
   event Deposit(address indexed lp, address indexed gauge, uint tokenId, uint amount);
   event Withdraw(address indexed lp, address indexed gauge, uint tokenId, uint amount);
-  event NotifyReward(address indexed sender, address indexed reward, uint amount);
+  event NotifyReward(address indexed sender, uint amount);
   event DistributeReward(address indexed sender, address indexed gauge, uint amount);
   event Attach(address indexed owner, address indexed gauge, address indexed stakingToken, uint tokenId);
   event Detach(address indexed owner, address indexed gauge, address indexed stakingToken, uint tokenId);
@@ -100,6 +100,8 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
     token = _rewardToken;
     gauge = _gauge;
     bribe = _bribe;
+    // if the gauge will be changed need to revoke approval and set a new
+    IERC20(_rewardToken).safeApprove(gauge, type(uint).max);
   }
 
   // *************************************************************
@@ -110,17 +112,17 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
     return IController(controller()).isValidVault(_vault);
   }
 
-  function validVaults() public view returns (address[] memory) {
-    return IController(controller()).vaultsList();
+  function validVaults(uint id) public view returns (address) {
+    return IController(controller()).vaults(id);
   }
 
   function validVaultsLength() public view returns (uint) {
     return IController(controller()).vaultsListLength();
   }
 
-  // *************************************************************
-  //                     GOV ACTIONS
-  // *************************************************************
+  function attachedStakingTokens(uint veId) external view returns (address[] memory) {
+    return _attachedStakingTokens[veId].values();
+  }
 
   // *************************************************************
   //                        VOTES
@@ -213,21 +215,21 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
   // *************************************************************
 
   /// @dev A gauge should be able to attach a token for preventing transfers/withdraws.
-  function attachTokenToGauge(address stakingToken, uint tokenId, address account) external  {
+  function attachTokenToGauge(address stakingToken, uint tokenId, address account) external {
     require(gauge == msg.sender, "!gauge");
     if (tokenId > 0) {
       IVeTetu(ve).attachToken(tokenId);
-      require(attachedStakingTokens[tokenId].add(stakingToken), "Already attached");
+      require(_attachedStakingTokens[tokenId].add(stakingToken), "Already attached");
     }
     emit Attach(account, msg.sender, stakingToken, tokenId);
   }
 
   /// @dev Detach given token.
-  function detachTokenFromGauge(address stakingToken, uint tokenId, address account) external  {
+  function detachTokenFromGauge(address stakingToken, uint tokenId, address account) external {
     require(gauge == msg.sender, "!gauge");
     if (tokenId > 0) {
       IVeTetu(ve).detachToken(tokenId);
-      require(attachedStakingTokens[tokenId].remove(stakingToken), "Attach not found");
+      require(_attachedStakingTokens[tokenId].remove(stakingToken), "Attach not found");
     }
     emit Detach(account, msg.sender, stakingToken, tokenId);
   }
@@ -235,16 +237,21 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
   /// @dev Detach given token from all gauges and votes
   ///      It could be pretty expensive call.
   ///      Need to have restrictions for max attached tokens and votes.
-  function detachTokenFromAll(uint tokenId, address account) external  {
+  function detachTokenFromAll(uint tokenId, address account) external {
     require(msg.sender == ve, "!ve");
 
     _reset(tokenId);
 
-    EnumerableSet.AddressSet storage tokens = attachedStakingTokens[tokenId];
-    uint length = tokens.length();
+    // need to copy addresses to memory, we will change this collection in the loop
+    address[] memory tokens = _attachedStakingTokens[tokenId].values();
+    uint length = tokens.length;
     for (uint i; i < length; ++i) {
-      address stakingToken = tokens.at(i);
-      IGauge(gauge).detachVe(stakingToken, account, tokenId);
+      address stakingToken = tokens[i];
+      IGauge g = IGauge(gauge);
+      // need to detach only attached ve
+      if (g.veIds(stakingToken, account) != 0) {
+        g.detachVe(stakingToken, account, tokenId);
+      }
     }
   }
 
@@ -261,20 +268,15 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
 
   /// @dev Update vaults by indexes in a range.
   function updateForRange(uint start, uint end) public {
-    address[] memory _vaults = validVaults();
+    IController c = IController(controller());
     for (uint i = start; i < end; i++) {
-      _updateFor(_vaults[i]);
+      _updateFor(c.vaults(i));
     }
   }
 
   /// @dev Update all gauges.
   function updateAll() external {
     updateForRange(0, validVaultsLength());
-  }
-
-  /// @dev Update reward info for given gauge.
-  function updateVault(address _vault) external {
-    _updateFor(_vault);
   }
 
   function _updateFor(address _vault) internal {
@@ -315,7 +317,7 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
     if (_ratio > 0) {
       index += _ratio;
     }
-    emit NotifyReward(msg.sender, token, amount);
+    emit NotifyReward(msg.sender, amount);
   }
 
   /// @dev Notify rewards for given vault. Anyone can call
@@ -326,16 +328,16 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
   /// @dev Distribute rewards to all valid vaults.
   function distributeAll() external {
     uint length = validVaultsLength();
-    address[] memory _vaults = validVaults();
+    IController c = IController(controller());
     for (uint x; x < length; x++) {
-      _distribute(_vaults[x]);
+      _distribute(c.vaults(x));
     }
   }
 
   function distributeFor(uint start, uint finish) external {
-    address[] memory _vaults = validVaults();
+    IController c = IController(controller());
     for (uint x = start; x < finish; x++) {
-      _distribute(_vaults[x]);
+      _distribute(c.vaults(x));
     }
   }
 

@@ -57,7 +57,8 @@ describe("multi bribe tests", function () {
       owner,
       controller.address,
       owner.address,
-      ve.address
+      ve.address,
+      tetu.address
     );
 
     bribe = await DeployerUtils.deployMultiBribe(
