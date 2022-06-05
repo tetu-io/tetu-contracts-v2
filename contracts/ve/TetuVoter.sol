@@ -217,20 +217,18 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
   /// @dev A gauge should be able to attach a token for preventing transfers/withdraws.
   function attachTokenToGauge(address stakingToken, uint tokenId, address account) external {
     require(gauge == msg.sender, "!gauge");
-    if (tokenId > 0) {
-      IVeTetu(ve).attachToken(tokenId);
-      require(_attachedStakingTokens[tokenId].add(stakingToken), "Already attached");
-    }
+    IVeTetu(ve).attachToken(tokenId);
+    // no need to check the result - the gauge should send only new values
+    _attachedStakingTokens[tokenId].add(stakingToken);
     emit Attach(account, msg.sender, stakingToken, tokenId);
   }
 
   /// @dev Detach given token.
   function detachTokenFromGauge(address stakingToken, uint tokenId, address account) external {
     require(gauge == msg.sender, "!gauge");
-    if (tokenId > 0) {
-      IVeTetu(ve).detachToken(tokenId);
-      require(_attachedStakingTokens[tokenId].remove(stakingToken), "Attach not found");
-    }
+    IVeTetu(ve).detachToken(tokenId);
+    // no need to check the result - the gauge should send only exist values
+    _attachedStakingTokens[tokenId].remove(stakingToken);
     emit Detach(account, msg.sender, stakingToken, tokenId);
   }
 
@@ -246,12 +244,8 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
     address[] memory tokens = _attachedStakingTokens[tokenId].values();
     uint length = tokens.length;
     for (uint i; i < length; ++i) {
-      address stakingToken = tokens[i];
-      IGauge g = IGauge(gauge);
-      // need to detach only attached ve
-      if (g.veIds(stakingToken, account) != 0) {
-        g.detachVe(stakingToken, account, tokenId);
-      }
+      // no need to check attachments if _attachedStakingTokens properly updated
+      IGauge(gauge).detachVe(tokens[i], account, tokenId);
     }
   }
 

@@ -182,6 +182,12 @@ describe("Tetu voter tests", function () {
     expect(await voter.usedWeights(1)).eq(0)
   });
 
+  it("vote with empty votes test", async function () {
+    await voter.vote(1, [], [])
+    expect(await voter.votes(1, vault.address)).eq(0)
+    expect(await voter.usedWeights(1)).eq(0)
+  });
+
   // *** ATTACHMENTS
 
   it("attach/detach test", async function () {
@@ -213,6 +219,18 @@ describe("Tetu voter tests", function () {
     // check that everything was reset
     expect((await voter.attachedStakingTokens(1)).length).eq(0);
     expect(await voter.votes(1, vault.address)).eq(0)
+  });
+
+  it("attach from not gauge revert", async function () {
+    await expect(voter.attachTokenToGauge(stakingToken.address, 1, owner.address)).revertedWith('!gauge')
+  });
+
+  it("detach from not gauge revert", async function () {
+    await expect(voter.detachTokenFromGauge(stakingToken.address, 1, owner.address)).revertedWith('!gauge')
+  });
+
+  it("detachAll from not ve revert", async function () {
+    await expect(voter.detachTokenFromAll(1, owner.address)).revertedWith('!ve')
   });
 
   // *** NOTIFY
