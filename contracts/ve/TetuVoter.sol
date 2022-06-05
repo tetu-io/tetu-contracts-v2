@@ -338,9 +338,13 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
   function _distribute(address _vault) internal nonReentrant {
     _updateFor(_vault);
     uint _claimable = claimable[_vault];
-    if (_claimable / _DURATION > 0) {
+    address _token = token;
+    address _gauge = gauge;
+    // rewards should not extend period infinity, only higher amount allowed
+    if (_claimable > IMultiPool(_gauge).left(_vault, _token)
+      && _claimable / _DURATION > 0) {
       claimable[_vault] = 0;
-      IGauge(gauge).notifyRewardAmount(_vault, token, _claimable);
+      IGauge(_gauge).notifyRewardAmount(_vault, _token, _claimable);
       emit DistributeReward(msg.sender, _vault, _claimable);
     }
   }

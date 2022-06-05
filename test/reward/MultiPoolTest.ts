@@ -210,6 +210,12 @@ describe("multi pool tests", function () {
     await pool.connect(rewarder).notifyRewardAmount(wmatic.address, rewardTokenDefault.address, FULL_REWARD.div(4));
   });
 
+  it("too low notify revert", async function () {
+    await pool.connect(rewarder).notifyRewardAmount(wmatic.address, rewardTokenDefault.address, FULL_REWARD.div(4));
+    await expect(pool.connect(rewarder).notifyRewardAmount(wmatic.address, rewardTokenDefault.address, 100))
+      .revertedWith("Amount should be higher than remaining rewards");
+  });
+
   // ***************** THE MAIN LOGIC TESTS *********************************
 
   it("update snapshots after full withdraw", async function () {

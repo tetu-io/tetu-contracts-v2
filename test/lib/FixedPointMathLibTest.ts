@@ -11,7 +11,7 @@ import {
 } from "../../typechain";
 import {TimeUtils} from "../TimeUtils";
 
-describe("Base64 Tests", function () {
+describe("FixedPointMathLib Tests", function () {
   let snapshotBefore: string;
   let snapshot: string;
   let signer: SignerWithAddress;

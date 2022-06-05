@@ -458,6 +458,8 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool, Initial
     } else {
       uint _remaining = periodFinish[stakingToken][rewardToken] - block.timestamp;
       uint _left = _remaining * rewardRate[stakingToken][rewardToken];
+      // rewards should not extend period infinity, only higher amount allowed
+      require(amount > _left / _PRECISION, "Amount should be higher than remaining rewards");
       IERC20(rewardToken).safeTransferFrom(msg.sender, address(this), amount);
       rewardRate[stakingToken][rewardToken] = (amount * _PRECISION + _left) / _DURATION;
     }

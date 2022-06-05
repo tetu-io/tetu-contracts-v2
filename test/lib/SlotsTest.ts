@@ -12,7 +12,7 @@ import {
 import {formatBytes32String} from "ethers/lib/utils";
 import {TimeUtils} from "../TimeUtils";
 
-describe("Various Slots Tests", function () {
+describe("Slots Tests", function () {
   let snapshotBefore: string;
   let snapshot: string;
   let signer: SignerWithAddress;
