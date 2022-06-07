@@ -50,8 +50,12 @@ contract MockVault is ERC4626Upgradeable, ControllableV3 {
 
   function previewWithdraw(uint assets) public view virtual override returns (uint) {
     uint supply = _totalSupply;
-    uint shares = assets.mulDivUp(supply, totalAssets());
-    shares = shares + (shares * fee / FEE_DENOMINATOR);
+    uint _totalAssets = totalAssets();
+    if (_totalAssets == 0) {
+      return assets;
+    }
+    uint shares = assets.mulDivUp(supply, _totalAssets);
+    shares = shares * FEE_DENOMINATOR / (FEE_DENOMINATOR - fee);
     return supply == 0 ? assets : shares;
   }
 

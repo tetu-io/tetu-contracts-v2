@@ -28,7 +28,7 @@ export class RunHelper {
         break;
       }
       log.info('not yet complete', tr.hash);
-      await DeployerUtils.delay(10000);
+      await Misc.delay(10000);
     }
     log.info('transaction result', tr.hash, receipt?.status);
     log.info('gas used', receipt.gasUsed.toString());

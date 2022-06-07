@@ -79,7 +79,6 @@ abstract contract ERC4626Upgradeable is ERC20Upgradeable, IERC4626 {
     if (msg.sender != owner) {
       uint allowed = _allowances[owner][msg.sender];
       // Saves gas for limited approvals.
-
       if (allowed != type(uint).max) _allowances[owner][msg.sender] = allowed - shares;
     }
 
@@ -102,7 +101,6 @@ abstract contract ERC4626Upgradeable is ERC20Upgradeable, IERC4626 {
     if (msg.sender != owner) {
       uint allowed = _allowances[owner][msg.sender];
       // Saves gas for limited approvals.
-
       if (allowed != type(uint).max) _allowances[owner][msg.sender] = allowed - shares;
     }
 
@@ -128,14 +126,12 @@ abstract contract ERC4626Upgradeable is ERC20Upgradeable, IERC4626 {
   function convertToShares(uint assets) public view virtual override returns (uint) {
     uint supply = _totalSupply;
     // Saves an extra SLOAD if totalSupply is non-zero.
-
     return supply == 0 ? assets : assets.mulDivDown(supply, totalAssets());
   }
 
   function convertToAssets(uint shares) public view virtual override returns (uint) {
     uint supply = _totalSupply;
     // Saves an extra SLOAD if totalSupply is non-zero.
-
     return supply == 0 ? shares : shares.mulDivDown(totalAssets(), supply);
   }
 
@@ -146,14 +142,12 @@ abstract contract ERC4626Upgradeable is ERC20Upgradeable, IERC4626 {
   function previewMint(uint shares) public view virtual override returns (uint) {
     uint supply = _totalSupply;
     // Saves an extra SLOAD if totalSupply is non-zero.
-
     return supply == 0 ? shares : shares.mulDivUp(totalAssets(), supply);
   }
 
   function previewWithdraw(uint assets) public view virtual override returns (uint) {
     uint supply = _totalSupply;
     // Saves an extra SLOAD if totalSupply is non-zero.
-
     return supply == 0 ? assets : assets.mulDivUp(supply, totalAssets());
   }
 
