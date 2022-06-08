@@ -14,7 +14,7 @@ import {
   MockVault__factory,
   MockVoter, MultiBribe__factory, MultiGauge__factory,
   ProxyControlled,
-  TetuVoter, TetuVoter__factory,
+  TetuVoter, TetuVoter__factory, VeDistributor__factory,
   VeTetu,
   VeTetu__factory
 } from "../../typechain";
@@ -202,6 +202,24 @@ export class DeployerUtils {
 
   public static async deployMockVoter(signer: SignerWithAddress, ve: string) {
     return await DeployerUtils.deployContract(signer, 'MockVoter', ve) as MockVoter;
+  }
+
+  public static async deployVeDistributor(
+    signer: SignerWithAddress,
+    controller: string,
+    ve: string,
+    rewardToken: string,
+    depositor: string,
+  ) {
+    const logic = await DeployerUtils.deployContract(signer, 'VeDistributor');
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled', logic.address);
+    await VeDistributor__factory.connect(proxy.address, signer).init(
+      controller,
+      ve,
+      rewardToken,
+      depositor
+    );
+    return VeDistributor__factory.connect(proxy.address, signer);
   }
 
 }

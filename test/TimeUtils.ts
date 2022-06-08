@@ -38,6 +38,11 @@ export class TimeUtils {
     await ethers.provider.send('evm_setNextBlockTimestamp', [blockNumber]);
   }
 
+  public static async setNextBlockTime(ts: number) {
+    await ethers.provider.send('evm_setNextBlockTimestamp', [ts]);
+    await ethers.provider.send('evm_mine', []);
+  }
+
   // // doesn't work, need to investigate
   // public static async currentBlock() {
   //   const tools = await DeployerUtils.getToolsAddresses();

@@ -4,6 +4,7 @@ pragma solidity 0.8.4;
 
 import "../interfaces/IERC20.sol";
 import "../interfaces/IVeTetu.sol";
+import "../interfaces/IVeDistributor.sol";
 import "../openzeppelin/SafeERC20.sol";
 import "../openzeppelin/Math.sol";
 import "../proxy/ControllableV3.sol";
@@ -12,7 +13,7 @@ import "../proxy/ControllableV3.sol";
 ///        Rewards will be staked to the ve without extending lock period.
 ///        Based on Solidly contract.
 /// @author belbix
-contract VeDistributor is ControllableV3 {
+contract VeDistributor is ControllableV3, IVeDistributor {
   using SafeERC20 for IERC20;
 
   // for contract internal purposes, don't need to store in the interface
@@ -47,10 +48,10 @@ contract VeDistributor is ControllableV3 {
 
   // --- CHECKPOINT
 
-  /// @dev Tokens per week stored on checkpoint call
-  uint[] public tokensPerWeek;
-  /// @dev Ve supply checkpoints
-  uint[] public veSupply;
+  /// @dev Tokens per week stored on checkpoint call. Predefined array size = max weeks size
+  uint[1000000000000000] public tokensPerWeek;
+  /// @dev Ve supply checkpoints. Predefined array size = max weeks size
+  uint[1000000000000000] public veSupply;
   /// @dev Ve supply checkpoint time cursor
   uint public timeCursor;
   /// @dev Token balance updated on checkpoint/claim
@@ -123,22 +124,17 @@ contract VeDistributor is ControllableV3 {
   }
 
   // *************************************************************
-  //                        VIEWS
-  // *************************************************************
-
-  /// @dev Block timestamp rounded to weeks
-  function timestamp() external view returns (uint) {
-    return block.timestamp / WEEK * WEEK;
-  }
-
-  // *************************************************************
   //                      CHECKPOINT
   // *************************************************************
 
-  // todo make notify func
-  function checkpointToken() external {
+  function notifyReward(uint amount) external override {
     require(msg.sender == depositor, "!depositor");
+
+    IERC20(rewardToken).safeTransferFrom(msg.sender, address(this), amount);
+    // checkpoint token balance that was just minted in veDist
     _checkpointToken();
+    // checkpoint supply
+    _checkpointTotalSupply();
   }
 
   /// @dev Update tokensPerWeek value
@@ -228,7 +224,7 @@ contract VeDistributor is ControllableV3 {
     uint maxUserEpoch = _ve.userPointEpoch(_tokenId);
     uint epoch = findTimestampUserEpoch(_ve, _tokenId, _timestamp, maxUserEpoch);
     IVeTetu.Point memory pt = _ve.userPointHistory(_tokenId, epoch);
-    return uint(int256(positiveInt128(pt.bias - pt.slope * (int128(int256(_timestamp - pt.ts))))));
+    return uint(int256(_positiveInt128(pt.bias - pt.slope * (int128(int256(_timestamp - pt.ts))))));
   }
 
   /// @dev Call ve checkpoint and write veSupply at the current timeCursor
@@ -265,7 +261,7 @@ contract VeDistributor is ControllableV3 {
     if (ptBias < ptSlope * dt) {
       return 0;
     }
-    return uint(int256(positiveInt128(ptBias - ptSlope * dt)));
+    return uint(int256(_positiveInt128(ptBias - ptSlope * dt)));
   }
 
   // *************************************************************
@@ -280,7 +276,7 @@ contract VeDistributor is ControllableV3 {
   }
 
   /// @dev Claim rewards for given veID
-  function claim(uint _tokenId) external returns (uint) {
+  function claim(uint _tokenId) external override returns (uint) {
     IVeTetu _ve = ve;
     if (block.timestamp >= timeCursor) _checkpointTotalSupply();
     uint _lastTokenTime = lastTokenTime;
@@ -327,9 +323,12 @@ contract VeDistributor is ControllableV3 {
     return result.toDistribute;
   }
 
-  function _calculateClaim(uint _tokenId, IVeTetu _ve, uint _lastTokenTime) internal view returns (ClaimCalculationResult memory) {
+  function _calculateClaim(
+    uint _tokenId,
+    IVeTetu _ve,
+    uint _lastTokenTime
+  ) internal view returns (ClaimCalculationResult memory) {
     uint userEpoch;
-    uint toDistribute;
     uint maxUserEpoch = _ve.userPointEpoch(_tokenId);
     uint _startTime = startTime;
 
@@ -358,29 +357,48 @@ contract VeDistributor is ControllableV3 {
       weekCursor = _startTime;
     }
 
+    return calculateToDistribute(
+      _tokenId,
+      weekCursor,
+      _lastTokenTime,
+      userPoint,
+      userEpoch,
+      maxUserEpoch,
+      _ve
+    );
+  }
+
+  function calculateToDistribute(
+    uint _tokenId,
+    uint weekCursor,
+    uint _lastTokenTime,
+    IVeTetu.Point memory userPoint,
+    uint userEpoch,
+    uint maxUserEpoch,
+    IVeTetu _ve
+  ) public view returns (ClaimCalculationResult memory) {
     IVeTetu.Point memory oldUserPoint;
-    {
-      for (uint i = 0; i < 50; i++) {
-        if (weekCursor >= _lastTokenTime) {
+    uint toDistribute;
+    for (uint i = 0; i < 50; i++) {
+      if (weekCursor >= _lastTokenTime) {
+        break;
+      }
+      if (weekCursor >= userPoint.ts && userEpoch <= maxUserEpoch) {
+        userEpoch += 1;
+        oldUserPoint = userPoint;
+        if (userEpoch > maxUserEpoch) {
+          userPoint = IVeTetu.Point(0, 0, 0, 0);
+        } else {
+          userPoint = _ve.userPointHistory(_tokenId, userEpoch);
+        }
+      } else {
+        int128 dt = int128(int256(weekCursor - oldUserPoint.ts));
+        uint balanceOf = uint(int256(_positiveInt128(oldUserPoint.bias - dt * oldUserPoint.slope)));
+        if (balanceOf == 0 && userEpoch > maxUserEpoch) {
           break;
         }
-        if (weekCursor >= userPoint.ts && userEpoch <= maxUserEpoch) {
-          userEpoch += 1;
-          oldUserPoint = userPoint;
-          if (userEpoch > maxUserEpoch) {
-            userPoint = IVeTetu.Point(0, 0, 0, 0);
-          } else {
-            userPoint = _ve.userPointHistory(_tokenId, userEpoch);
-          }
-        } else {
-          int128 dt = int128(int256(weekCursor - oldUserPoint.ts));
-          uint balanceOf = uint(int256(positiveInt128(oldUserPoint.bias - dt * oldUserPoint.slope)));
-          if (balanceOf == 0 && userEpoch > maxUserEpoch) {
-            break;
-          }
-          toDistribute += balanceOf * tokensPerWeek[weekCursor] / veSupply[weekCursor];
-          weekCursor += WEEK;
-        }
+        toDistribute += balanceOf * tokensPerWeek[weekCursor] / veSupply[weekCursor];
+        weekCursor += WEEK;
       }
     }
     return ClaimCalculationResult(
@@ -392,8 +410,13 @@ contract VeDistributor is ControllableV3 {
     );
   }
 
-  function positiveInt128(int128 value) internal pure returns (int128) {
+  function _positiveInt128(int128 value) internal pure returns (int128) {
     return value < 0 ? int128(0) : value;
+  }
+
+  /// @dev Block timestamp rounded to weeks
+  function timestamp() external view returns (uint) {
+    return block.timestamp / WEEK * WEEK;
   }
 
 }
