@@ -9,8 +9,8 @@ import {
   MockToken,
   MockVault,
   MockVaultSimple,
-  MockVault__factory,
-  ProxyControlled, MockVaultSimple__factory
+  MockVaultSimple__factory,
+  ProxyControlled
 } from "../../typechain";
 import {Misc} from "../../scripts/utils/Misc";
 import {parseUnits} from "ethers/lib/utils";
@@ -265,7 +265,6 @@ describe("Base Vaults tests", function () {
     await vault.deposit(parseUnits('1', 6), signer.address);
     await expect(vault.redeem(0, signer.address, signer.address)).revertedWith('ZERO_ASSETS')
   });
-
 
 
 });

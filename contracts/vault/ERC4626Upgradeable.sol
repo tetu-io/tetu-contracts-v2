@@ -5,15 +5,18 @@ pragma solidity 0.8.4;
 import "../lib/FixedPointMathLib.sol";
 import "../openzeppelin/ERC20Upgradeable.sol";
 import "../openzeppelin/SafeERC20.sol";
+import "../openzeppelin/ReentrancyGuard.sol";
 import "../interfaces/IERC4626.sol";
 
 /// @notice Minimal ERC4626 tokenized Vault implementation.
 /// @author Solmate (https://github.com/Rari-Capital/solmate/blob/main/src/mixins/ERC4626.sol)
-/// @author belbix - adopted to proxy pattern
-abstract contract ERC4626Upgradeable is ERC20Upgradeable, IERC4626 {
+/// @author belbix - adopted to proxy pattern + add ReentrancyGuard
+abstract contract ERC4626Upgradeable is ERC20Upgradeable, ReentrancyGuard, IERC4626 {
   using SafeERC20 for IERC20;
   using FixedPointMathLib for uint;
 
+  /// @dev The address of the underlying token used for the Vault uses for accounting,
+  ///      depositing, and withdrawing
   IERC20 public asset;
 
   function __ERC4626_init(
@@ -33,7 +36,11 @@ abstract contract ERC4626Upgradeable is ERC20Upgradeable, IERC4626 {
   //             DEPOSIT/WITHDRAWAL LOGIC
   //////////////////////////////////////////////////////////////*/
 
-  function deposit(uint assets, address receiver) public virtual override returns (uint shares) {
+  /// @dev Mints vault shares to receiver by depositing exactly amount of assets.
+  function deposit(
+    uint assets,
+    address receiver
+  ) public nonReentrant virtual override returns (uint shares) {
     require(assets <= maxDeposit(receiver), "MAX");
 
     shares = previewDeposit(assets);
@@ -50,7 +57,10 @@ abstract contract ERC4626Upgradeable is ERC20Upgradeable, IERC4626 {
     afterDeposit(assets, shares);
   }
 
-  function mint(uint shares, address receiver) public virtual override returns (uint assets) {
+  function mint(
+    uint shares,
+    address receiver
+  ) public nonReentrant virtual override returns (uint assets) {
     require(shares <= maxMint(receiver), "MAX");
 
     assets = previewMint(shares);
@@ -70,7 +80,7 @@ abstract contract ERC4626Upgradeable is ERC20Upgradeable, IERC4626 {
     uint assets,
     address receiver,
     address owner
-  ) public virtual override returns (uint shares) {
+  ) public nonReentrant virtual override returns (uint shares) {
     require(assets <= maxWithdraw(owner), "MAX");
 
     shares = previewWithdraw(assets);
@@ -82,7 +92,7 @@ abstract contract ERC4626Upgradeable is ERC20Upgradeable, IERC4626 {
       if (allowed != type(uint).max) _allowances[owner][msg.sender] = allowed - shares;
     }
 
-    beforeWithdraw(assets, shares);
+    (assets, shares) = beforeWithdraw(assets, shares);
 
     _burn(owner, shares);
 
@@ -91,11 +101,12 @@ abstract contract ERC4626Upgradeable is ERC20Upgradeable, IERC4626 {
     asset.safeTransfer(receiver, assets);
   }
 
+  /// @dev Redeems shares from owner and sends assets to receiver.
   function redeem(
     uint shares,
     address receiver,
     address owner
-  ) public virtual override returns (uint assets) {
+  ) public nonReentrant virtual override returns (uint assets) {
     require(shares <= maxRedeem(owner), "MAX");
 
     if (msg.sender != owner) {
@@ -108,7 +119,7 @@ abstract contract ERC4626Upgradeable is ERC20Upgradeable, IERC4626 {
     // Check for rounding error since we round down in previewRedeem.
     require(assets != 0, "ZERO_ASSETS");
 
-    beforeWithdraw(assets, shares);
+    (assets, shares) = beforeWithdraw(assets, shares);
 
     _burn(owner, shares);
 
@@ -121,6 +132,7 @@ abstract contract ERC4626Upgradeable is ERC20Upgradeable, IERC4626 {
   //                  ACCOUNTING LOGIC
   //////////////////////////////////////////////////////////////*/
 
+  /// @dev Total amount of the underlying asset that is “managed” by Vault
   function totalAssets() public view virtual override returns (uint);
 
   function convertToShares(uint assets) public view virtual override returns (uint) {
@@ -179,7 +191,12 @@ abstract contract ERC4626Upgradeable is ERC20Upgradeable, IERC4626 {
   //                INTERNAL HOOKS LOGIC
   ///////////////////////////////////////////////////////////////
 
-  function beforeWithdraw(uint assets, uint shares) internal virtual {}
+  function beforeWithdraw(
+    uint assets,
+    uint shares
+  ) internal virtual returns (uint assetsAdjusted, uint sharesAdjusted) {
+    return (assets, shares);
+  }
 
   function afterDeposit(uint assets, uint shares) internal virtual {}
 

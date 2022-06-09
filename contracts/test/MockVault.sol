@@ -88,13 +88,15 @@ contract MockVault is ERC4626Upgradeable, ControllableV3 {
   //                INTERNAL HOOKS LOGIC
   ///////////////////////////////////////////////////////////////
 
-  function beforeWithdraw(uint assets, uint) internal override {
+  function beforeWithdraw(uint assets, uint shares)
+  internal override returns (uint assetsAdjusted, uint sharesAdjusted) {
     uint balance = asset.balanceOf(address(this));
     if (balance < assets) {
       require(asset.balanceOf(strategy) >= assets - balance, "Strategy has not enough balance");
       // it is stub logic for EOA
       asset.safeTransferFrom(strategy, address(this), assets - balance);
     }
+    return (assets, shares);
   }
 
   function afterDeposit(uint assets, uint) internal override {
