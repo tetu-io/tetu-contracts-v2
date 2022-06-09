@@ -44,8 +44,12 @@ contract MockVault is ERC4626Upgradeable, ControllableV3 {
 
   function previewMint(uint shares) public view virtual override returns (uint) {
     uint supply = _totalSupply;
-    shares = shares - (shares * fee / FEE_DENOMINATOR);
-    return supply == 0 ? shares : shares.mulDivUp(totalAssets(), supply);
+    if (supply != 0) {
+      uint assets = shares.mulDivUp(totalAssets(), supply);
+      return assets * FEE_DENOMINATOR / (FEE_DENOMINATOR - fee);
+    } else {
+      return shares * FEE_DENOMINATOR / (FEE_DENOMINATOR - fee);
+    }
   }
 
   function previewWithdraw(uint assets) public view virtual override returns (uint) {
@@ -88,15 +92,13 @@ contract MockVault is ERC4626Upgradeable, ControllableV3 {
   //                INTERNAL HOOKS LOGIC
   ///////////////////////////////////////////////////////////////
 
-  function beforeWithdraw(uint assets, uint shares)
-  internal override returns (uint assetsAdjusted, uint sharesAdjusted) {
+  function beforeWithdraw(uint assets, uint) internal override {
     uint balance = asset.balanceOf(address(this));
     if (balance < assets) {
       require(asset.balanceOf(strategy) >= assets - balance, "Strategy has not enough balance");
       // it is stub logic for EOA
       asset.safeTransferFrom(strategy, address(this), assets - balance);
     }
-    return (assets, shares);
   }
 
   function afterDeposit(uint assets, uint) internal override {

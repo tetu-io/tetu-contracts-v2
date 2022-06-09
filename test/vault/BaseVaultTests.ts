@@ -85,7 +85,7 @@ describe("Base Vaults tests", function () {
 
     const tx = await vault.deposit(amount, signer2.address)
     const rec = await tx.wait();
-    expect(rec.gasUsed).below(158309)
+    expect(rec.gasUsed).below(168119)
 
     const expectedShares = await vault.convertToShares(amount);
     await vault.deposit(amount, signer.address)
@@ -114,18 +114,18 @@ describe("Base Vaults tests", function () {
   });
 
   it("mint/withdraw test", async () => {
-    const sharesAmount = parseUnits('1', 6);
+    const assetsAmount = parseUnits('1', 6);
 
-    const tx = await vault.mint(sharesAmount, signer2.address)
+    const tx = await vault.mint(assetsAmount, signer2.address)
     const rec = await tx.wait();
-    expect(rec.gasUsed).below(158309)
+    expect(rec.gasUsed).below(168176)
 
-    const expectedAssets1 = await vault.convertToAssets(sharesAmount);
-    await vault.deposit(sharesAmount, signer.address)
+    const expectedAssets1 = await vault.convertToAssets(assetsAmount);
+    await vault.deposit(assetsAmount, signer.address)
     const shares = await vault.balanceOf(signer.address);
-    expect(shares).eq(1000000);
-    expect(await vault.convertToAssets(shares)).eq(950000);
-    expect(await vault.convertToShares(expectedAssets1)).eq(947368);
+    expect(shares).eq(818181);
+    expect(await vault.convertToAssets(shares)).eq(944999);
+    expect(await vault.convertToShares(expectedAssets1)).eq(952380);
 
     const expectedAssets2 = await vault.convertToAssets(shares);
     console.log('shares', shares.toString())
@@ -133,18 +133,18 @@ describe("Base Vaults tests", function () {
     await vault.withdraw(expectedAssets2.mul(9).div(10), signer1.address, signer.address);
     expect(await vault.balanceOf(signer.address)).eq(0)
     const assets = await usdc.balanceOf(signer1.address);
-    expect(assets).eq(855000);
+    expect(assets).eq(850499);
     expect(assets).eq(expectedAssets2.mul(9).div(10));
 
     const vaultBalance = await usdc.balanceOf(vault.address);
     const strategyBalance = await usdc.balanceOf(stubStrategy.address);
-    expect(vaultBalance).eq(95000)
-    expect(strategyBalance).eq(950000)
+    expect(vaultBalance).eq(199501)
+    expect(strategyBalance).eq(1050000)
     expect(await vault.totalAssets()).eq(vaultBalance.add(strategyBalance))
     expect(await vault.totalSupply()).eq(1000000)
 
-    expect(await vault.convertToShares(sharesAmount)).eq(956937);
-    expect(await vault.convertToAssets(sharesAmount)).eq(1045000);
+    expect(await vault.convertToShares(assetsAmount)).eq(800319);
+    expect(await vault.convertToAssets(assetsAmount)).eq(1249501);
   });
 
   it("decimals test", async () => {
@@ -164,7 +164,7 @@ describe("Base Vaults tests", function () {
   });
 
   it("previewMint test", async () => {
-    expect(await vault.previewMint(100)).eq(90);
+    expect(await vault.previewMint(100)).eq(110);
   });
 
   it("previewWithdraw test", async () => {
@@ -202,11 +202,11 @@ describe("Base Vaults tests", function () {
   });
 
   it("simple maxDeposit test", async () => {
-    expect(await vaultSimple.maxDeposit(signer.address)).eq(Misc.MAX_UINT);
+    expect(await vaultSimple.maxDeposit(signer.address)).eq(Misc.MAX_UINT_MINUS_ONE);
   });
 
   it("simple maxMint test", async () => {
-    expect(await vaultSimple.maxMint(signer.address)).eq(Misc.MAX_UINT);
+    expect(await vaultSimple.maxMint(signer.address)).eq(Misc.MAX_UINT_MINUS_ONE);
   });
 
   it("simple maxWithdraw test", async () => {
@@ -264,6 +264,66 @@ describe("Base Vaults tests", function () {
   it("redeem zero revert", async () => {
     await vault.deposit(parseUnits('1', 6), signer.address);
     await expect(vault.redeem(0, signer.address, signer.address)).revertedWith('ZERO_ASSETS')
+  });
+
+  it("deposit test", async () => {
+    const bal1 = await usdc.balanceOf(signer.address);
+    await vault.deposit(parseUnits('1', 6), signer1.address);
+    expect(await vault.balanceOf(signer1.address)).eq(900_000);
+    expect(bal1.sub(await usdc.balanceOf(signer.address))).eq(parseUnits('1', 6));
+
+    const bal2 = await usdc.balanceOf(signer.address);
+    await vault.deposit(parseUnits('1', 6), signer.address);
+    expect(await vault.balanceOf(signer.address)).eq(810_000);
+    expect(bal2.sub(await usdc.balanceOf(signer.address))).eq(parseUnits('1', 6));
+  });
+
+  it("mint test", async () => {
+    const bal1 = await usdc.balanceOf(signer.address);
+    await vault.mint(900_000, signer1.address);
+    expect(await vault.balanceOf(signer1.address)).eq(900_000);
+    expect(bal1.sub(await usdc.balanceOf(signer.address))).eq(parseUnits('1', 6));
+
+    const bal2 = await usdc.balanceOf(signer.address);
+    await vault.mint(810000, signer.address);
+    expect(await vault.balanceOf(signer.address)).eq(810_000);
+    expect(bal2.sub(await usdc.balanceOf(signer.address))).eq(parseUnits('1', 6));
+  });
+
+  it("withdraw test", async () => {
+    await vault.deposit(parseUnits('1', 6), signer1.address);
+    await vault.deposit(parseUnits('1', 6), signer.address);
+
+    const shares = await vault.balanceOf(signer.address);
+    expect(shares).eq(810_000);
+
+    const assets = await vault.convertToAssets(shares);
+    const assetsMinusTax = assets.mul(9).div(10);
+    expect(assetsMinusTax).eq(852631);
+
+    const bal1 = await usdc.balanceOf(signer.address);
+    const shares1 = await vault.balanceOf(signer.address);
+    await vault.withdraw(assetsMinusTax, signer.address, signer.address);
+    expect(shares1.sub(await vault.balanceOf(signer.address))).eq(shares);
+    expect((await usdc.balanceOf(signer.address)).sub(bal1)).eq(assetsMinusTax);
+  });
+
+  it("redeem test", async () => {
+    await vault.deposit(parseUnits('1', 6), signer1.address);
+    await vault.deposit(parseUnits('1', 6), signer.address);
+
+    const shares = await vault.balanceOf(signer.address);
+    expect(shares).eq(810_000);
+
+    const assets = await vault.convertToAssets(shares);
+    const assetsMinusTax = assets.mul(9).div(10);
+    expect(assetsMinusTax).eq(852631);
+
+    const bal1 = await usdc.balanceOf(signer.address);
+    const shares1 = await vault.balanceOf(signer.address);
+    await vault.redeem(shares, signer.address, signer.address);
+    expect(shares1.sub(await vault.balanceOf(signer.address))).eq(shares);
+    expect((await usdc.balanceOf(signer.address)).sub(bal1)).eq(assetsMinusTax);
   });
 
 

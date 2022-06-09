@@ -31,4 +31,6 @@ interface ISplitter {
   function vault() external view returns (address);
 
   function totalAssets() external view returns (uint256);
+
+  function isHardWorking() external view returns (bool);
 }

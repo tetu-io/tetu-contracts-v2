@@ -92,7 +92,7 @@ abstract contract ERC4626Upgradeable is ERC20Upgradeable, ReentrancyGuard, IERC4
       if (allowed != type(uint).max) _allowances[owner][msg.sender] = allowed - shares;
     }
 
-    (assets, shares) = beforeWithdraw(assets, shares);
+    beforeWithdraw(assets, shares);
 
     _burn(owner, shares);
 
@@ -119,7 +119,7 @@ abstract contract ERC4626Upgradeable is ERC20Upgradeable, ReentrancyGuard, IERC4
     // Check for rounding error since we round down in previewRedeem.
     require(assets != 0, "ZERO_ASSETS");
 
-    (assets, shares) = beforeWithdraw(assets, shares);
+    beforeWithdraw(assets, shares);
 
     _burn(owner, shares);
 
@@ -172,11 +172,11 @@ abstract contract ERC4626Upgradeable is ERC20Upgradeable, ReentrancyGuard, IERC4
   ///////////////////////////////////////////////////////////////
 
   function maxDeposit(address) public view virtual override returns (uint) {
-    return type(uint).max;
+    return type(uint).max - 1;
   }
 
   function maxMint(address) public view virtual override returns (uint) {
-    return type(uint).max;
+    return type(uint).max - 1;
   }
 
   function maxWithdraw(address owner) public view virtual override returns (uint) {
@@ -191,12 +191,7 @@ abstract contract ERC4626Upgradeable is ERC20Upgradeable, ReentrancyGuard, IERC4
   //                INTERNAL HOOKS LOGIC
   ///////////////////////////////////////////////////////////////
 
-  function beforeWithdraw(
-    uint assets,
-    uint shares
-  ) internal virtual returns (uint assetsAdjusted, uint sharesAdjusted) {
-    return (assets, shares);
-  }
+  function beforeWithdraw(uint assets, uint shares) internal virtual {}
 
   function afterDeposit(uint assets, uint shares) internal virtual {}
 

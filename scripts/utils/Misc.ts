@@ -34,6 +34,7 @@ export class Misc {
   public static readonly AAVE_BOR_RATIO = 0.99;
   public static readonly IRON_BOR_RATIO = 0.99;
   public static readonly MAX_UINT = '115792089237316195423570985008687907853269984665640564039457584007913129639935';
+  public static readonly MAX_UINT_MINUS_ONE = '115792089237316195423570985008687907853269984665640564039457584007913129639934';
 
   public static printDuration(text: string, start: number) {
     log.info('>>>' + text, ((Date.now() - start) / 1000).toFixed(1), 'sec');

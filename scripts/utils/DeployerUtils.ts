@@ -1,6 +1,6 @@
 import {ethers, web3} from "hardhat";
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
-import {ContractFactory, utils} from "ethers";
+import {BigNumberish, ContractFactory, utils} from "ethers";
 import {Misc} from "./Misc";
 import logSettings from "../../log_settings";
 import {Logger} from "tslog";
@@ -13,7 +13,7 @@ import {
   MockVault,
   MockVault__factory,
   MockVoter, MultiBribe__factory, MultiGauge__factory,
-  ProxyControlled,
+  ProxyControlled, TetuVaultV2, TetuVaultV2__factory,
   TetuVoter, TetuVoter__factory, VeDistributor__factory,
   VeTetu,
   VeTetu__factory
@@ -220,6 +220,29 @@ export class DeployerUtils {
       depositor
     );
     return VeDistributor__factory.connect(proxy.address, signer);
+  }
+
+  public static async deployTetuVaultV2(
+    signer: SignerWithAddress,
+    controller: string,
+    asset: string,
+    name: string,
+    symbol: string,
+    gauge: string,
+    buffer: number,
+  ) {
+    const logic = await DeployerUtils.deployContract(signer, 'TetuVaultV2') as TetuVaultV2;
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled', logic.address) as ProxyControlled;
+    const vault = TetuVaultV2__factory.connect(proxy.address, signer);
+    await vault.init(
+      controller,
+      asset,
+      name,
+      symbol,
+      gauge,
+      buffer,
+    );
+    return vault;
   }
 
 }
