@@ -10,7 +10,7 @@ import "../openzeppelin/Math.sol";
 import "../proxy/ControllableV3.sol";
 
 /// @title Contract for distributing rewards to ve holders.
-///        Rewards will be staked to the ve without extending lock period.
+///        Rewards will be staked to the veNFT without extending lock period.
 ///        Based on Solidly contract.
 /// @author belbix
 contract VeDistributor is ControllableV3, IVeDistributor {

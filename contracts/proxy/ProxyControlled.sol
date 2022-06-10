@@ -2,10 +2,9 @@
 
 pragma solidity 0.8.4;
 
-
-import "./UpgradeableProxy.sol";
 import "../interfaces/IControllable.sol";
 import "../interfaces/IProxyControlled.sol";
+import "./UpgradeableProxy.sol";
 
 /// @title EIP1967 Upgradable proxy implementation.
 /// @dev Only Controller has access and should implement time-lock for upgrade action.

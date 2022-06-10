@@ -2,14 +2,16 @@
 
 pragma solidity 0.8.4;
 
-import "../interfaces/IERC20.sol";
 import "../openzeppelin/Math.sol";
 import "../openzeppelin/SafeERC20.sol";
 import "../openzeppelin/ReentrancyGuard.sol";
-import "../lib/CheckpointLib.sol";
-import "../interfaces/IMultiPool.sol";
 import "../openzeppelin/Initializable.sol";
+import "../interfaces/IMultiPool.sol";
+import "../interfaces/IERC20.sol";
+import "../lib/CheckpointLib.sol";
 
+/// @title Abstract stakeless pool
+/// @author belbix
 abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool, Initializable {
   using SafeERC20 for IERC20;
   using CheckpointLib for mapping(uint => CheckpointLib.Checkpoint);

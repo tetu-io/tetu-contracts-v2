@@ -2,12 +2,12 @@
 
 pragma solidity 0.8.4;
 
-import "../vault/ERC4626Upgradeable.sol";
-import "../proxy/ControllableV3.sol";
+import "../openzeppelin/Math.sol";
 import "../interfaces/ISplitter.sol";
 import "../interfaces/ITetuVaultV2.sol";
 import "../interfaces/IGauge.sol";
-import "../openzeppelin/Math.sol";
+import "../proxy/ControllableV3.sol";
+import "./ERC4626Upgradeable.sol";
 import "./VaultInsurance.sol";
 
 /// @title Vault for storing underlying tokens and managing them with strategy splitter.

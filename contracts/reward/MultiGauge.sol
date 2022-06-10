@@ -2,14 +2,15 @@
 
 pragma solidity 0.8.4;
 
-import "./StakelessMultiPoolBase.sol";
-import "../proxy/ControllableV3.sol";
 import "../interfaces/IVoter.sol";
 import "../interfaces/IERC721.sol";
 import "../interfaces/IVeTetu.sol";
 import "../interfaces/IGauge.sol";
+import "../proxy/ControllableV3.sol";
+import "./StakelessMultiPoolBase.sol";
 
-
+/// @title Stakeless pool for vaults
+/// @author belbix
 contract MultiGauge is StakelessMultiPoolBase, ControllableV3, IGauge {
 
   // *************************************************************

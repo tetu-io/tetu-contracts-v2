@@ -4,6 +4,8 @@ pragma solidity 0.8.4;
 
 import "../lib/Base64.sol";
 
+/// @title Library for storing SVG image of veNFT.
+/// @author belbix
 library VeTetuLogo {
 
   function tokenURI(uint _tokenId, uint _balanceOf, uint untilEnd, uint _value) public pure returns (string memory output) {

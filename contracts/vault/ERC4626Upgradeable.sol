@@ -2,11 +2,11 @@
 
 pragma solidity 0.8.4;
 
-import "../lib/FixedPointMathLib.sol";
 import "../openzeppelin/ERC20Upgradeable.sol";
 import "../openzeppelin/SafeERC20.sol";
 import "../openzeppelin/ReentrancyGuard.sol";
 import "../interfaces/IERC4626.sol";
+import "../lib/FixedPointMathLib.sol";
 
 /// @notice Minimal ERC4626 tokenized Vault implementation.
 /// @author Solmate (https://github.com/Rari-Capital/solmate/blob/main/src/mixins/ERC4626.sol)

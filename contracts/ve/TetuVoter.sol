@@ -2,18 +2,21 @@
 
 pragma solidity 0.8.4;
 
+import "../openzeppelin/SafeERC20.sol";
+import "../openzeppelin/ReentrancyGuard.sol";
+import "../openzeppelin/EnumerableSet.sol";
 import "../interfaces/IVeTetu.sol";
 import "../interfaces/IVoter.sol";
 import "../interfaces/IERC20.sol";
-import "../interfaces/IERC721.sol";
 import "../interfaces/IGauge.sol";
 import "../interfaces/IBribe.sol";
 import "../interfaces/IMultiPool.sol";
-import "../openzeppelin/SafeERC20.sol";
-import "../openzeppelin/ReentrancyGuard.sol";
 import "../proxy/ControllableV3.sol";
-import "../openzeppelin/EnumerableSet.sol";
 
+/// @title Voter for veTETU.
+///        Based on Solidly contract.
+/// @author belbix
+// todo add interface
 contract TetuVoter is ReentrancyGuard, ControllableV3 {
   using SafeERC20 for IERC20;
   using EnumerableSet for EnumerableSet.AddressSet;

@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.0;
 
+/// @title Library for find lower index in checkpoints. Uses with MultiPool
+/// @author belbix
 library CheckpointLib {
 
   /// @notice A checkpoint for uint value
