@@ -21,7 +21,7 @@ const {expect} = chai;
 const WEEK = 60 * 60 * 24 * 7;
 const LOCK_PERIOD = 60 * 60 * 24 * 365;
 
-describe("veTETU tests", function () {
+describe("Ve distributor tests", function () {
 
   let snapshotBefore: string;
   let snapshot: string;
@@ -316,12 +316,12 @@ describe("veTETU tests", function () {
   it("claimMany test", async function () {
     await ve.createLock(tetu.address, parseUnits('1'), WEEK);
 
-    await TimeUtils.advanceBlocksOnTs(WEEK + 60 * 60 * 24 * 2);
+    await TimeUtils.advanceBlocksOnTs(WEEK *2);
 
     await tetu.approve(veDist.address, parseUnits('10000'))
     await veDist.notifyReward(parseUnits('1000'));
 
-    await TimeUtils.advanceBlocksOnTs(WEEK);
+    await TimeUtils.advanceBlocksOnTs(WEEK * 2);
 
     expect(await veDist.claimable(1)).above(0);
 

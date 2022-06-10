@@ -4,12 +4,14 @@ pragma solidity 0.8.4;
 
 import "../interfaces/ISplitter.sol";
 import "../interfaces/IERC20.sol";
+import "../interfaces/ITetuVaultV2.sol";
 import "../proxy/ControllableV3.sol";
 
 contract MockSplitter is ISplitter, ControllableV3 {
 
   address public override asset;
   address public override vault;
+  uint public slippage;
 
   constructor (address controller_, address _asset, address _vault) {
     asset = _asset;
@@ -21,12 +23,20 @@ contract MockSplitter is ISplitter, ControllableV3 {
     __Controllable_init(controller_);
   }
 
-  function withdrawAllToVault() external override {
-    IERC20(asset).transfer(vault, IERC20(asset).balanceOf(address(this)));
+  function setSlippage(uint value) external {
+    slippage = value;
   }
 
-  function withdrawToVault(uint256 amount) external override {
-    IERC20(asset).transfer(vault, amount);
+  function withdrawAllToVault() external override {
+    withdrawToVault(IERC20(asset).balanceOf(address(this)));
+  }
+
+  function withdrawToVault(uint256 amount) public override {
+    uint toSend = amount - amount * slippage / 1000;
+    if (slippage != 0) {
+      IERC20(asset).transfer(controller(), amount - toSend);
+    }
+    IERC20(asset).transfer(vault, toSend);
   }
 
   function doHardWork() external override {
@@ -43,6 +53,14 @@ contract MockSplitter is ISplitter, ControllableV3 {
 
   function isHardWorking() external pure override returns (bool) {
     return false;
+  }
+
+  function lost(uint amount) external {
+    IERC20(asset).transfer(msg.sender, amount);
+  }
+
+  function coverLoss(uint amount) external {
+    ITetuVaultV2(vault).coverLoss(amount);
   }
 
 }

@@ -10,6 +10,7 @@ contract ControllerMinimal is IController {
   address public override governance;
   address public override voter;
   address public override vePawnshop;
+  address public override vaultController;
   address[] public override vaults;
   mapping(address => bool) public operators;
 
@@ -23,6 +24,10 @@ contract ControllerMinimal is IController {
 
   function setVePawnshop(address _vePawnshop) external {
     vePawnshop = _vePawnshop;
+  }
+
+  function setVaultController(address value) external {
+    vaultController = value;
   }
 
   function addVault(address vault) external {

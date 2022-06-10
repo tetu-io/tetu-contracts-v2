@@ -80,73 +80,6 @@ describe("Base Vaults tests", function () {
     await TimeUtils.rollback(snapshot);
   });
 
-  it("deposit/redeem test", async () => {
-    const amount = parseUnits('1', 6);
-
-    const tx = await vault.deposit(amount, signer2.address)
-    const rec = await tx.wait();
-    expect(rec.gasUsed).below(168119)
-
-    const expectedShares = await vault.convertToShares(amount);
-    await vault.deposit(amount, signer.address)
-    const shares = await vault.balanceOf(signer.address);
-    expect(shares).eq(810000);
-    expect(shares).eq(expectedShares.mul(9).div(10));
-    expect(await vault.convertToAssets(shares)).eq(947368);
-    expect(await vault.convertToShares(amount)).eq(855000);
-
-    const expectedAssets = await vault.convertToAssets(shares);
-    await vault.redeem(shares, signer1.address, signer.address);
-    expect(await vault.balanceOf(signer.address)).eq(0)
-    const assets = await usdc.balanceOf(signer1.address);
-    expect(assets).eq(852631);
-    expect(assets).eq(expectedAssets.mul(9).div(10));
-
-    const vaultBalance = await usdc.balanceOf(vault.address);
-    const strategyBalance = await usdc.balanceOf(stubStrategy.address);
-    expect(vaultBalance).eq(147369)
-    expect(strategyBalance).eq(1000000)
-    expect(await vault.totalAssets()).eq(vaultBalance.add(strategyBalance))
-    expect(await vault.totalSupply()).eq(900000)
-
-    expect(await vault.convertToShares(amount)).eq(784403);
-    expect(await vault.convertToAssets(amount)).eq(1274854);
-  });
-
-  it("mint/withdraw test", async () => {
-    const assetsAmount = parseUnits('1', 6);
-
-    const tx = await vault.mint(assetsAmount, signer2.address)
-    const rec = await tx.wait();
-    expect(rec.gasUsed).below(168176)
-
-    const expectedAssets1 = await vault.convertToAssets(assetsAmount);
-    await vault.deposit(assetsAmount, signer.address)
-    const shares = await vault.balanceOf(signer.address);
-    expect(shares).eq(818181);
-    expect(await vault.convertToAssets(shares)).eq(944999);
-    expect(await vault.convertToShares(expectedAssets1)).eq(952380);
-
-    const expectedAssets2 = await vault.convertToAssets(shares);
-    console.log('shares', shares.toString())
-    console.log('expectedAssets2', expectedAssets2.toString())
-    await vault.withdraw(expectedAssets2.mul(9).div(10), signer1.address, signer.address);
-    expect(await vault.balanceOf(signer.address)).eq(0)
-    const assets = await usdc.balanceOf(signer1.address);
-    expect(assets).eq(850499);
-    expect(assets).eq(expectedAssets2.mul(9).div(10));
-
-    const vaultBalance = await usdc.balanceOf(vault.address);
-    const strategyBalance = await usdc.balanceOf(stubStrategy.address);
-    expect(vaultBalance).eq(199501)
-    expect(strategyBalance).eq(1050000)
-    expect(await vault.totalAssets()).eq(vaultBalance.add(strategyBalance))
-    expect(await vault.totalSupply()).eq(1000000)
-
-    expect(await vault.convertToShares(assetsAmount)).eq(800319);
-    expect(await vault.convertToAssets(assetsAmount)).eq(1249501);
-  });
-
   it("decimals test", async () => {
     expect(await vault.decimals()).eq(6);
   });
@@ -164,7 +97,7 @@ describe("Base Vaults tests", function () {
   });
 
   it("previewMint test", async () => {
-    expect(await vault.previewMint(100)).eq(110);
+    expect(await vault.previewMint(100)).eq(111);
   });
 
   it("previewWithdraw test", async () => {

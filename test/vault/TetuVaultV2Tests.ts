@@ -5,12 +5,12 @@ import {ethers} from "hardhat";
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {
-  ControllerMinimal, MockSplitter,
+  ControllerMinimal, MockGauge, MockSplitter,
   MockToken,
-  MockVault,
+  MockVault, MockVaultController,
   MockVaultSimple,
   MockVaultSimple__factory,
-  ProxyControlled, TetuVaultV2
+  ProxyControlled, TetuVaultV2, TetuVaultV2__factory, VaultInsurance__factory
 } from "../../typechain";
 import {Misc} from "../../scripts/utils/Misc";
 import {parseUnits} from "ethers/lib/utils";
@@ -27,8 +27,10 @@ describe("Tetu Vault V2 tests", function () {
   let signer2: SignerWithAddress;
   let controller: ControllerMinimal;
   let usdc: MockToken;
+  let tetu: MockToken;
   let vault: TetuVaultV2;
   let mockSplitter: MockSplitter;
+  let mockGauge: MockGauge;
 
   before(async function () {
     [signer, signer1, signer2] = await ethers.getSigners()
@@ -36,9 +38,10 @@ describe("Tetu Vault V2 tests", function () {
 
     controller = await DeployerUtils.deployMockController(signer);
     usdc = await DeployerUtils.deployMockToken(signer, 'USDC', 6);
+    tetu = await DeployerUtils.deployMockToken(signer, 'TETU');
     await usdc.transfer(signer2.address, parseUnits('1', 6));
 
-    const mockGauge = await DeployerUtils.deployContract(signer, 'MockGauge');
+    mockGauge = await DeployerUtils.deployContract(signer, 'MockGauge', controller.address) as MockGauge;
     vault = await DeployerUtils.deployTetuVaultV2(
       signer,
       controller.address,
@@ -54,6 +57,7 @@ describe("Tetu Vault V2 tests", function () {
     await vault.setSplitter(mockSplitter.address)
 
     await usdc.connect(signer2).approve(vault.address, Misc.MAX_UINT);
+    await usdc.connect(signer1).approve(vault.address, Misc.MAX_UINT);
     await usdc.approve(vault.address, Misc.MAX_UINT);
   });
 
@@ -169,6 +173,7 @@ describe("Tetu Vault V2 tests", function () {
 
     const insurance = await vault.insurance();
     expect(await usdc.balanceOf(insurance)).eq(20_000);
+    expect(await vault.sharePrice()).eq(parseUnits('1', 6))
   });
 
   it("mint with fee test", async () => {
@@ -186,6 +191,7 @@ describe("Tetu Vault V2 tests", function () {
 
     const insurance = await vault.insurance();
     expect(await usdc.balanceOf(insurance)).eq(20_000);
+    expect(await vault.sharePrice()).eq(parseUnits('1', 6))
   });
 
   it("withdraw with fee test", async () => {
@@ -209,6 +215,7 @@ describe("Tetu Vault V2 tests", function () {
 
     const insurance = await vault.insurance();
     expect(await usdc.balanceOf(insurance)).eq(29_900);
+    expect(await vault.sharePrice()).eq(parseUnits('1', 6))
   });
 
   it("redeem with fee test", async () => {
@@ -232,6 +239,226 @@ describe("Tetu Vault V2 tests", function () {
 
     const insurance = await vault.insurance();
     expect(await usdc.balanceOf(insurance)).eq(29_900);
+    expect(await vault.sharePrice()).eq(parseUnits('1', 6))
+  });
+
+  it("init wrong buffer revert", async () => {
+    const logic = await DeployerUtils.deployContract(signer, 'TetuVaultV2') as TetuVaultV2;
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled', logic.address) as ProxyControlled;
+    const v = TetuVaultV2__factory.connect(proxy.address, signer);
+    await expect(v.init(
+      controller.address,
+      usdc.address,
+      '1',
+      '2',
+      mockGauge.address,
+      10000000,
+    )).revertedWith("!BUFFER");
+  });
+
+  it("init wrong gauge revert", async () => {
+    const logic = await DeployerUtils.deployContract(signer, 'TetuVaultV2') as TetuVaultV2;
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled', logic.address) as ProxyControlled;
+    const v = TetuVaultV2__factory.connect(proxy.address, signer);
+    await expect(v.init(
+      controller.address,
+      usdc.address,
+      '1',
+      '2',
+      Misc.ZERO_ADDRESS,
+      10,
+    )).revertedWith("!GAUGE");
+  });
+
+  it("init wrong gauge controller revert", async () => {
+    const logic = await DeployerUtils.deployContract(signer, 'TetuVaultV2') as TetuVaultV2;
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled', logic.address) as ProxyControlled;
+    const v = TetuVaultV2__factory.connect(proxy.address, signer);
+    const c = await DeployerUtils.deployMockController(signer);
+    const g = await DeployerUtils.deployContract(signer, 'MockGauge', c.address) as MockGauge;
+    await expect(v.init(
+      controller.address,
+      usdc.address,
+      '1',
+      '2',
+      g.address,
+      10,
+    )).revertedWith("!GAUGE_CONTROLLER");
+  });
+
+  it("set too high buffer revert", async () => {
+    await expect(vault.setBuffer(1000_000)).revertedWith("BUFFER");
+  });
+
+  it("set buffer from 3d party revert", async () => {
+    await expect(vault.connect(signer2).setBuffer(10)).revertedWith("DENIED");
+  });
+
+  it("set buffer test", async () => {
+    await vault.setBuffer(1_000);
+    await vault.deposit(parseUnits('1', 6), signer.address)
+    expect(await usdc.balanceOf(vault.address)).eq(10_000);
+    await vault.deposit(100, signer.address)
+    expect(await usdc.balanceOf(vault.address)).eq(10001);
+  });
+
+  it("set max withdraw from 3d party revert", async () => {
+    await expect(vault.connect(signer2).setMaxWithdraw(1, 1)).revertedWith("DENIED");
+  });
+
+  it("set buffer test", async () => {
+    await vault.setMaxWithdraw(10, 10);
+    await vault.deposit(parseUnits('1', 6), signer.address)
+    await expect(vault.withdraw(11, signer.address, signer.address)).revertedWith("MAX");
+    await expect(vault.redeem(11, signer.address, signer.address)).revertedWith("MAX");
+    await vault.withdraw(10, signer.address, signer.address)
+    await vault.redeem(10, signer.address, signer.address)
+  });
+
+  it("set fees from 3d party revert", async () => {
+    await expect(vault.connect(signer2).setFees(1, 1)).revertedWith("DENIED");
+  });
+
+  it("set fees too high revert", async () => {
+    await expect(vault.setFees(10_000, 1)).revertedWith("TOO_HIGH");
+  });
+
+  it("set DoHardWorkOnInvest from 3d party revert", async () => {
+    await expect(vault.connect(signer2).setDoHardWorkOnInvest(false)).revertedWith("DENIED");
+  });
+
+  it("insurance revert", async () => {
+    const insurance = VaultInsurance__factory.connect(await vault.insurance(), signer);
+    await expect(insurance.transferToVault(1)).revertedWith("!VAULT");
+  });
+
+  it("set DoHardWorkOnInvest test", async () => {
+    await vault.setDoHardWorkOnInvest(false);
+    expect(await vault.doHardWorkOnInvest()).eq(false);
+    await vault.deposit(parseUnits('1', 6), signer.address)
+  });
+
+  it("check buffer complex test", async () => {
+    await vault.setBuffer(100_000);
+    await vault.deposit(parseUnits('1', 6), signer.address)
+    expect(await usdc.balanceOf(vault.address)).eq(1_000_000);
+    await vault.setBuffer(10_000);
+    await vault.deposit(parseUnits('1', 6), signer.address)
+    expect(await usdc.balanceOf(vault.address)).eq(200_000);
+    await vault.setBuffer(100_000);
+    await vault.deposit(parseUnits('1', 6), signer.address)
+    expect(await usdc.balanceOf(vault.address)).eq(1200_000);
+    await vault.withdraw(parseUnits('1', 6), signer.address, signer.address)
+    expect(await usdc.balanceOf(vault.address)).eq(200_000);
+    await vault.withdraw(parseUnits('2', 6), signer.address, signer.address)
+    expect(await usdc.balanceOf(vault.address)).eq(0);
+  });
+
+  it("not invest on deposit", async () => {
+    await vault.setBuffer(10_000);
+    await vault.deposit(parseUnits('1', 6), signer.address)
+    expect(await usdc.balanceOf(vault.address)).eq(100_000);
+    await vault.setBuffer(20_000);
+    await vault.deposit(parseUnits('0.01', 6), signer.address)
+    expect(await usdc.balanceOf(vault.address)).eq(110_000);
+  });
+
+  it("withdraw when splitter have not enough balance", async () => {
+    await vault.setBuffer(10_000);
+    const bal = await usdc.balanceOf(signer.address);
+    await vault.deposit(parseUnits('1', 6), signer.address)
+    expect(await usdc.balanceOf(vault.address)).eq(100_000);
+    await mockSplitter.connect(signer2).lost(parseUnits('0.1', 6))
+    await vault.withdrawAll()
+    expect(await usdc.balanceOf(vault.address)).eq(0);
+    const balAfter = await usdc.balanceOf(signer.address);
+    expect(bal.sub(balAfter)).eq(parseUnits('0.1', 6));
+  });
+
+  it("withdraw with slippage should be fair for all users", async () => {
+    await vault.setBuffer(0);
+    const bal = await usdc.balanceOf(signer.address);
+    const bal1 = await usdc.balanceOf(signer2.address);
+    await vault.deposit(parseUnits('1', 6), signer.address)
+    await vault.connect(signer2).deposit(parseUnits('1', 6), signer2.address)
+
+    await mockSplitter.setSlippage(10_0);
+    await expect(vault.withdrawAll()).revertedWith('SLIPPAGE');
+
+    await vault.setFees(0, 1_000);
+    await mockSplitter.setSlippage(1_0);
+    await vault.withdrawAll();
+
+    const balAfter = await usdc.balanceOf(signer.address);
+    expect(bal.sub(balAfter)).eq(parseUnits('0.01', 6));
+
+    await mockSplitter.setSlippage(1);
+    await vault.connect(signer2).withdrawAll()
+    const balAfter1 = await usdc.balanceOf(signer2.address);
+    expect(bal1.sub(balAfter1)).eq(parseUnits('0.01', 6));
+  });
+
+  it("splitter assets test", async () => {
+    expect(await vault.splitterAssets()).eq(0);
+  });
+
+  it("cover loss test", async () => {
+    const bal = await usdc.balanceOf(signer.address);
+    await vault.setFees(1_000, 0);
+    await vault.deposit(parseUnits('1', 6), signer.address);
+    await mockSplitter.coverLoss(10_000);
+    await vault.withdrawAll();
+    const balAfter = await usdc.balanceOf(signer.address);
+    expect(bal.sub(balAfter)).eq(0);
+  });
+
+  describe("splitter setup tests", function () {
+    let v: TetuVaultV2;
+    before(async function () {
+      const logic = await DeployerUtils.deployContract(signer, 'TetuVaultV2') as TetuVaultV2;
+      const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled', logic.address) as ProxyControlled;
+      v = TetuVaultV2__factory.connect(proxy.address, signer);
+      await v.init(
+        controller.address,
+        usdc.address,
+        '1',
+        '2',
+        mockGauge.address,
+        10,
+      )
+    });
+
+    it("set splitter from 3d party revert", async () => {
+      await expect(vault.connect(signer2).setSplitter(Misc.ZERO_ADDRESS)).revertedWith("DENIED");
+    });
+
+    it("wrong asset revert", async () => {
+      const s = await DeployerUtils.deployContract(signer, 'MockSplitter',
+        controller.address, tetu.address, vault.address) as MockSplitter;
+      await expect(v.setSplitter(s.address)).revertedWith("WRONG_UNDERLYING");
+    });
+
+    it("wrong vault revert", async () => {
+      const s = await DeployerUtils.deployContract(signer, 'MockSplitter',
+        controller.address, usdc.address, vault.address) as MockSplitter;
+      await expect(v.setSplitter(s.address)).revertedWith("WRONG_VAULT");
+    });
+
+    it("wrong controller revert", async () => {
+      const cc = await DeployerUtils.deployMockController(signer);
+      const s = await DeployerUtils.deployContract(signer, 'MockSplitter',
+        cc.address, usdc.address, v.address) as MockSplitter;
+      await expect(v.setSplitter(s.address)).revertedWith("WRONG_CONTROLLER");
+    });
+
+    it("upgrade exist splitter", async () => {
+      const vc = await DeployerUtils.deployContract(signer, 'MockVaultController') as MockVaultController
+      await controller.setVaultController(vc.address);
+      const s = await DeployerUtils.deployContract(signer, 'MockSplitter',
+        controller.address, usdc.address, vault.address) as MockSplitter;
+      await vc.setSplitter(vault.address, s.address);
+
+    });
   });
 
 

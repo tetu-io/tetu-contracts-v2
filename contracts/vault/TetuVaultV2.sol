@@ -5,15 +5,14 @@ pragma solidity 0.8.4;
 import "../vault/ERC4626Upgradeable.sol";
 import "../proxy/ControllableV3.sol";
 import "../interfaces/ISplitter.sol";
+import "../interfaces/ITetuVaultV2.sol";
 import "../interfaces/IGauge.sol";
 import "../openzeppelin/Math.sol";
 import "./VaultInsurance.sol";
 
-import "hardhat/console.sol";
-
 /// @title Vault for storing underlying tokens and managing them with strategy splitter.
 /// @author belbix
-contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3 {
+contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   using SafeERC20 for IERC20;
   using FixedPointMathLib for uint;
 
@@ -91,6 +90,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3 {
   ) external initializer {
     require(_buffer <= BUFFER_DENOMINATOR, "!BUFFER");
     require(_gauge != address(0), "!GAUGE");
+    require(IControllable(_gauge).isController(controller_), "!GAUGE_CONTROLLER");
 
     __ERC4626_init(_asset, _name, _symbol);
     __Controllable_init(controller_);
@@ -157,10 +157,11 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3 {
   }
 
   /// @dev Change splitter address. If old value exist properly withdraw and remove allowance.
-  function setSplitter(address _splitter) external {
+  function setSplitter(address _splitter) external override {
     address oldSplitter = address(splitter);
     IERC20 _asset = asset;
-    require(oldSplitter == address(0) || isController(msg.sender), "DENIED");
+    require(oldSplitter == address(0)
+      || IController(controller()).vaultController() == msg.sender, "DENIED");
     require(ISplitter(_splitter).asset() == address(_asset), "WRONG_UNDERLYING");
     require(ISplitter(_splitter).vault() == address(this), "WRONG_VAULT");
     require(IControllable(_splitter).isController(controller()), "WRONG_CONTROLLER");
@@ -250,7 +251,6 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3 {
     uint assetsInSplitter = ISplitter(_splitter).totalAssets();
     uint wantInvestTotal = (assetsInVault + assetsInSplitter)
     * (BUFFER_DENOMINATOR - _buffer) / BUFFER_DENOMINATOR;
-
     if (assetsInSplitter >= wantInvestTotal) {
       return 0;
     } else {
@@ -262,6 +262,10 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3 {
   // *************************************************************
   //                 WITHDRAW LOGIC
   // *************************************************************
+
+  function withdrawAll() external {
+    redeem(balanceOf(msg.sender), msg.sender, msg.sender);
+  }
 
   function previewWithdraw(uint assets) public view virtual override returns (uint) {
     uint supply = _totalSupply;
@@ -292,8 +296,6 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3 {
     uint assets,
     uint shares
   ) internal override {
-    console.log("beforeWithdraw assets", assets);
-    console.log("beforeWithdraw shares", shares);
     uint _withdrawFee = withdrawFee;
     uint fromSplitter;
     if (_withdrawFee != 0) {
@@ -305,31 +307,30 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3 {
 
     IERC20 _asset = asset;
     uint balance = _asset.balanceOf(address(this));
-    console.log("beforeWithdraw fromSplitter", fromSplitter);
-    console.log("beforeWithdraw vault balance", balance);
     // if not enough balance in the vault withdraw from strategies
-    if (balance < assets) {
+    if (balance < fromSplitter) {
       _processWithdrawFromSplitter(
         fromSplitter,
         shares,
-        _asset,
         _totalSupply,
         buffer,
-        splitter
+        splitter,
+        balance
       );
     }
-
-    console.log("beforeWithdraw vault balance after withdraw", _asset.balanceOf(address(this)));
+    balance = _asset.balanceOf(address(this));
+    require(assets <= balance, "SLIPPAGE");
 
     // send fee amount to insurance for keep correct calculations
     // in case of compensation it will lead to double transfer
     // but we assume that it will be rare case
     if (_withdrawFee != 0) {
-      console.log("beforeWithdraw fees to send", fromSplitter - assets);
-      _asset.safeTransfer(address(insurance), fromSplitter - assets);
+      // we should compensate possible slippage from user fee too
+      uint toFees = Math.min(fromSplitter - assets, balance - assets);
+      if (toFees != 0) {
+        _asset.safeTransfer(address(insurance), toFees);
+      }
     }
-
-    console.log("beforeWithdraw vault balance after fees", _asset.balanceOf(address(this)));
   }
 
   /// @dev Do necessary calculation for withdrawing from splitter and move assets to vault.
@@ -337,28 +338,34 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3 {
   function _processWithdrawFromSplitter(
     uint assetsNeed,
     uint shares,
-    IERC20 _asset,
     uint totalSupply_,
     uint _buffer,
-    ISplitter _splitter
+    ISplitter _splitter,
+    uint assetsInVault
   ) internal {
-    uint assetsInVault = _asset.balanceOf(address(this));
-    if (assetsNeed > assetsInVault) {
-      // withdraw everything from the splitter to accurately check the share value
-      if (shares == totalSupply_) {
-        _splitter.withdrawAllToVault();
-      } else {
-        uint assetsInSplitter = _splitter.totalAssets();
-        // we should always have buffer amount inside the vault
-        uint missing = (assetsInSplitter + assetsInVault)
-        * _buffer / BUFFER_DENOMINATOR
-        + assetsNeed;
-        missing = Math.min(missing, assetsInSplitter);
-        if (missing > 0) {
-          _splitter.withdrawToVault(missing);
-        }
-      }
+    // withdraw everything from the splitter to accurately check the share value
+    if (shares == totalSupply_) {
+      _splitter.withdrawAllToVault();
+    } else {
+      uint assetsInSplitter = _splitter.totalAssets();
+      // we should always have buffer amount inside the vault
+      uint missing = (assetsInSplitter + assetsInVault)
+      * _buffer / BUFFER_DENOMINATOR
+      + assetsNeed;
+      missing = Math.min(missing, assetsInSplitter);
+      // if zero should be resolved on splitter side
+      _splitter.withdrawToVault(missing);
     }
+
+  }
+
+  // *************************************************************
+  //                 INSURANCE LOGIC
+  // *************************************************************
+
+  function coverLoss(uint amount) external override {
+    require(msg.sender == address(splitter), "!SPLITTER");
+    insurance.transferToVault(amount);
   }
 
   // *************************************************************

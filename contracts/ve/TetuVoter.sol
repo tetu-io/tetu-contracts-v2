@@ -7,8 +7,6 @@ import "../interfaces/IVoter.sol";
 import "../interfaces/IERC20.sol";
 import "../interfaces/IERC721.sol";
 import "../interfaces/IGauge.sol";
-import "../interfaces/IBribeFactory.sol";
-import "../interfaces/IGaugeFactory.sol";
 import "../interfaces/IBribe.sol";
 import "../interfaces/IMultiPool.sol";
 import "../openzeppelin/SafeERC20.sol";
