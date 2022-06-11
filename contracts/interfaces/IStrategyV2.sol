@@ -13,6 +13,6 @@ interface IStrategyV2 {
 
   function investAll() external;
 
-  function doHardWork() external;
+  function doHardWork() external returns(uint earned, uint lost);
 
 }

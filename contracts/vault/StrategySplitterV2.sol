@@ -23,7 +23,12 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   /// @dev Version of this contract. Adjust manually on each code modification.
   string public constant SPLITTER_VERSION = "2.0.0";
   /// @dev APR denominator. Represent 100% APR.
-  uint internal constant _STRATEGY_APR_DENOMINATOR = 100_000;
+  uint internal constant _APR_DENOMINATOR = 100_000;
+  /// @dev Delay between hardwork calls for a strategy.
+  uint internal constant _HARDWORK_DELAY = 1 days;
+  /// @dev How much APR history elements will be counted in average APR calculation.
+  uint internal constant _HISTORY_DEEP = 3;
+
 
   // *********************************************
   //                 VARIABLES
@@ -34,6 +39,8 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
   address[] public strategies;
   mapping(address => uint) public strategiesAPR;
+  mapping(address => uint[]) public strategiesAPRHistory;
+  mapping(address => uint) public lastHardWorks;
   bool public override isHardWorking;
 
   // *********************************************
@@ -43,6 +50,14 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   event StrategyAdded(address strategy, uint apr);
   event StrategyRemoved(address strategy);
   event StrategyRatioChanged(address strategy, uint ratio);
+  event Rebalance(
+    address topStrategy,
+    address lowStrategy,
+    uint percent,
+    uint slippageTolerance,
+    uint slippage,
+    uint lowStrategyBalance
+  );
 
   /// @dev Initialize contract after setup it as proxy implementation
   function init(address controller_, address _asset, address _vault) external initializer override {
@@ -167,6 +182,53 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     emit StrategyRemoved(_strategy);
   }
 
+
+  // *********************************************
+  //                OPERATOR ACTIONS
+  // *********************************************
+
+  /// @dev Withdraw some percent from strategy with lowest APR and deposit to strategy with highest APR.
+  /// @param percent Range of 1-100
+  /// @param slippageTolerance Range of 0-100_000
+  function rebalance(uint percent, uint slippageTolerance) external {
+    _onlyOperators();
+
+    uint balance = totalAssets();
+
+    uint length = strategies.length;
+    require(length > 1, "SS: Length");
+    require(percent <= 100, "SS: Percent");
+
+    address topStrategy = strategies[0];
+    address lowStrategy;
+
+    uint lowStrategyBalance;
+    for (uint i = length; i > 1; i--) {
+      lowStrategy = strategies[i - 1];
+      lowStrategyBalance = IStrategyV2(lowStrategy).totalAssets();
+    }
+    require(lowStrategyBalance != 0, "SS: No strategies");
+
+    IStrategyV2(lowStrategy).withdrawToSplitter(lowStrategyBalance * percent / 100);
+
+    address _asset = asset;
+    IERC20(_asset).safeTransfer(topStrategy, IERC20(_asset).balanceOf(address(this)));
+    IStrategyV2(topStrategy).investAll();
+
+    uint balanceAfter = IERC20(_asset).balanceOf(address(this));
+    uint slippage = (balance - balanceAfter) * 100_000 / balance;
+    require(slippage < slippageTolerance, "SS: Slippage");
+
+    emit Rebalance(
+      topStrategy,
+      lowStrategy,
+      percent,
+      slippageTolerance,
+      slippage,
+      lowStrategyBalance
+    );
+  }
+
   // *********************************************
   //                VAULT ACTIONS
   // *********************************************
@@ -274,8 +336,56 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   }
 
   function _doHardWorkForStrategy(address strategy) internal {
-    //todo collect apr
-    IStrategyV2(strategy).doHardWork();
+    uint lastHardWork = lastHardWorks[strategy];
+
+    if (lastHardWork + _HARDWORK_DELAY < block.timestamp) {
+      uint sinceLastHardWork = block.timestamp - lastHardWork;
+      uint tvl = IStrategyV2(strategy).totalAssets();
+      if (tvl != 0) {
+        (uint earned, uint lost) = IStrategyV2(strategy).doHardWork();
+        uint apr;
+        if (earned > lost) {
+          apr = computeApr(tvl, earned - lost, sinceLastHardWork);
+        }
+
+        strategiesAPRHistory[strategy].push(apr);
+        uint avgApr = averageApr(strategy);
+        strategiesAPR[strategy] = avgApr;
+        lastHardWorks[strategy] = block.timestamp;
+
+        emit HardWork(
+          strategy,
+          tvl,
+          earned,
+          lost,
+          apr,
+          avgApr
+        );
+      }
+    }
+  }
+
+  function averageApr(address strategy) public view returns (uint) {
+    uint[] storage history = strategiesAPRHistory[strategy];
+    uint aprSum;
+    uint length = history.length;
+    uint count = Math.min(_HISTORY_DEEP, length);
+    if (count != 0) {
+      for (uint i; i < count; i++) {
+        aprSum += history[length - i - 1];
+      }
+      return aprSum / count;
+    }
+    return 0;
+  }
+
+  /// @dev https://www.investopedia.com/terms/a/apr.asp
+  ///      TVL and rewards should be in the same currency and with the same decimals
+  function computeApr(uint tvl, uint earned, uint duration) public pure returns (uint) {
+    if (tvl == 0 || duration == 0) {
+      return 0;
+    }
+    return earned * 1e32 * _APR_DENOMINATOR * uint(36500) / tvl / (duration * 1e18 / 1 days);
   }
 
   /// @dev Insertion sorting algorithm for using with arrays fewer than 10 elements.
