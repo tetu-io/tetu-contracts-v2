@@ -13,7 +13,7 @@ interface ISplitter {
 
   function doHardWork() external;
 
-  function investAllAssets() external;
+  function investAll() external;
 
   // **************** VIEWS ***************
 

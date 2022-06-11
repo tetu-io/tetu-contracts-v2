@@ -39,7 +39,7 @@ contract MockSplitter is ISplitter, ControllableV3 {
     // noop
   }
 
-  function investAllAssets() external override {
+  function investAll() external override {
     // noop
   }
 

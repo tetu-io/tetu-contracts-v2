@@ -47,6 +47,10 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   uint internal _maxWithdrawAssets;
   /// @dev Maximum amount for redeem. Max UINT256 by default.
   uint internal _maxRedeemShares;
+  /// @dev Maximum amount for deposit. Max UINT256 by default.
+  uint internal _maxDepositAssets;
+  /// @dev Maximum amount for mint. Max UINT256 by default.
+  uint internal _maxMintShares;
   /// @dev Fee for deposit/mint actions. Zero by default.
   uint public depositFee;
   /// @dev Fee for withdraw/redeem actions. Zero by default.
@@ -71,6 +75,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   event BufferChanged(uint oldValue, uint newValue);
   event Invest(address splitter, uint amount);
   event MaxWithdrawChanged(uint maxAssets, uint maxShares);
+  event MaxDepositChanged(uint maxAssets, uint maxShares);
   event FeeChanged(uint depositFee, uint withdrawFee);
   event DoHardWorkOnInvestChanged(bool oldValue, bool newValue);
 
@@ -100,6 +105,8 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
     // set defaults
     _maxWithdrawAssets = type(uint).max;
     _maxRedeemShares = type(uint).max;
+    _maxDepositAssets = type(uint).max - 1;
+    _maxMintShares = type(uint).max - 1;
     doHardWorkOnInvest = true;
 
     emit Init(
@@ -130,6 +137,16 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
 
     emit BufferChanged(buffer, _buffer);
     buffer = _buffer;
+  }
+
+  /// @dev Set maximum available to deposit amounts.
+  ///      Could be zero values in emergency case when need to pause malicious actions.
+  function setMaxDeposit(uint maxAssets, uint maxShares) external {
+    require(isGovernance(msg.sender), "DENIED");
+
+    _maxDepositAssets = maxAssets;
+    _maxMintShares = maxShares;
+    emit MaxDepositChanged(maxAssets, maxShares);
   }
 
   /// @dev Set maximum available to withdraw amounts.
@@ -239,7 +256,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
       }
 
       _asset.safeTransfer(_splitter, toInvest);
-      ISplitter(_splitter).investAllAssets();
+      ISplitter(_splitter).investAll();
       emit Invest(_splitter, toInvest);
     }
   }
@@ -284,6 +301,14 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   function previewRedeem(uint shares) public view virtual override returns (uint) {
     shares = shares - (shares * withdrawFee / FEE_DENOMINATOR);
     return convertToAssets(shares);
+  }
+
+  function maxDeposit(address) public view override returns (uint) {
+    return _maxDepositAssets;
+  }
+
+  function maxMint(address) public view override returns (uint) {
+    return _maxMintShares;
   }
 
   function maxWithdraw(address owner) public view override returns (uint) {
@@ -368,7 +393,9 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
 
   function coverLoss(uint amount) external override {
     require(msg.sender == address(splitter), "!SPLITTER");
-    insurance.transferToVault(amount);
+    IVaultInsurance _insurance = insurance;
+    uint balance = asset.balanceOf(address(_insurance));
+    _insurance.transferToVault(Math.min(amount, balance));
   }
 
   // *************************************************************
