@@ -129,6 +129,8 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   /// @dev Mapping of interface id to bool about whether or not it's supported
   mapping(bytes4 => bool) internal _supportedInterfaces;
 
+  mapping(address => bool) public isWhitelistedPawnshop;
+
   // *************************************************************
   //                        EVENTS
   // *************************************************************
@@ -144,6 +146,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   );
   event Withdraw(address indexed stakingToken, address indexed provider, uint tokenId, uint value, uint ts);
   event Supply(address indexed stakingToken, uint prevSupply, uint supply);
+  event PawnshopWhitelisted(address value);
 
   // *************************************************************
   //                        INIT
@@ -174,8 +177,15 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   }
 
   // *************************************************************
-  //                        TOKENS
+  //                        GOVERNANCE ACTIONS
   // *************************************************************
+
+  /// @dev Whitelist pawnshop for transfers. Removing from whitelist should be forbidden.
+  function whitelistPawnshop(address pawnshop) external {
+    require(isGovernance(msg.sender), "Not governance");
+    isWhitelistedPawnshop[pawnshop] = true;
+    emit PawnshopWhitelisted(pawnshop);
+  }
 
   function addToken(address token, uint weight) external {
     require(isGovernance(msg.sender), "Not governance");
@@ -200,11 +210,6 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   /// @dev Voter should handle attach/detach and vote actions
   function voter() public view returns (address) {
     return IController(controller()).voter();
-  }
-
-  /// @dev Pawnshop will be able to transfer this NFT.
-  function vePawnshop() public view returns (address) {
-    return IController(controller()).vePawnshop();
   }
 
   /// @dev Interface identification is specified in ERC-165.
@@ -472,8 +477,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     uint _tokenId,
     bytes memory _data
   ) public override {
-    address _vePawnshop = vePawnshop();
-    require(_to == _vePawnshop || _from == _vePawnshop, "Forbidden");
+    require(isWhitelistedPawnshop[_to] || isWhitelistedPawnshop[_from], "Forbidden");
 
     _transferFrom(_from, _to, _tokenId, msg.sender);
 

@@ -49,7 +49,7 @@ describe("Ve distributor tests", function () {
     voter = await DeployerUtils.deployMockVoter(owner, ve.address);
     pawnshop = await DeployerUtils.deployContract(owner, 'MockPawnshop') as MockPawnshop;
     await controller.setVoter(voter.address);
-    await controller.setVePawnshop(pawnshop.address);
+    await ve.whitelistPawnshop(pawnshop.address);
 
     veDist = await DeployerUtils.deployVeDistributor(
       owner,

@@ -9,9 +9,6 @@ interface IController {
 
   function voter() external view returns (address);
 
-  // todo move to ve
-  function vePawnshop() external view returns (address);
-
   function vaultController() external view returns (address);
 
   // --- VAULTS

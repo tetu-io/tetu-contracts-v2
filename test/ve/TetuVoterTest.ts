@@ -98,7 +98,7 @@ describe("Tetu voter tests", function () {
     await gauge.addStakingToken(stakingToken.address);
 
     pawnshop = await DeployerUtils.deployContract(owner, 'MockPawnshop') as MockPawnshop;
-    await controller.setVePawnshop(pawnshop.address);
+    await ve.whitelistPawnshop(pawnshop.address);
 
   });
 

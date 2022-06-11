@@ -48,7 +48,7 @@ describe("veTETU tests", function () {
     voter = await DeployerUtils.deployMockVoter(owner, ve.address);
     pawnshop = await DeployerUtils.deployContract(owner, 'MockPawnshop') as MockPawnshop;
     await controller.setVoter(voter.address);
-    await controller.setVePawnshop(pawnshop.address);
+    await ve.whitelistPawnshop(pawnshop.address);
 
     await tetu.mint(owner2.address, parseUnits('100'));
     await tetu.approve(ve.address, Misc.MAX_UINT);
@@ -386,6 +386,10 @@ describe("veTETU tests", function () {
 
   it("invalid token lock revert", async function () {
     await expect(ve.createLock(owner.address, parseUnits('1'), LOCK_PERIOD)).revertedWith('Not valid token');
+  });
+
+  it("whitelist pawnshop revert", async function () {
+    await expect(ve.connect(owner2).whitelistPawnshop(underlying2.address)).revertedWith('Not governance');
   });
 
   it("add token from non gov revert", async function () {
