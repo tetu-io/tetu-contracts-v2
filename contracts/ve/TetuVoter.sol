@@ -29,7 +29,10 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
   string public constant VOTER_VERSION = "1.0.0";
   /// @dev Rewards are released over 7 days
   uint internal constant _DURATION = 7 days;
-  uint internal constant _MAX_VOTES = 10;
+  /// @dev Maximum votes per veNFT
+  uint public constant MAX_VOTES = 10;
+  /// @dev Delay between votes. We need delay for properly bribes distribution between votes.
+  uint public constant VOTE_DELAY = 1 weeks;
 
   // *************************************************************
   //                        VARIABLES
@@ -45,6 +48,8 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
 
   // --- VOTES
 
+  /// @dev veID => Last vote timestamp
+  mapping(uint => uint) lastVote;
   /// @dev Total voting weight
   uint public totalWeight;
   /// @dev vault => weight
@@ -140,15 +145,17 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
   /// @dev Vote for given pools using a vote power of given tokenId. Reset previous votes.
   function vote(uint tokenId, address[] calldata _vaultVotes, int256[] calldata _weights) external {
     require(IVeTetu(ve).isApprovedOrOwner(msg.sender, tokenId), "!owner");
+    require(lastVote[tokenId] + VOTE_DELAY < block.timestamp, "delay");
     require(_vaultVotes.length == _weights.length, "!arrays");
     _vote(tokenId, _vaultVotes, _weights);
+    lastVote[tokenId] = block.timestamp;
   }
 
   function _vote(uint _tokenId, address[] memory _vaultVotes, int256[] memory _weights) internal {
     _reset(_tokenId);
     uint length = _vaultVotes.length;
 
-    require(length <= _MAX_VOTES, "Too many votes");
+    require(length <= MAX_VOTES, "Too many votes");
 
     int256 _weight = int256(IVeTetu(ve).balanceOfNFT(_tokenId));
     int256 _totalVoteWeight = 0;

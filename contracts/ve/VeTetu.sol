@@ -128,7 +128,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
 
   /// @dev Mapping of interface id to bool about whether or not it's supported
   mapping(bytes4 => bool) internal _supportedInterfaces;
-
+  /// @dev Whitelisted contracts will be able to transfer NFTs
   mapping(address => bool) public isWhitelistedPawnshop;
 
   // *************************************************************

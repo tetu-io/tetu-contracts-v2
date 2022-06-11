@@ -100,6 +100,7 @@ describe("Tetu voter tests", function () {
     pawnshop = await DeployerUtils.deployContract(owner, 'MockPawnshop') as MockPawnshop;
     await ve.whitelistPawnshop(pawnshop.address);
 
+    await TimeUtils.advanceBlocksOnTs(WEEK * 2);
   });
 
   after(async function () {
@@ -168,10 +169,16 @@ describe("Tetu voter tests", function () {
     await expect(voter.vote(1, [vault.address, vault2.address], [0, 1])).revertedWith("zero power");
   });
 
+  it("vote delay revert test", async function () {
+    await voter.vote(1, [vault.address], [-100]);
+    await expect(voter.vote(1, [vault.address ], [1])).revertedWith("delay");
+  });
+
   it("vote negative test", async function () {
     await voter.vote(1, [vault.address], [-100]);
-    expect(await voter.votes(1, vault.address)).below(parseUnits('-0.98'))
-    expect(await voter.usedWeights(1)).above(parseUnits('0.98'))
+    await TimeUtils.advanceBlocksOnTs(WEEK * 2);
+    expect(await voter.votes(1, vault.address)).below(parseUnits('-0.95'))
+    expect(await voter.usedWeights(1)).above(parseUnits('0.95'))
   });
 
   it("reset negative test", async function () {
@@ -317,7 +324,7 @@ describe("Tetu voter tests", function () {
     expect(await voter.claimable(vault.address)).above(parseUnits('75', 18));
     expect(await voter.supplyIndex(vault.address)).above(parseUnits('50', 18));
 
-    expect(await voter.claimable(vault2.address)).above(parseUnits('24.9', 18));
+    expect(await voter.claimable(vault2.address)).above(parseUnits('24.4', 18));
     expect(await voter.supplyIndex(vault2.address)).above(parseUnits('50', 18));
   });
 
@@ -334,7 +341,7 @@ describe("Tetu voter tests", function () {
     expect(await voter.claimable(vault.address)).above(parseUnits('75', 18));
     expect(await voter.supplyIndex(vault.address)).above(parseUnits('50', 18));
 
-    expect(await voter.claimable(vault2.address)).above(parseUnits('24.9', 18));
+    expect(await voter.claimable(vault2.address)).above(parseUnits('24.4', 18));
     expect(await voter.supplyIndex(vault2.address)).above(parseUnits('50', 18));
   });
 });

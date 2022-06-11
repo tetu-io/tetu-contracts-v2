@@ -34,7 +34,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   //                 Add only in the bottom.
   // *************************************************************
 
-  /// @dev Strategy splitter. Could be zero address.
+  /// @dev Strategy splitter. Should be setup after deploy.
   ISplitter public splitter;
   /// @dev Connected gauge for stakeless rewards
   IGauge public gauge;
