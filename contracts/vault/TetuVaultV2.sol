@@ -8,7 +8,6 @@ import "../interfaces/ITetuVaultV2.sol";
 import "../interfaces/IGauge.sol";
 import "../proxy/ControllableV3.sol";
 import "./ERC4626Upgradeable.sol";
-import "./VaultInsurance.sol";
 
 /// @title Vault for storing underlying tokens and managing them with strategy splitter.
 /// @author belbix
@@ -40,7 +39,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   /// @dev Connected gauge for stakeless rewards
   IGauge public gauge;
   /// @dev Dedicated contract for holding insurance for covering share price loss.
-  VaultInsurance public insurance;
+  IVaultInsurance public insurance;
   /// @dev Percent of assets that will always stay in this vault.
   uint public buffer;
 
@@ -87,7 +86,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
     string memory _symbol,
     address _gauge,
     uint _buffer
-  ) external initializer {
+  ) external initializer override {
     require(_buffer <= BUFFER_DENOMINATOR, "!BUFFER");
     require(_gauge != address(0), "!GAUGE");
     require(IControllable(_gauge).isController(controller_), "!GAUGE_CONTROLLER");
@@ -97,9 +96,6 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
 
     gauge = IGauge(_gauge);
     buffer = _buffer;
-
-    // create insurance contract
-    insurance = new VaultInsurance(_asset);
 
     // set defaults
     _maxWithdrawAssets = type(uint).max;
@@ -114,6 +110,13 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
       _gauge,
       _buffer
     );
+  }
+
+  function initInsurance(IVaultInsurance _insurance) external override {
+    require(address(insurance) == address(0), "INITED");
+    require(_insurance.vault() == address(this), "!VAULT");
+    require(_insurance.asset() == address(asset), "!ASSET");
+    insurance = _insurance;
   }
 
   // *************************************************************

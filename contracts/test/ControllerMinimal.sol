@@ -16,6 +16,7 @@ contract ControllerMinimal is IController {
 
   constructor (address governance_) {
     governance = governance_;
+    operators[governance_] = true;
   }
 
   function setVoter(address _voter) external {

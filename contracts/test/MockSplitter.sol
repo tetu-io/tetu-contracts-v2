@@ -13,14 +13,10 @@ contract MockSplitter is ISplitter, ControllableV3 {
   address public override vault;
   uint public slippage;
 
-  constructor (address controller_, address _asset, address _vault) {
+  function init(address controller_, address _asset, address _vault) external initializer override {
+    __Controllable_init(controller_);
     asset = _asset;
     vault = _vault;
-    init(controller_);
-  }
-
-  function init(address controller_) internal initializer {
-    __Controllable_init(controller_);
   }
 
   function setSlippage(uint value) external {

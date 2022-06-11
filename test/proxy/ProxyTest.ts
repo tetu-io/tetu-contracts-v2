@@ -22,8 +22,6 @@ describe("Proxy Tests", function () {
     snapshotBefore = await TimeUtils.snapshot();
     [signer] = await ethers.getSigners();
     controller = await DeployerUtils.deployMockController(signer);
-
-
   });
 
   after(async function () {
@@ -42,7 +40,8 @@ describe("Proxy Tests", function () {
 
   it("update proxy with non-contract revert", async () => {
     const logic = await DeployerUtils.deployContract(signer, 'SlotsTest');
-    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled', logic.address) as ProxyControlled;
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
+    await proxy.initProxy(logic.address);
     const slotsTest = SlotsTest__factory.connect(proxy.address, signer);
     await slotsTest.initialize(controller.address);
     await expect(controller.updateProxies([slotsTest.address], [signer.address]))
@@ -51,22 +50,26 @@ describe("Proxy Tests", function () {
 
   it("check implementation test", async () => {
     const logic = await DeployerUtils.deployContract(signer, 'SlotsTest');
-    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled', logic.address) as ProxyControlled;
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
+    await proxy.initProxy(logic.address);
     const slotsTest = SlotsTest__factory.connect(proxy.address, signer);
     await slotsTest.initialize(controller.address);
 
     expect(await ProxyControlled__factory.connect(proxy.address, signer).implementation()).eq(logic.address)
+
+    await expect(proxy.initProxy(logic.address)).revertedWith('Already inited');
   });
 
   it("create proxy with not controllable contract revert", async () => {
-    const logic = await DeployerUtils.deployContract(signer, 'Multicall');
-    const factory = await ethers.getContractFactory('ProxyControlled', signer)
-    await expect(factory.deploy(logic.address, {gasLimit: 19_000_000})).revertedWith('');
+    const logic = await DeployerUtils.deployContract(signer, 'MockToken', '1', '2', 8);
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
+    await expect(proxy.initProxy(logic.address)).revertedWith('');
   });
 
   it("upgrade from not controller revert", async () => {
     const logic = await DeployerUtils.deployContract(signer, 'SlotsTest');
-    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled', logic.address) as ProxyControlled;
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
+    await proxy.initProxy(logic.address);
     const slotsTest = SlotsTest__factory.connect(proxy.address, signer);
     await slotsTest.initialize(controller.address);
 
@@ -75,7 +78,8 @@ describe("Proxy Tests", function () {
 
   it("upgrade with wrong impl revert", async () => {
     const logic = await DeployerUtils.deployContract(signer, 'SlotsTest');
-    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled', logic.address) as ProxyControlled;
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
+    await proxy.initProxy(logic.address);
     const slotsTest = SlotsTest__factory.connect(proxy.address, signer);
     await slotsTest.initialize(controller.address);
 

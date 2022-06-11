@@ -15,10 +15,11 @@ contract ProxyControlled is UpgradeableProxy, IProxyControlled {
   /// @dev Should be incremented when contract changed
   string public constant PROXY_CONTROLLED_VERSION = "1.0.0";
 
-
-  constructor(address _logic) UpgradeableProxy(_logic) {
+  /// @dev Initialize proxy implementation. Need to call after deploy new proxy.
+  function initProxy(address _logic) external override {
     //make sure that given logic is controllable and not inited
-    require(IControllable(_logic).created() == 0);
+    require(IControllable(_logic).created() == 0, "Proxy: Wrong implementation");
+    _init(_logic);
   }
 
   /// @notice Upgrade contract logic

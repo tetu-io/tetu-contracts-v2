@@ -3,12 +3,13 @@ import {ethers} from "hardhat";
 import chai from "chai";
 import {formatUnits, parseUnits} from "ethers/lib/utils";
 import {
-  IERC20__factory,
-  IERC20Metadata, IERC20Metadata__factory,
+  IERC20Metadata__factory,
   MockPawnshop,
   MockToken,
-  MockVoter, ProxyControlled,
-  VeTetu, VeTetu__factory
+  MockVoter,
+  ProxyControlled,
+  VeTetu,
+  VeTetu__factory
 } from "../../typechain";
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
@@ -394,7 +395,8 @@ describe("veTETU tests", function () {
   it("token wrong decimals revert", async function () {
     const controller = await DeployerUtils.deployMockController(owner);
     const logic = await DeployerUtils.deployContract(owner, 'VeTetu');
-    const proxy = await DeployerUtils.deployContract(owner, 'ProxyControlled', logic.address) as ProxyControlled;
+    const proxy = await DeployerUtils.deployContract(owner, 'ProxyControlled') as ProxyControlled;
+    await proxy.initProxy(logic.address);
     await expect(VeTetu__factory.connect(proxy.address, owner).init(
       underlying2.address,
       controller.address

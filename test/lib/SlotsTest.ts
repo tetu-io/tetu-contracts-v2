@@ -25,7 +25,8 @@ describe("Slots Tests", function () {
     controller = await DeployerUtils.deployMockController(signer);
 
     const logic = await DeployerUtils.deployContract(signer, 'SlotsTest');
-    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled', logic.address) as ProxyControlled;
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
+    await proxy.initProxy(logic.address);
     slotsTest = SlotsTest__factory.connect(proxy.address, signer);
     await slotsTest.initialize(controller.address);
 

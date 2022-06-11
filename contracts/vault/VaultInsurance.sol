@@ -4,26 +4,28 @@ pragma solidity 0.8.4;
 
 import "../openzeppelin/SafeERC20.sol";
 import "../interfaces/IERC20.sol";
+import "../interfaces/IVaultInsurance.sol";
 
 /// @title Simple dedicated contract for store vault fees
 /// @author belbix
-contract VaultInsurance {
+contract VaultInsurance is IVaultInsurance {
   using SafeERC20 for IERC20;
 
-  /// @dev Vault address. Assume to be creator of this contract.
-  address immutable vault;
+  /// @dev Vault address
+  address public override vault;
   /// @dev Vault underlying asset
-  IERC20 immutable asset;
+  address public override asset;
 
-  constructor (IERC20 _asset) {
-    vault = msg.sender;
+  function init(address _vault, address _asset) external override {
+    require(vault == address(0) && asset == address(0), "INITED");
+    vault = _vault;
     asset = _asset;
   }
 
   /// @dev Transfer tokens to vault in case of covering need.
-  function transferToVault(uint amount) external {
+  function transferToVault(uint amount) external override {
     require(msg.sender == vault, "!VAULT");
-    asset.safeTransfer(msg.sender, amount);
+    IERC20(asset).safeTransfer(msg.sender, amount);
   }
 
 }

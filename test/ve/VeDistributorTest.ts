@@ -1,15 +1,16 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {ethers} from "hardhat";
 import chai from "chai";
-import {formatUnits, parseUnits} from "ethers/lib/utils";
+import {parseUnits} from "ethers/lib/utils";
 import {
   ControllerMinimal,
-  IERC20__factory,
-  IERC20Metadata, IERC20Metadata__factory, MockDistributor,
+  MockDistributor,
   MockPawnshop,
   MockToken,
-  MockVoter, Multicall, ProxyControlled, VeDistributor,
-  VeTetu, VeTetu__factory
+  MockVoter,
+  Multicall,
+  VeDistributor,
+  VeTetu
 } from "../../typechain";
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
@@ -316,7 +317,7 @@ describe("Ve distributor tests", function () {
   it("claimMany test", async function () {
     await ve.createLock(tetu.address, parseUnits('1'), WEEK);
 
-    await TimeUtils.advanceBlocksOnTs(WEEK *2);
+    await TimeUtils.advanceBlocksOnTs(WEEK * 2);
 
     await tetu.approve(veDist.address, parseUnits('10000'))
     await veDist.notifyReward(parseUnits('1000'));

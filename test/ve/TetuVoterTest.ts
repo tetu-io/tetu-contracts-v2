@@ -1,20 +1,19 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {ethers} from "hardhat";
 import chai from "chai";
-import {formatUnits, parseUnits} from "ethers/lib/utils";
+import {parseUnits} from "ethers/lib/utils";
 import {
-  IERC20__factory,
-  IERC20Metadata, IERC20Metadata__factory,
-  MockPawnshop, MockStakingToken,
+  MockPawnshop,
+  MockStakingToken,
   MockToken,
-  MockVoter, MultiBribe, MultiGauge, ProxyControlled, TetuVoter,
-  VeTetu, VeTetu__factory
+  MultiBribe,
+  MultiGauge,
+  TetuVoter,
+  VeTetu
 } from "../../typechain";
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {Misc} from "../../scripts/utils/Misc";
-import {BigNumber} from "ethers";
-import {address} from "hardhat/internal/core/config/config-validation";
 
 const {expect} = chai;
 

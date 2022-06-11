@@ -3,6 +3,8 @@ pragma solidity 0.8.4;
 
 interface ISplitter {
 
+  function init(address controller_, address _asset, address _vault) external;
+
   // *************** ACTIONS **************
 
   function withdrawAllToVault() external;

@@ -14,7 +14,7 @@ import {
   MockVault__factory,
   MockVoter, MultiBribe__factory, MultiGauge__factory,
   ProxyControlled, TetuVaultV2, TetuVaultV2__factory,
-  TetuVoter, TetuVoter__factory, VeDistributor__factory,
+  TetuVoter, TetuVoter__factory, VaultInsurance, VeDistributor__factory,
   VeTetu,
   VeTetu__factory
 } from "../../typechain";
@@ -105,7 +105,8 @@ export class DeployerUtils {
 
   public static async deployProxy(signer: SignerWithAddress, contract: string) {
     const logic = await DeployerUtils.deployContract(signer, contract);
-    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled', logic.address) as ProxyControlled;
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
+    await proxy.initProxy(logic.address);
     return proxy.address;
   }
 
@@ -118,7 +119,8 @@ export class DeployerUtils {
     fee: number
   ) {
     const logic = await DeployerUtils.deployContract(signer, 'MockVault') as MockVault;
-    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled', logic.address) as ProxyControlled;
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
+    await proxy.initProxy(logic.address);
     const vault = MockVault__factory.connect(proxy.address, signer);
     await vault.init(
       controller,
@@ -136,7 +138,8 @@ export class DeployerUtils {
 
   public static async deployVeTetu(signer: SignerWithAddress, token: string, controller: string) {
     const logic = await DeployerUtils.deployContract(signer, 'VeTetu');
-    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled', logic.address) as ProxyControlled;
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
+    await proxy.initProxy(logic.address);
     await VeTetu__factory.connect(proxy.address, signer).init(
       token,
       controller
@@ -153,7 +156,8 @@ export class DeployerUtils {
     bribe: string,
   ) {
     const logic = await DeployerUtils.deployContract(signer, 'TetuVoter');
-    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled', logic.address) as ProxyControlled;
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
+    await proxy.initProxy(logic.address);
     await TetuVoter__factory.connect(proxy.address, signer).init(
       controller,
       ve,
@@ -172,7 +176,8 @@ export class DeployerUtils {
     defaultRewardToken: string,
   ) {
     const logic = await DeployerUtils.deployContract(signer, 'MultiGauge');
-    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled', logic.address);
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
+    await proxy.initProxy(logic.address);
     await MultiGauge__factory.connect(proxy.address, signer).init(
       controller,
       operator,
@@ -190,7 +195,8 @@ export class DeployerUtils {
     defaultReward: string,
   ) {
     const logic = await DeployerUtils.deployContract(signer, 'MultiBribe');
-    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled', logic.address);
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
+    await proxy.initProxy(logic.address);
     await MultiBribe__factory.connect(proxy.address, signer).init(
       controller,
       operator,
@@ -212,7 +218,8 @@ export class DeployerUtils {
     depositor: string,
   ) {
     const logic = await DeployerUtils.deployContract(signer, 'VeDistributor');
-    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled', logic.address);
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
+    await proxy.initProxy(logic.address);
     await VeDistributor__factory.connect(proxy.address, signer).init(
       controller,
       ve,
@@ -232,7 +239,8 @@ export class DeployerUtils {
     buffer: number,
   ) {
     const logic = await DeployerUtils.deployContract(signer, 'TetuVaultV2') as TetuVaultV2;
-    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled', logic.address) as ProxyControlled;
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
+    await proxy.initProxy(logic.address);
     const vault = TetuVaultV2__factory.connect(proxy.address, signer);
     await vault.init(
       controller,
@@ -242,6 +250,9 @@ export class DeployerUtils {
       gauge,
       buffer,
     );
+    const insurance = await DeployerUtils.deployContract(signer, 'VaultInsurance') as VaultInsurance;
+    await insurance.init(vault.address, asset);
+    await vault.initInsurance(insurance.address);
     return vault;
   }
 

@@ -48,7 +48,8 @@ describe("Base Vaults tests", function () {
     );
 
     const logic = await DeployerUtils.deployContract(signer, 'MockVaultSimple');
-    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled', logic.address) as ProxyControlled;
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
+    await proxy.initProxy(logic.address);
     vaultSimple = MockVaultSimple__factory.connect(proxy.address, signer);
     await vaultSimple.init(
       controller.address,
