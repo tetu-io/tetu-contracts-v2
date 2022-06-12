@@ -177,8 +177,8 @@ describe("Tetu voter tests", function () {
   it("vote negative test", async function () {
     await voter.vote(1, [vault.address], [-100]);
     await TimeUtils.advanceBlocksOnTs(WEEK * 2);
-    expect(await voter.votes(1, vault.address)).below(parseUnits('-0.95'))
-    expect(await voter.usedWeights(1)).above(parseUnits('0.95'))
+    expect(await voter.votes(1, vault.address)).below(parseUnits('-0.94'))
+    expect(await voter.usedWeights(1)).above(parseUnits('0.94'))
   });
 
   it("reset negative test", async function () {

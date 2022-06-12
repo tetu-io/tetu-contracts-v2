@@ -309,6 +309,16 @@ describe("Tetu Vault V2 tests", function () {
     await expect(vault.connect(signer2).setMaxWithdraw(1, 1)).revertedWith("DENIED");
   });
 
+  it("set max deposit from 3d party revert", async () => {
+    await expect(vault.connect(signer2).setMaxDeposit(1, 1)).revertedWith("DENIED");
+  });
+
+  it("set max deposit test", async () => {
+    await vault.setMaxDeposit(10, 10);
+    await expect(vault.deposit(11, signer.address)).revertedWith("MAX");
+    await expect(vault.mint(11, signer.address)).revertedWith("MAX");
+  });
+
   it("set buffer test", async () => {
     await vault.setMaxWithdraw(10, 10);
     await vault.deposit(parseUnits('1', 6), signer.address)

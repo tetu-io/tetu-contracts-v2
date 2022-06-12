@@ -25,7 +25,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   /// @dev APR denominator. Represent 100% APR.
   uint internal constant _APR_DENOMINATOR = 100_000;
   /// @dev Delay between hardwork calls for a strategy.
-  uint internal constant _HARDWORK_DELAY = 1 days;
+  uint internal constant _HARDWORK_DELAY = 12 hours;
   /// @dev How much APR history elements will be counted in average APR calculation.
   uint internal constant _HISTORY_DEEP = 3;
 
@@ -58,6 +58,19 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     uint slippage,
     uint lowStrategyBalance
   );
+  event HardWork(
+    address sender,
+    address strategy,
+    uint tvl,
+    uint earned,
+    uint lost,
+    uint apr,
+    uint avgApr
+  );
+
+  // *********************************************
+  //                 INIT
+  // *********************************************
 
   /// @dev Initialize contract after setup it as proxy implementation
   function init(address controller_, address _asset, address _vault) external initializer override {
@@ -87,7 +100,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
   /// @dev Restrict access only for operators or vault
   function _onlyOperatorsOrVault() internal view {
-    require(IController(controller()).isOperator(msg.sender) || msg.sender == vault, "SS: Denied");
+    require(msg.sender == vault || IController(controller()).isOperator(msg.sender), "SS: Denied");
   }
 
   // *********************************************
@@ -139,9 +152,14 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
       address strategy = _strategies[i];
       uint apr = expectedAPR[i];
       require(IStrategyV2(strategy).asset() == asset, "SS: Wrong asset");
+      require(IStrategyV2(strategy).splitter() == address(this), "SS: Wrong splitter");
+      require(IControllable(strategy).isController(controller()), "SS: Wrong controller");
       require(!_contains(existStrategies, strategy), "SS: Already exist");
       strategies.push(strategy);
       strategiesAPR[strategy] = apr;
+      for (uint j; j < _HISTORY_DEEP; j++) {
+        strategiesAPRHistory[strategy].push(apr);
+      }
       emit StrategyAdded(strategy, apr);
     }
     _sortStrategiesByAPR();
@@ -178,7 +196,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     strategiesAPR[_strategy] = 0;
 
     // for expensive strategies should be called before removing
-    IStrategyV2(_strategy).withdrawAllToSplitter();
+    IStrategyV2(_strategy).withdrawAll();
     emit StrategyRemoved(_strategy);
   }
 
@@ -209,13 +227,13 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     }
     require(lowStrategyBalance != 0, "SS: No strategies");
 
-    IStrategyV2(lowStrategy).withdrawToSplitter(lowStrategyBalance * percent / 100);
+    IStrategyV2(lowStrategy).withdraw(lowStrategyBalance * percent / 100);
 
     address _asset = asset;
     IERC20(_asset).safeTransfer(topStrategy, IERC20(_asset).balanceOf(address(this)));
     IStrategyV2(topStrategy).investAll();
 
-    uint balanceAfter = IERC20(_asset).balanceOf(address(this));
+    uint balanceAfter = totalAssets();
     uint slippage = (balance - balanceAfter) * 100_000 / balance;
     require(slippage < slippageTolerance, "SS: Slippage");
 
@@ -227,6 +245,19 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
       slippage,
       lowStrategyBalance
     );
+  }
+
+  function setAPRs(address[] memory _strategies, uint[] memory aprs) external {
+    _onlyOperators();
+    for (uint i; i < aprs.length; i++) {
+      address strategy = _strategies[i];
+      strategiesAPR[strategy] = aprs[i];
+      // need to override last values of history for properly calculate average apr
+      for (uint j; j < _HISTORY_DEEP; j++) {
+        strategiesAPRHistory[strategy].push(aprs[i]);
+      }
+    }
+    _sortStrategiesByAPR();
   }
 
   // *********************************************
@@ -255,7 +286,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
     uint length = strategies.length;
     for (uint i = 0; i < length; i++) {
-      IStrategyV2(strategies[i]).withdrawAllToSplitter();
+      IStrategyV2(strategies[i]).withdrawAll();
     }
 
     uint balanceAfter = IERC20(_asset).balanceOf(address(this));
@@ -284,9 +315,9 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
         IStrategyV2 strategy = IStrategyV2(strategies[i - 1]);
         uint strategyBalance = strategy.totalAssets();
         if (strategyBalance <= amount) {
-          strategy.withdrawAllToSplitter();
+          strategy.withdrawAll();
         } else {
-          strategy.withdrawToSplitter(amount);
+          strategy.withdraw(amount);
         }
         balance = IERC20(_asset).balanceOf(address(this));
         if (balance >= amount) {
@@ -354,6 +385,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
         lastHardWorks[strategy] = block.timestamp;
 
         emit HardWork(
+          msg.sender,
           strategy,
           tvl,
           earned,

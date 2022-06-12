@@ -12,9 +12,18 @@ import {
   MockToken,
   MockVault,
   MockVault__factory,
-  MockVoter, MultiBribe__factory, MultiGauge__factory,
-  ProxyControlled, TetuVaultV2, TetuVaultV2__factory,
-  TetuVoter, TetuVoter__factory, VaultInsurance, VeDistributor__factory,
+  MockVoter,
+  MultiBribe__factory,
+  MultiGauge__factory,
+  ProxyControlled,
+  StrategySplitterV2,
+  StrategySplitterV2__factory,
+  TetuVaultV2,
+  TetuVaultV2__factory,
+  TetuVoter,
+  TetuVoter__factory,
+  VaultInsurance,
+  VeDistributor__factory,
   VeTetu,
   VeTetu__factory
 } from "../../typechain";
@@ -254,6 +263,24 @@ export class DeployerUtils {
     await insurance.init(vault.address, asset);
     await vault.initInsurance(insurance.address);
     return vault;
+  }
+
+  public static async deploySplitter(
+    signer: SignerWithAddress,
+    controller: string,
+    asset: string,
+    vault: string
+  ) {
+    const logic = await DeployerUtils.deployContract(signer, 'StrategySplitterV2') as StrategySplitterV2;
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
+    await proxy.initProxy(logic.address);
+    const splitter = StrategySplitterV2__factory.connect(proxy.address, signer);
+    await splitter.init(
+      controller,
+      asset,
+      vault
+    );
+    return splitter;
   }
 
 }
