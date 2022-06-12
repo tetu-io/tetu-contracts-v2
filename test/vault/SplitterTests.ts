@@ -101,6 +101,10 @@ describe("Splitter tests", function () {
     expect((await splitter.allStrategies()).length).eq(0);
   });
 
+  it("set strategy denied revert", async () => {
+    await expect(splitter.connect(signer2).addStrategies([strategy.address], [100])).revertedWith("SS: Denied");
+  });
+
   it("set strategy test", async () => {
     await strategy.init(controller.address, splitter.address, usdc.address);
     await splitter.addStrategies([strategy.address], [100]);
@@ -129,6 +133,15 @@ describe("Splitter tests", function () {
     await expect(splitter.addStrategies([strategy.address], [100])).revertedWith("SS: Already exist");
   });
 
+  it("set strategy duplicate revert", async () => {
+    await strategy.init(controller.address, splitter.address, usdc.address);
+    await expect(splitter.addStrategies([strategy.address, strategy.address], [100, 100])).revertedWith("SS: Duplicate");
+  });
+
+  it("remove strategy denied revert", async () => {
+    await expect(splitter.connect(signer2).removeStrategies([strategy.address])).revertedWith("SS: Denied");
+  });
+
   it("remove strategy test", async () => {
     await strategy.init(controller.address, splitter.address, usdc.address);
     const strategy2 = await DeployerUtils.deployContract(signer, 'MockStrategy') as MockStrategy;
@@ -150,8 +163,20 @@ describe("Splitter tests", function () {
     await expect(splitter.removeStrategies([signer.address])).revertedWith("SS: Strategy not found");
   });
 
+  it("rebalance denied revert", async () => {
+    await expect(splitter.connect(signer2).rebalance(1, 1)).revertedWith("SS: Denied");
+  });
+
+  it("set apr denied revert", async () => {
+    await expect(splitter.connect(signer2).setAPRs([], [])).revertedWith("SS: Denied");
+  });
+
   it("rebalance empty strats revert", async () => {
     await expect(splitter.rebalance(1, 1)).revertedWith("SS: Length");
+  });
+
+  it("average apr test", async () => {
+    expect(await splitter.averageApr(strategy.address)).eq(0);
   });
 
   it("rebalance wrong percent revert", async () => {
@@ -183,6 +208,177 @@ describe("Splitter tests", function () {
   it("withdraw without strategies test", async () => {
     await vault.deposit(100, signer.address);
     await vault.withdraw(100, signer.address, signer.address);
+  });
+
+  it("invest all denied revert", async () => {
+    await expect(splitter.connect(signer2).investAll()).revertedWith("SS: Denied");
+  });
+
+  it("withdraw all denied revert", async () => {
+    await expect(splitter.connect(signer2).withdrawAllToVault()).revertedWith("SS: Denied");
+  });
+
+  it("withdraw denied revert", async () => {
+    await expect(splitter.connect(signer2).withdrawToVault(1)).revertedWith("SS: Denied");
+  });
+
+  it("do hard work denied revert", async () => {
+    await expect(splitter.connect(signer2).doHardWork()).revertedWith("SS: Denied");
+  });
+
+  it("do hard work for strat denied revert", async () => {
+    await expect(splitter.connect(signer2).doHardWorkForStrategy(strategy.address)).revertedWith("SS: Denied");
+  });
+
+  it("apr test", async () => {
+    expect(await splitter.computeApr(100, 10, 60 * 60 * 24 * 365)).eq(10_000);
+    expect(await splitter.computeApr(100, 10, 60 * 60 * 24)).eq(3650_000);
+    expect(await splitter.computeApr(parseUnits('1234'), parseUnits('0.05'), 60 * 60 * 24)).eq(1_478);
+    expect(await splitter.computeApr(0, 100, 60 * 60 * 24)).eq(0);
+    expect(await splitter.computeApr(100, 100, 0)).eq(0);
+  });
+
+  it("remove last strategy test", async () => {
+    await strategy.init(controller.address, splitter.address, usdc.address);
+    await splitter.addStrategies([strategy.address], [50]);
+    await splitter.removeStrategies([strategy.address])
+    expect(await splitter.strategiesLength()).eq(0);
+  });
+
+  describe("with 3 strategies and assets by default", function () {
+
+    let strategy2: MockStrategy;
+    let strategy3: MockStrategy;
+
+    before(async function () {
+      await strategy.init(controller.address, splitter.address, usdc.address);
+      strategy2 = await DeployerUtils.deployContract(signer, 'MockStrategy') as MockStrategy;
+      await strategy2.init(controller.address, splitter.address, usdc.address);
+      strategy3 = await DeployerUtils.deployContract(signer, 'MockStrategy') as MockStrategy;
+      await strategy3.init(controller.address, splitter.address, usdc.address);
+      await splitter.addStrategies([strategy.address, strategy2.address, strategy3.address], [50, 100, 1]);
+
+      await vault.deposit(100, signer.address);
+    });
+
+    it("maxCheapWithdraw test", async () => {
+      expect(await splitter.maxCheapWithdraw()).eq(100);
+    });
+
+    it("remove strategy test", async () => {
+      await splitter.removeStrategies([strategy.address])
+      expect(await splitter.strategiesLength()).eq(2);
+    });
+
+    it("rebalance slippage revert", async () => {
+      await splitter.setAPRs([strategy.address], [200]);
+      await strategy2.setSlippage(10);
+      await expect(splitter.rebalance(100, 9_999)).revertedWith('SS: Slippage');
+    });
+
+    it("rebalance slippage test", async () => {
+      await splitter.setAPRs([strategy.address], [200]);
+      await strategy2.setSlippage(10);
+      await splitter.rebalance(100, 10_001);
+    });
+
+    it("withdraw all test", async () => {
+      await vault.withdrawAll();
+    });
+
+    it("withdraw all with slippage revert", async () => {
+      await strategy2.setSlippage(10);
+      await expect(vault.withdrawAll()).revertedWith("SLIPPAGE");
+    });
+
+    it("withdraw all with slippage covering from insurance test", async () => {
+      await strategy2.setSlippage(1);
+      await vault.setFees(0, 1_000)
+      await vault.withdrawAll()
+    });
+
+    it("withdraw all with slippage covering from insurance not enough revert", async () => {
+      await strategy2.setSlippage(2);
+      await vault.setFees(0, 1_000)
+      await expect(vault.withdrawAll()).revertedWith("SLIPPAGE");
+    });
+
+    it("withdraw with 100% slippage covering from insurance test", async () => {
+      await strategy2.setSlippage(100);
+      await vault.setFees(1_000, 1_000)
+      await vault.deposit(1000_000, signer.address)
+      await vault.withdraw(10, signer.address, signer.address);
+    });
+
+    it("withdraw all with 100% slippage covering from insurance test", async () => {
+      await vault.setFees(1_000, 1_000)
+      await vault.deposit(1000_000, signer.address)
+      await vault.withdrawAll();
+      await vault.deposit(100, signer.address)
+      await strategy2.setSlippage(100);
+      await vault.withdrawAll();
+    });
+
+    it("do hard work for strategy test", async () => {
+      await splitter.doHardWorkForStrategy(strategy.address);
+    });
+
+    it("withdraw all with balance on splitter test", async () => {
+      await strategy2.withdrawAll();
+      await vault.withdrawAll();
+    });
+
+    it("withdraw part with balance on splitter test", async () => {
+      await strategy2.withdrawAll();
+      await vault.withdraw(10, signer.address, signer.address);
+    });
+
+    it("withdraw from multiple strategies test", async () => {
+      await splitter.setAPRs([strategy.address], [200]);
+      await splitter.rebalance(50, 0);
+      await vault.withdraw(99, signer.address, signer.address,);
+    });
+
+    it("withdraw with slippage covering from insurance test", async () => {
+      await strategy2.setSlippage(1);
+      await vault.setFees(0, 1_000)
+      await vault.withdraw(99, signer.address, signer.address,);
+    });
+
+    it("do hard work for strategy with positive profit", async () => {
+      expect(await strategy2.totalAssets()).eq(100);
+      await TimeUtils.advanceBlocksOnTs(60 * 60 * 24);
+      await strategy2.setLast(20, 10);
+      await splitter.doHardWorkForStrategy(strategy2.address);
+      expect(await splitter.strategyAPRHistoryLength(strategy2.address)).eq(4);
+      expect(await splitter.strategiesAPRHistory(strategy2.address, 3)).above(3500_000);
+      expect(await splitter.strategiesAPR(strategy2.address)).above(1000_000);
+    });
+
+    it("do hard work with positive profit", async () => {
+      expect(await strategy2.totalAssets()).eq(100);
+      await TimeUtils.advanceBlocksOnTs(60 * 60 * 24);
+      await strategy2.setLast(20, 10);
+      await splitter.doHardWork();
+      expect(await splitter.strategyAPRHistoryLength(strategy2.address)).eq(4);
+      expect(await splitter.strategiesAPRHistory(strategy2.address, 3)).above(3500_000);
+      expect(await splitter.strategiesAPR(strategy2.address)).above(1000_000);
+    });
+
+    it("do hard work without assets test", async () => {
+      await TimeUtils.advanceBlocksOnTs(60 * 60 * 24);
+      expect(await strategy.totalAssets()).eq(0);
+      await splitter.doHardWorkForStrategy(strategy.address);
+      expect(await splitter.strategyAPRHistoryLength(strategy.address)).eq(3);
+    });
+
+    it("do hard work with zero earns test", async () => {
+      await TimeUtils.advanceBlocksOnTs(60 * 60 * 24);
+      expect(await strategy2.totalAssets()).eq(100);
+      await splitter.doHardWorkForStrategy(strategy2.address);
+      expect(await splitter.strategyAPRHistoryLength(strategy2.address)).eq(4);
+    });
+
   });
 
 });

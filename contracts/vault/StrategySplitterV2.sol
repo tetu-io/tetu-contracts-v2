@@ -10,6 +10,8 @@ import "../interfaces/IStrategyV2.sol";
 import "../interfaces/ISplitter.sol";
 import "../proxy/ControllableV3.sol";
 
+import "hardhat/console.sol";
+
 /// @title Proxy solution for connection a vault with multiple strategies
 ///        Version 2 has auto-rebalance logic adopted to strategies with fees.
 /// @author belbix
@@ -138,6 +140,11 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     return strategies;
   }
 
+  /// @dev Length of APR history for given strategy
+  function strategyAPRHistoryLength(address strategy) external view returns (uint) {
+    return strategiesAPRHistory[strategy].length;
+  }
+
   // *********************************************
   //                GOV ACTIONS
   // *********************************************
@@ -148,6 +155,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     _onlyGov();
 
     address[] memory existStrategies = strategies;
+    address[] memory addedStrategies = new address[](_strategies.length);
     for (uint i = 0; i < _strategies.length; i++) {
       address strategy = _strategies[i];
       uint apr = expectedAPR[i];
@@ -155,11 +163,14 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
       require(IStrategyV2(strategy).splitter() == address(this), "SS: Wrong splitter");
       require(IControllable(strategy).isController(controller()), "SS: Wrong controller");
       require(!_contains(existStrategies, strategy), "SS: Already exist");
+      require(!_contains(addedStrategies, strategy), "SS: Duplicate");
       strategies.push(strategy);
       strategiesAPR[strategy] = apr;
       for (uint j; j < _HISTORY_DEEP; j++) {
         strategiesAPRHistory[strategy].push(apr);
       }
+      addedStrategies[i] = strategy;
+      lastHardWorks[strategy] = block.timestamp;
       emit StrategyAdded(strategy, apr);
     }
     _sortStrategiesByAPR();
@@ -235,7 +246,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
     uint balanceAfter = totalAssets();
     uint slippage = (balance - balanceAfter) * 100_000 / balance;
-    require(slippage < slippageTolerance, "SS: Slippage");
+    require(slippage <= slippageTolerance, "SS: Slippage");
 
     emit Rebalance(
       topStrategy,
@@ -348,10 +359,16 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     // prevent recursion
     isHardWorking = true;
     uint length = strategies.length;
+    bool needReorder;
     for (uint i = 0; i < length; i++) {
-      _doHardWorkForStrategy(strategies[i]);
+      bool result = _doHardWorkForStrategy(strategies[i]);
+      if (result) {
+        needReorder = true;
+      }
     }
-    _sortStrategiesByAPR();
+    if(needReorder) {
+      _sortStrategiesByAPR();
+    }
     isHardWorking = false;
   }
 
@@ -361,17 +378,20 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
     // prevent recursion
     isHardWorking = true;
-    _doHardWorkForStrategy(strategy);
-    _sortStrategiesByAPR();
+    bool result = _doHardWorkForStrategy(strategy);
+    if (result) {
+      _sortStrategiesByAPR();
+    }
     isHardWorking = false;
   }
 
-  function _doHardWorkForStrategy(address strategy) internal {
+  function _doHardWorkForStrategy(address strategy) internal returns (bool) {
     uint lastHardWork = lastHardWorks[strategy];
 
     if (lastHardWork + _HARDWORK_DELAY < block.timestamp) {
       uint sinceLastHardWork = block.timestamp - lastHardWork;
       uint tvl = IStrategyV2(strategy).totalAssets();
+      console.log("HW tvl", tvl);
       if (tvl != 0) {
         (uint earned, uint lost) = IStrategyV2(strategy).doHardWork();
         uint apr;
@@ -384,6 +404,13 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
         strategiesAPR[strategy] = avgApr;
         lastHardWorks[strategy] = block.timestamp;
 
+
+        console.log("HW earned", earned);
+        console.log("HW lost", lost);
+        console.log("HW sinceLastHardWork", sinceLastHardWork);
+        console.log("HW apr", apr);
+        console.log("HW avgApr", avgApr);
+
         emit HardWork(
           msg.sender,
           strategy,
@@ -393,8 +420,10 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
           apr,
           avgApr
         );
+        return true;
       }
     }
+    return false;
   }
 
   function averageApr(address strategy) public view returns (uint) {
@@ -417,7 +446,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     if (tvl == 0 || duration == 0) {
       return 0;
     }
-    return earned * 1e32 * _APR_DENOMINATOR * uint(36500) / tvl / (duration * 1e18 / 1 days);
+    return earned * 1e18 * _APR_DENOMINATOR * uint(365) / tvl / (duration * 1e18 / 1 days);
   }
 
   /// @dev Insertion sorting algorithm for using with arrays fewer than 10 elements.
@@ -441,7 +470,9 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   /// @dev Return true if given item found in address array
   function _contains(address[] memory array, address _item) internal pure returns (bool) {
     for (uint256 i = 0; i < array.length; i++) {
-      if (array[i] == _item) return true;
+      if (array[i] == _item) {
+        return true;
+      }
     }
     return false;
   }
