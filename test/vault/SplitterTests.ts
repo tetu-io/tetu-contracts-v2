@@ -111,6 +111,19 @@ describe("Splitter tests", function () {
     expect((await splitter.allStrategies()).length).eq(1);
   });
 
+  it("set strategy with time lock test", async () => {
+    await strategy.init(controller.address, splitter.address, usdc.address);
+    await splitter.addStrategies([strategy.address], [100]);
+
+    const strategy2 = await DeployerUtils.deployContract(signer, 'MockStrategy') as MockStrategy;
+    await strategy2.init(controller.address, splitter.address, usdc.address);
+
+    await splitter.scheduleStrategies([strategy2.address]);
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 12);
+    await splitter.addStrategies([strategy2.address], [100]);
+    expect((await splitter.allStrategies()).length).eq(2);
+  });
+
   it("set strategy wrong asset revert", async () => {
     await strategy.init(controller.address, splitter.address, tetu.address);
     await expect(splitter.addStrategies([strategy.address], [100])).revertedWith("SS: Wrong asset");
@@ -136,6 +149,14 @@ describe("Splitter tests", function () {
   it("set strategy duplicate revert", async () => {
     await strategy.init(controller.address, splitter.address, usdc.address);
     await expect(splitter.addStrategies([strategy.address, strategy.address], [100, 100])).revertedWith("SS: Duplicate");
+  });
+
+  it("set strategy time lock revert", async () => {
+    await strategy.init(controller.address, splitter.address, usdc.address);
+    await splitter.addStrategies([strategy.address], [100])
+    const strategy2 = await DeployerUtils.deployContract(signer, 'MockStrategy') as MockStrategy;
+    await strategy2.init(controller.address, splitter.address, usdc.address);
+    await expect(splitter.addStrategies([strategy2.address], [100])).revertedWith("SS: Time lock");
   });
 
   it("remove strategy denied revert", async () => {
