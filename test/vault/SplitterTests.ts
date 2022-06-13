@@ -7,7 +7,7 @@ import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {
   ControllerMinimal,
   MockGauge,
-  MockSplitter, MockStrategy,
+  MockSplitter, MockStrategy, MockStrategySimple,
   MockToken,
   MockVault,
   MockVaultController,
@@ -27,7 +27,7 @@ import {parseUnits} from "ethers/lib/utils";
 const {expect} = chai;
 chai.use(chaiAsPromised);
 
-describe("Splitter tests", function () {
+describe("Splitter and base strategy tests", function () {
   let snapshotBefore: string;
   let snapshot: string;
   let signer: SignerWithAddress;
@@ -106,17 +106,17 @@ describe("Splitter tests", function () {
   });
 
   it("set strategy test", async () => {
-    await strategy.init(controller.address, splitter.address, usdc.address);
+    await strategy.init(controller.address, splitter.address);
     await splitter.addStrategies([strategy.address], [100]);
     expect((await splitter.allStrategies()).length).eq(1);
   });
 
   it("set strategy with time lock test", async () => {
-    await strategy.init(controller.address, splitter.address, usdc.address);
+    await strategy.init(controller.address, splitter.address);
     await splitter.addStrategies([strategy.address], [100]);
 
     const strategy2 = await DeployerUtils.deployContract(signer, 'MockStrategy') as MockStrategy;
-    await strategy2.init(controller.address, splitter.address, usdc.address);
+    await strategy2.init(controller.address, splitter.address);
 
     await splitter.scheduleStrategies([strategy2.address]);
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 12);
@@ -125,37 +125,40 @@ describe("Splitter tests", function () {
   });
 
   it("set strategy wrong asset revert", async () => {
-    await strategy.init(controller.address, splitter.address, tetu.address);
-    await expect(splitter.addStrategies([strategy.address], [100])).revertedWith("SS: Wrong asset");
+    const s = await DeployerUtils.deployContract(signer, 'MockStrategySimple') as MockStrategySimple;
+    await s.init(controller.address, splitter.address, tetu.address);
+    await expect(splitter.addStrategies([s.address], [100])).revertedWith("SS: Wrong asset");
   });
 
   it("set strategy wrong splitter revert", async () => {
-    await strategy.init(controller.address, tetu.address, usdc.address);
-    await expect(splitter.addStrategies([strategy.address], [100])).revertedWith("SS: Wrong splitter");
+    const s = await DeployerUtils.deployContract(signer, 'MockStrategySimple') as MockStrategySimple;
+    await s.init(controller.address, tetu.address, usdc.address);
+    await expect(splitter.addStrategies([s.address], [100])).revertedWith("SS: Wrong splitter");
   });
 
   it("set strategy wrong controller revert", async () => {
+    const s = await DeployerUtils.deployContract(signer, 'MockStrategySimple') as MockStrategySimple;
     const c = await DeployerUtils.deployMockController(signer);
-    await strategy.init(c.address, splitter.address, usdc.address);
-    await expect(splitter.addStrategies([strategy.address], [100])).revertedWith("SS: Wrong controller");
+    await s.init(c.address, splitter.address, usdc.address);
+    await expect(splitter.addStrategies([s.address], [100])).revertedWith("SS: Wrong controller");
   });
 
   it("set strategy already exist revert", async () => {
-    await strategy.init(controller.address, splitter.address, usdc.address);
+    await strategy.init(controller.address, splitter.address);
     await splitter.addStrategies([strategy.address], [100]);
     await expect(splitter.addStrategies([strategy.address], [100])).revertedWith("SS: Already exist");
   });
 
   it("set strategy duplicate revert", async () => {
-    await strategy.init(controller.address, splitter.address, usdc.address);
+    await strategy.init(controller.address, splitter.address);
     await expect(splitter.addStrategies([strategy.address, strategy.address], [100, 100])).revertedWith("SS: Duplicate");
   });
 
   it("set strategy time lock revert", async () => {
-    await strategy.init(controller.address, splitter.address, usdc.address);
+    await strategy.init(controller.address, splitter.address);
     await splitter.addStrategies([strategy.address], [100])
     const strategy2 = await DeployerUtils.deployContract(signer, 'MockStrategy') as MockStrategy;
-    await strategy2.init(controller.address, splitter.address, usdc.address);
+    await strategy2.init(controller.address, splitter.address);
     await expect(splitter.addStrategies([strategy2.address], [100])).revertedWith("SS: Time lock");
   });
 
@@ -164,9 +167,9 @@ describe("Splitter tests", function () {
   });
 
   it("remove strategy test", async () => {
-    await strategy.init(controller.address, splitter.address, usdc.address);
+    await strategy.init(controller.address, splitter.address);
     const strategy2 = await DeployerUtils.deployContract(signer, 'MockStrategy') as MockStrategy;
-    await strategy2.init(controller.address, splitter.address, usdc.address);
+    await strategy2.init(controller.address, splitter.address);
     await splitter.addStrategies([strategy.address, strategy2.address], [100, 100]);
     expect((await splitter.allStrategies()).length).eq(2);
     await splitter.removeStrategies([strategy.address]);
@@ -174,12 +177,12 @@ describe("Splitter tests", function () {
   });
 
   it("remove strategy empty revert", async () => {
-    await strategy.init(controller.address, splitter.address, usdc.address);
+    await strategy.init(controller.address, splitter.address);
     await expect(splitter.removeStrategies([strategy.address])).revertedWith("SS: Empty strategies");
   });
 
   it("remove strategy test", async () => {
-    await strategy.init(controller.address, splitter.address, usdc.address);
+    await strategy.init(controller.address, splitter.address);
     await splitter.addStrategies([strategy.address], [100]);
     await expect(splitter.removeStrategies([signer.address])).revertedWith("SS: Strategy not found");
   });
@@ -201,25 +204,25 @@ describe("Splitter tests", function () {
   });
 
   it("rebalance wrong percent revert", async () => {
-    await strategy.init(controller.address, splitter.address, usdc.address);
+    await strategy.init(controller.address, splitter.address);
     const strategy2 = await DeployerUtils.deployContract(signer, 'MockStrategy') as MockStrategy;
-    await strategy2.init(controller.address, splitter.address, usdc.address);
+    await strategy2.init(controller.address, splitter.address);
     await splitter.addStrategies([strategy.address, strategy2.address], [100, 100]);
     await expect(splitter.rebalance(1000, 1)).revertedWith("SS: Percent");
   });
 
   it("rebalance no liq revert", async () => {
-    await strategy.init(controller.address, splitter.address, usdc.address);
+    await strategy.init(controller.address, splitter.address);
     const strategy2 = await DeployerUtils.deployContract(signer, 'MockStrategy') as MockStrategy;
-    await strategy2.init(controller.address, splitter.address, usdc.address);
+    await strategy2.init(controller.address, splitter.address);
     await splitter.addStrategies([strategy.address, strategy2.address], [100, 100]);
     await expect(splitter.rebalance(1, 1)).revertedWith("SS: No strategies");
   });
 
   it("rebalance test", async () => {
-    await strategy.init(controller.address, splitter.address, usdc.address);
+    await strategy.init(controller.address, splitter.address);
     const strategy2 = await DeployerUtils.deployContract(signer, 'MockStrategy') as MockStrategy;
-    await strategy2.init(controller.address, splitter.address, usdc.address);
+    await strategy2.init(controller.address, splitter.address);
     await splitter.addStrategies([strategy.address, strategy2.address], [50, 100]);
     await vault.deposit(100, signer.address);
     await splitter.setAPRs([strategy.address], [200]);
@@ -248,7 +251,7 @@ describe("Splitter tests", function () {
   });
 
   it("do hard work for strat denied revert", async () => {
-    await expect(splitter.connect(signer2).doHardWorkForStrategy(strategy.address)).revertedWith("SS: Denied");
+    await expect(splitter.connect(signer2).doHardWorkForStrategy(strategy.address, true)).revertedWith("SS: Denied");
   });
 
   it("apr test", async () => {
@@ -260,26 +263,54 @@ describe("Splitter tests", function () {
   });
 
   it("remove last strategy test", async () => {
-    await strategy.init(controller.address, splitter.address, usdc.address);
+    await strategy.init(controller.address, splitter.address);
     await splitter.addStrategies([strategy.address], [50]);
     await splitter.removeStrategies([strategy.address])
     expect(await splitter.strategiesLength()).eq(0);
   });
 
+  it("pause/continue investing test", async () => {
+    await strategy.init(controller.address, splitter.address);
+    await splitter.addStrategies([strategy.address], [50]);
+    await splitter.pauseInvesting(strategy.address);
+    expect(await splitter.pausedStrategies(strategy.address)).eq(true);
+    expect(await splitter.strategiesAPR(strategy.address)).eq(0);
+    await splitter.continueInvesting(strategy.address, 100);
+    expect(await splitter.pausedStrategies(strategy.address)).eq(false);
+    expect(await splitter.strategiesAPR(strategy.address)).eq(100);
+  });
+
+  it("continue investing not paused revert", async () => {
+    await expect(splitter.continueInvesting(strategy.address, 100)).revertedWith('SS: Not paused');
+  });
+
+  it("invest to paused revert", async () => {
+    await strategy.init(controller.address, splitter.address);
+    await splitter.addStrategies([strategy.address], [50]);
+    await splitter.pauseInvesting(strategy.address);
+    await expect(vault.deposit(100, signer.address)).revertedWith('SS: Paused');
+  });
+
   describe("with 3 strategies and assets by default", function () {
 
+    let snapshotBefore2: string;
     let strategy2: MockStrategy;
     let strategy3: MockStrategy;
 
     before(async function () {
-      await strategy.init(controller.address, splitter.address, usdc.address);
+      snapshotBefore2 = await TimeUtils.snapshot();
+      await strategy.init(controller.address, splitter.address);
       strategy2 = await DeployerUtils.deployContract(signer, 'MockStrategy') as MockStrategy;
-      await strategy2.init(controller.address, splitter.address, usdc.address);
+      await strategy2.init(controller.address, splitter.address);
       strategy3 = await DeployerUtils.deployContract(signer, 'MockStrategy') as MockStrategy;
-      await strategy3.init(controller.address, splitter.address, usdc.address);
+      await strategy3.init(controller.address, splitter.address);
       await splitter.addStrategies([strategy.address, strategy2.address, strategy3.address], [50, 100, 1]);
 
       await vault.deposit(100, signer.address);
+    });
+
+    after(async function () {
+      await TimeUtils.rollback(snapshotBefore2);
     });
 
     it("maxCheapWithdraw test", async () => {
@@ -291,10 +322,22 @@ describe("Splitter tests", function () {
       expect(await splitter.strategiesLength()).eq(2);
     });
 
+    it("set apr paused revert", async () => {
+      await splitter.pauseInvesting(strategy.address)
+      await expect(splitter.setAPRs([strategy.address], [200])).revertedWith('SS: Paused');
+    });
+
     it("rebalance slippage revert", async () => {
       await splitter.setAPRs([strategy.address], [200]);
       await strategy2.setSlippage(10);
       await expect(splitter.rebalance(100, 9_999)).revertedWith('SS: Slippage');
+    });
+
+    it("rebalance pause revert", async () => {
+      await splitter.pauseInvesting(strategy.address);
+      await splitter.pauseInvesting(strategy2.address);
+      await splitter.pauseInvesting(strategy3.address);
+      await expect(splitter.rebalance(100, 0)).revertedWith('SS: Paused');
     });
 
     it("rebalance slippage test", async () => {
@@ -341,16 +384,16 @@ describe("Splitter tests", function () {
     });
 
     it("do hard work for strategy test", async () => {
-      await splitter.doHardWorkForStrategy(strategy.address);
+      await splitter.doHardWorkForStrategy(strategy.address, true);
     });
 
     it("withdraw all with balance on splitter test", async () => {
-      await strategy2.withdrawAll();
+      await strategy2.emergencyExit();
       await vault.withdrawAll();
     });
 
     it("withdraw part with balance on splitter test", async () => {
-      await strategy2.withdrawAll();
+      await strategy2.emergencyExit();
       await vault.withdraw(10, signer.address, signer.address);
     });
 
@@ -370,7 +413,7 @@ describe("Splitter tests", function () {
       expect(await strategy2.totalAssets()).eq(100);
       await TimeUtils.advanceBlocksOnTs(60 * 60 * 24);
       await strategy2.setLast(20, 10);
-      await splitter.doHardWorkForStrategy(strategy2.address);
+      await splitter.doHardWorkForStrategy(strategy2.address, true);
       expect(await splitter.strategyAPRHistoryLength(strategy2.address)).eq(4);
       expect(await splitter.strategiesAPRHistory(strategy2.address, 3)).above(3500_000);
       expect(await splitter.strategiesAPR(strategy2.address)).above(1000_000);
@@ -389,15 +432,71 @@ describe("Splitter tests", function () {
     it("do hard work without assets test", async () => {
       await TimeUtils.advanceBlocksOnTs(60 * 60 * 24);
       expect(await strategy.totalAssets()).eq(0);
-      await splitter.doHardWorkForStrategy(strategy.address);
+      await splitter.doHardWorkForStrategy(strategy.address, true);
       expect(await splitter.strategyAPRHistoryLength(strategy.address)).eq(3);
     });
 
     it("do hard work with zero earns test", async () => {
       await TimeUtils.advanceBlocksOnTs(60 * 60 * 24);
       expect(await strategy2.totalAssets()).eq(100);
-      await splitter.doHardWorkForStrategy(strategy2.address);
+      await splitter.doHardWorkForStrategy(strategy2.address, true);
       expect(await splitter.strategyAPRHistoryLength(strategy2.address)).eq(4);
+    });
+
+  });
+
+
+  // **************** strategy base tests
+
+  it("strategy init wrong controller revert", async () => {
+    const c = await DeployerUtils.deployMockController(signer);
+    await expect(strategy.init(c.address, splitter.address)).revertedWith("SB: Wrong controller");
+  });
+
+  describe("with inited strategy", function () {
+
+    let snapshotBefore3: string;
+
+    before(async function () {
+      snapshotBefore3 = await TimeUtils.snapshot();
+      await strategy.init(controller.address, splitter.address);
+    });
+
+    after(async function () {
+      await TimeUtils.rollback(snapshotBefore3);
+    });
+
+    it("emergency exit from 3d party revert", async () => {
+      await expect(strategy.connect(signer2).emergencyExit()).revertedWith("SB: Denied");
+    });
+
+    it("strategy withdraw all from 3rd party revert", async () => {
+      await expect(strategy.withdrawAllToSplitter()).revertedWith("SB: Denied");
+    });
+
+    it("strategy withdraw from 3rd party revert", async () => {
+      await expect(strategy.withdrawToSplitter(0)).revertedWith("SB: Denied");
+    });
+
+    it("strategy invest from 3rd party revert", async () => {
+      await expect(strategy.investAll()).revertedWith("SB: Denied");
+    });
+
+    it("claim from 3d party revert", async () => {
+      await expect(strategy.connect(signer2).claim()).revertedWith("SB: Denied");
+    });
+
+    it("claim test", async () => {
+      await strategy.claim();
+    });
+
+    it("invest all with zero balance test", async () => {
+      await strategy.connect(await Misc.impersonate(splitter.address)).investAll();
+    });
+
+    it("withdraw to splitter when enough balance test", async () => {
+      await usdc.transfer(strategy.address, parseUnits('1', 6));
+      await strategy.connect(await Misc.impersonate(splitter.address)).withdrawToSplitter(parseUnits('1', 6));
     });
 
   });

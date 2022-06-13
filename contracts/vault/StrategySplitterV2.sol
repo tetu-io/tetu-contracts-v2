@@ -10,8 +10,6 @@ import "../interfaces/IStrategyV2.sol";
 import "../interfaces/ISplitter.sol";
 import "../proxy/ControllableV3.sol";
 
-import "hardhat/console.sol";
-
 /// @title Proxy solution for connection a vault with multiple strategies
 ///        Version 2 has auto-rebalance logic adopted to strategies with fees.
 /// @author belbix
@@ -44,6 +42,8 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   address public override vault;
   /// @dev Array of strategies under control
   address[] public strategies;
+  /// @dev Paused strategies
+  mapping(address => bool) public pausedStrategies;
   /// @dev Current strategies average APRs. Uses for deposit/withdraw ordering.
   mapping(address => uint) public strategiesAPR;
   /// @dev Strategies APR history. Uses for calculate average APR.
@@ -82,6 +82,9 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     uint avgApr
   );
   event StrategyScheduled(address strategy, uint startTime, uint timeLock);
+  event ManualAprChanged(address sender, address strategy, uint newApr, uint oldApr);
+  event Paused(address strategy, address sender);
+  event ContinueInvesting(address strategy, uint apr, address sender);
 
   // *********************************************
   //                 INIT
@@ -199,10 +202,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
       // ----------------------------
 
       strategies.push(strategy);
-      strategiesAPR[strategy] = apr;
-      for (uint j; j < HISTORY_DEEP; j++) {
-        strategiesAPRHistory[strategy].push(apr);
-      }
+      _setStrategyAPR(strategy, apr);
       addedStrategies[i] = strategy;
       lastHardWorks[strategy] = block.timestamp;
       emit StrategyAdded(strategy, apr);
@@ -223,13 +223,13 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     _sortStrategiesByAPR();
   }
 
-  function _removeStrategy(address _strategy) internal {
+  function _removeStrategy(address strategy) internal {
     uint length = strategies.length;
     require(length > 0, "SS: Empty strategies");
     uint idx;
     bool found;
     for (uint256 i = 0; i < length; i++) {
-      if (strategies[i] == _strategy) {
+      if (strategies[i] == strategy) {
         idx = i;
         found = true;
         break;
@@ -241,11 +241,11 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     }
     strategies.pop();
 
-    strategiesAPR[_strategy] = 0;
+    _setStrategyAPR(strategy, 0);
 
     // for expensive strategies should be called before removing
-    IStrategyV2(_strategy).withdrawAll();
-    emit StrategyRemoved(_strategy);
+    IStrategyV2(strategy).withdrawAllToSplitter();
+    emit StrategyRemoved(strategy);
   }
 
 
@@ -266,6 +266,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     require(percent <= 100, "SS: Percent");
 
     address topStrategy = strategies[0];
+    require(!pausedStrategies[topStrategy], "SS: Paused");
     address lowStrategy;
 
     uint lowStrategyBalance;
@@ -275,7 +276,11 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     }
     require(lowStrategyBalance != 0, "SS: No strategies");
 
-    IStrategyV2(lowStrategy).withdraw(lowStrategyBalance * percent / 100);
+    if(percent == 100) {
+      IStrategyV2(lowStrategy).withdrawAllToSplitter();
+    } else {
+      IStrategyV2(lowStrategy).withdrawToSplitter(lowStrategyBalance * percent / 100);
+    }
 
     address _asset = asset;
     IERC20(_asset).safeTransfer(topStrategy, IERC20(_asset).balanceOf(address(this)));
@@ -299,13 +304,36 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     _onlyOperators();
     for (uint i; i < aprs.length; i++) {
       address strategy = _strategies[i];
-      strategiesAPR[strategy] = aprs[i];
-      // need to override last values of history for properly calculate average apr
-      for (uint j; j < HISTORY_DEEP; j++) {
-        strategiesAPRHistory[strategy].push(aprs[i]);
-      }
+      require(!pausedStrategies[strategy], "SS: Paused");
+      uint oldAPR = strategiesAPR[strategy];
+      _setStrategyAPR(strategy, aprs[i]);
+      emit ManualAprChanged(msg.sender, strategy, aprs[i], oldAPR);
     }
     _sortStrategiesByAPR();
+  }
+
+  /// @dev Pause investing. For withdraw need to call emergencyExit() on the strategy.
+  function pauseInvesting(address strategy) external {
+    _onlyOperators();
+
+    pausedStrategies[strategy] = true;
+    uint oldAPR = strategiesAPR[strategy];
+    _setStrategyAPR(strategy, 0);
+    _sortStrategiesByAPR();
+    emit ManualAprChanged(msg.sender, strategy, 0, oldAPR);
+    emit Paused(strategy, msg.sender);
+  }
+
+  /// @dev Resumes the ability to invest for given strategy.
+  function continueInvesting(address strategy, uint apr) external {
+    _onlyOperators();
+    require(pausedStrategies[strategy], "SS: Not paused");
+
+    pausedStrategies[strategy] = false;
+    _setStrategyAPR(strategy, apr);
+    _sortStrategiesByAPR();
+    emit ManualAprChanged(msg.sender, strategy, apr, 0);
+    emit ContinueInvesting(strategy, apr, msg.sender);
   }
 
   // *********************************************
@@ -320,6 +348,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
       address _asset = asset;
       uint balance = IERC20(_asset).balanceOf(address(this));
       address strategy = strategies[0];
+      require(!pausedStrategies[strategy], "SS: Paused");
       IERC20(_asset).safeTransfer(strategy, balance);
       IStrategyV2(strategy).investAll();
     }
@@ -334,7 +363,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
     uint length = strategies.length;
     for (uint i = 0; i < length; i++) {
-      IStrategyV2(strategies[i]).withdrawAll();
+      IStrategyV2(strategies[i]).withdrawAllToSplitter();
     }
 
     uint balanceAfter = IERC20(_asset).balanceOf(address(this));
@@ -363,9 +392,9 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
         IStrategyV2 strategy = IStrategyV2(strategies[i - 1]);
         uint strategyBalance = strategy.totalAssets();
         if (strategyBalance <= amount) {
-          strategy.withdrawAll();
+          strategy.withdrawAllToSplitter();
         } else {
-          strategy.withdraw(amount);
+          strategy.withdrawToSplitter(amount);
         }
         balance = IERC20(_asset).balanceOf(address(this));
         if (balance >= amount) {
@@ -398,7 +427,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     uint length = strategies.length;
     bool needReorder;
     for (uint i = 0; i < length; i++) {
-      bool result = _doHardWorkForStrategy(strategies[i]);
+      bool result = _doHardWorkForStrategy(strategies[i], false);
       if (result) {
         needReorder = true;
       }
@@ -410,25 +439,31 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   }
 
   /// @dev Call hard work for given strategy.
-  function doHardWorkForStrategy(address strategy) external {
+  function doHardWorkForStrategy(address strategy, bool push) external {
     _onlyOperators();
 
     // prevent recursion
     isHardWorking = true;
-    bool result = _doHardWorkForStrategy(strategy);
+    bool result = _doHardWorkForStrategy(strategy, push);
     if (result) {
       _sortStrategiesByAPR();
     }
     isHardWorking = false;
   }
 
-  function _doHardWorkForStrategy(address strategy) internal returns (bool) {
+  function _doHardWorkForStrategy(address strategy, bool push) internal returns (bool) {
     uint lastHardWork = lastHardWorks[strategy];
 
-    if (lastHardWork + HARDWORK_DELAY < block.timestamp) {
+    if (
+      (
+      lastHardWork + HARDWORK_DELAY < block.timestamp
+      && IStrategyV2(strategy).isReadyToHardWork()
+      && !pausedStrategies[strategy]
+      )
+      || push
+    ) {
       uint sinceLastHardWork = block.timestamp - lastHardWork;
       uint tvl = IStrategyV2(strategy).totalAssets();
-      console.log("HW tvl", tvl);
       if (tvl != 0) {
         (uint earned, uint lost) = IStrategyV2(strategy).doHardWork();
         uint apr;
@@ -440,13 +475,6 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
         uint avgApr = averageApr(strategy);
         strategiesAPR[strategy] = avgApr;
         lastHardWorks[strategy] = block.timestamp;
-
-
-        console.log("HW earned", earned);
-        console.log("HW lost", lost);
-        console.log("HW sinceLastHardWork", sinceLastHardWork);
-        console.log("HW apr", apr);
-        console.log("HW avgApr", avgApr);
 
         emit HardWork(
           msg.sender,
@@ -512,6 +540,14 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
       }
     }
     return false;
+  }
+
+  function _setStrategyAPR(address strategy, uint apr) internal {
+    strategiesAPR[strategy] = apr;
+    // need to override last values of history for properly calculate average apr
+    for (uint i; i < HISTORY_DEEP; i++) {
+      strategiesAPRHistory[strategy].push(apr);
+    }
   }
 
 }

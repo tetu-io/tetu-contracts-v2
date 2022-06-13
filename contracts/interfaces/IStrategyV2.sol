@@ -3,15 +3,26 @@ pragma solidity 0.8.4;
 
 interface IStrategyV2 {
 
+  function NAME() external view returns (string memory);
+
+  function PLATFORM() external view returns (string memory);
+
+  function STRATEGY_VERSION() external view returns (string memory);
+
   function asset() external view returns (address);
 
   function splitter() external view returns (address);
 
+  function compoundRatio() external view returns (uint);
+
   function totalAssets() external view returns (uint);
 
-  function withdrawAll() external;
+  /// @dev Usually, indicate that claimable rewards have reasonable amount.
+  function isReadyToHardWork() external view returns (bool);
 
-  function withdraw(uint amount) external;
+  function withdrawAllToSplitter() external;
+
+  function withdrawToSplitter(uint amount) external;
 
   function investAll() external;
 
