@@ -7,7 +7,7 @@ import {Logger} from "tslog";
 import {Libraries} from "hardhat-deploy/dist/types";
 import {parseUnits} from "ethers/lib/utils";
 import {
-  ControllerMinimal,
+  ControllerMinimal, ForwarderV3, ForwarderV3__factory,
   MockStakingToken,
   MockToken,
   MockVault,
@@ -224,7 +224,6 @@ export class DeployerUtils {
     controller: string,
     ve: string,
     rewardToken: string,
-    depositor: string,
   ) {
     const logic = await DeployerUtils.deployContract(signer, 'VeDistributor');
     const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
@@ -232,8 +231,7 @@ export class DeployerUtils {
     await VeDistributor__factory.connect(proxy.address, signer).init(
       controller,
       ve,
-      rewardToken,
-      depositor
+      rewardToken
     );
     return VeDistributor__factory.connect(proxy.address, signer);
   }
@@ -281,6 +279,22 @@ export class DeployerUtils {
       vault
     );
     return splitter;
+  }
+
+  public static async deployForwarder(
+    signer: SignerWithAddress,
+    controller: string,
+    tetu: string
+  ) {
+    const logic = await DeployerUtils.deployContract(signer, 'ForwarderV3') as ForwarderV3;
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
+    await proxy.initProxy(logic.address);
+    const forwarder = ForwarderV3__factory.connect(proxy.address, signer);
+    await forwarder.init(
+      controller,
+      tetu
+    );
+    return forwarder;
   }
 
 }

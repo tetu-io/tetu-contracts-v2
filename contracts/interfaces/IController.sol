@@ -11,6 +11,14 @@ interface IController {
 
   function vaultController() external view returns (address);
 
+  function liquidator() external view returns (address);
+
+  function forwarder() external view returns (address);
+
+  function investFund() external view returns (address);
+
+  function veDistributor() external view returns (address);
+
   // --- VAULTS
 
   function vaults(uint id) external view returns (address);

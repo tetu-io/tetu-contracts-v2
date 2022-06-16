@@ -19,17 +19,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/tetu-io/tetu-contracts.git"
+    "url": "https://github.com/tetu-io/tetu-contracts-v2.git"
   },
-  "keywords": [
-    "solidity",
-    "ethereum",
-    "polygon",
-    "bsc",
-    "smart",
-    "contracts",
-    "tetu"
-  ],
   "author": "TETU team <admin@tetu.io>",
   "license": "MIT",
   "homepage": "https://tetu.io",

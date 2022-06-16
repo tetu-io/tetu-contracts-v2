@@ -3,6 +3,7 @@
 pragma solidity 0.8.4;
 
 import "../interfaces/IVeTetu.sol";
+import "../interfaces/IERC20.sol";
 
 contract MockVoter {
 
@@ -43,6 +44,10 @@ contract MockVoter {
     if (ve.voted(tokenId)) {
       IVeTetu(ve).abstain(tokenId);
     }
+  }
+
+  function notifyRewardAmount(uint amount) external {
+    IERC20(ve.tokens(0)).transferFrom(msg.sender, address(this), amount);
   }
 
 }

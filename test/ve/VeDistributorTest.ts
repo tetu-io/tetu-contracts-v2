@@ -4,7 +4,6 @@ import chai from "chai";
 import {parseUnits} from "ethers/lib/utils";
 import {
   ControllerMinimal,
-  MockDistributor,
   MockPawnshop,
   MockToken,
   MockVoter,
@@ -56,7 +55,6 @@ describe("Ve distributor tests", function () {
       controller.address,
       ve.address,
       tetu.address,
-      owner.address
     );
 
     await tetu.mint(owner2.address, parseUnits('100'));
@@ -82,11 +80,6 @@ describe("Ve distributor tests", function () {
     await TimeUtils.rollback(snapshot);
   });
 
-  it("setDepositor test", async function () {
-    await veDist.setDepositor(owner2.address)
-    expect(await veDist.depositor()).eq(owner2.address);
-  });
-
   it("veForAt test", async function () {
     expect(await veDist.veForAt(1, 0)).is.eq(BigNumber.from('0'));
     const multi = await DeployerUtils.deployContract(owner, 'Multicall') as Multicall;
@@ -96,38 +89,15 @@ describe("Ve distributor tests", function () {
   });
 
   it("multi checkpointToken with empty balance test", async function () {
-    const mock = await DeployerUtils.deployContract(owner, 'MockDistributor') as MockDistributor;
-    await veDist.setDepositor(mock.address);
-    await tetu.transfer(mock.address, parseUnits('10'));
-    await mock.multipleNotify(veDist.address, tetu.address, parseUnits('1'));
-
-    const curTs = (await veDist.lastTokenTime()).toNumber();
-    const nextWeek = curTs + WEEK;
-    await TimeUtils.setNextBlockTime(nextWeek);
-
-    await mock.multipleNotify(veDist.address, tetu.address, parseUnits('1'));
-  });
-
-  it("multi checkpointToken with positive balance test", async function () {
-    const mock = await DeployerUtils.deployContract(owner, 'MockDistributor') as MockDistributor;
-    await veDist.setDepositor(mock.address);
-    await tetu.transfer(veDist.address, parseUnits('1'));
-    await tetu.transfer(mock.address, parseUnits('10'));
-    await mock.multipleNotify(veDist.address, tetu.address, parseUnits('1'));
+    await tetu.transfer(veDist.address, parseUnits('10'));
+    await veDist.checkpoint();
+    await veDist.checkpoint();
   });
 
   it("adjustToDistribute test", async function () {
     expect(await veDist.adjustToDistribute(100, 1, 1, 20)).eq(100);
     expect(await veDist.adjustToDistribute(100, 0, 1, 20)).eq(100);
     expect(await veDist.adjustToDistribute(100, 2, 1, 20)).eq(5);
-  });
-
-  it("checkpointToken not depositor revert test", async function () {
-    await expect(veDist.connect(owner2).notifyReward(1)).revertedWith('!depositor');
-  });
-
-  it("setDepositor not depositor revert test", async function () {
-    await expect(veDist.connect(owner2).setDepositor(Misc.ZERO_ADDRESS)).revertedWith('!gov');
   });
 
   it("checkpointTotalSupply dummy test", async function () {
@@ -168,12 +138,11 @@ describe("Ve distributor tests", function () {
       owner,
       controller.address,
       ve1.address,
-      tetu.address,
-      owner.address
+      tetu.address
     );
 
-    await tetu.approve(veDist.address, parseUnits('10000'))
-    await veDist.notifyReward(parseUnits('1'));
+    await tetu.transfer(veDist.address, parseUnits('1'));
+    await veDist.checkpoint();
 
     await veDist1.claim(1);
   });
@@ -188,12 +157,11 @@ describe("Ve distributor tests", function () {
       owner,
       controller.address,
       ve1.address,
-      tetu.address,
-      owner.address
+      tetu.address
     );
 
-    await tetu.approve(veDist.address, parseUnits('10000'))
-    await veDist.notifyReward(parseUnits('1'));
+    await tetu.transfer(veDist.address, parseUnits('1'))
+    await veDist.checkpoint();
 
     await veDist1.claimMany([1]);
   });
@@ -209,11 +177,10 @@ describe("Ve distributor tests", function () {
       controller.address,
       ve1.address,
       tetu.address,
-      owner.address
     );
 
-    await tetu.approve(veDist.address, parseUnits('10000'))
-    await veDist.notifyReward(parseUnits('1'));
+    await tetu.transfer(veDist.address, parseUnits('1'))
+    await veDist.checkpoint();
     await TimeUtils.advanceBlocksOnTs(WEEK * 2);
     await veDist1.claim(1);
     await veDist1.claimMany([1]);
@@ -230,11 +197,10 @@ describe("Ve distributor tests", function () {
       controller.address,
       ve1.address,
       tetu.address,
-      owner.address
     );
 
-    await tetu.approve(veDist.address, parseUnits('10000'))
-    await veDist.notifyReward(parseUnits('1'));
+    await tetu.transfer(veDist.address, parseUnits('1'))
+    await veDist.checkpoint();
     await TimeUtils.advanceBlocksOnTs(WEEK * 2);
     await veDist1.claimMany([1]);
   });
@@ -245,8 +211,7 @@ describe("Ve distributor tests", function () {
     await TimeUtils.advanceBlocksOnTs(WEEK * 2);
 
     await tetu.transfer(veDist.address, parseUnits('1'));
-    await tetu.approve(veDist.address, parseUnits('10000'))
-    await veDist.notifyReward(parseUnits('1'));
+    await veDist.checkpoint();
     await veDist.checkpointTotalSupply();
     await veDist.claim(2);
   });
@@ -277,8 +242,8 @@ describe("Ve distributor tests", function () {
     await ve.createLock(tetu.address, LOCK_PERIOD, WEEK);
 
     await TimeUtils.advanceBlocksOnTs(WEEK * 2);
-    await tetu.approve(veDist.address, parseUnits('10000'))
-    await veDist.notifyReward(parseUnits('1'));
+    await tetu.transfer(veDist.address, parseUnits('1'))
+    await veDist.checkpoint();
     await veDist.checkpointTotalSupply();
 
     await TimeUtils.advanceBlocksOnTs(WEEK * 2);
@@ -290,8 +255,8 @@ describe("Ve distributor tests", function () {
 
     // SECOND CLAIM
 
-    await tetu.approve(veDist.address, parseUnits('10000'))
-    await veDist.notifyReward(parseUnits('1'));
+    await tetu.transfer(veDist.address, parseUnits('10000'))
+    await veDist.checkpoint();
 
     await TimeUtils.advanceBlocksOnTs(123456);
 
@@ -319,8 +284,8 @@ describe("Ve distributor tests", function () {
 
     await TimeUtils.advanceBlocksOnTs(WEEK * 2);
 
-    await tetu.approve(veDist.address, parseUnits('10000'))
-    await veDist.notifyReward(parseUnits('1000'));
+    await tetu.transfer(veDist.address, parseUnits('10000'))
+    await veDist.checkpoint();
 
     await TimeUtils.advanceBlocksOnTs(WEEK * 2);
 

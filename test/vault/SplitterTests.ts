@@ -102,6 +102,7 @@ describe("Splitter and base strategy tests", function () {
   });
 
   it("set strategy denied revert", async () => {
+    await strategy.init(controller.address, splitter.address);
     await expect(splitter.connect(signer2).addStrategies([strategy.address], [100])).revertedWith("SS: Denied");
   });
 

@@ -10,6 +10,10 @@ contract ControllerMinimal is IController {
   address public override governance;
   address public override voter;
   address public override vaultController;
+  address public override liquidator;
+  address public override forwarder;
+  address public override investFund;
+  address public override veDistributor;
   address[] public override vaults;
   mapping(address => bool) public operators;
 
@@ -20,6 +24,18 @@ contract ControllerMinimal is IController {
 
   function setVoter(address _voter) external {
     voter = _voter;
+  }
+
+  function setLiquidator(address value) external {
+    liquidator = value;
+  }
+
+  function setInvestFund(address value) external {
+    investFund = value;
+  }
+
+  function setVeDistributor(address value) external {
+    veDistributor = value;
   }
 
   function setVaultController(address value) external {

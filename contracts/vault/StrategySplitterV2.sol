@@ -177,7 +177,8 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   /// @dev Add new managed strategy. Should be an uniq address.
   ///      Strategy should have the same underlying asset with current contract.
   function addStrategies(address[] memory _strategies, uint[] memory expectedAPR) external {
-    _onlyGov();
+    // only initial action will require strict access
+    // already scheduled strategies can be added by anyone
 
     bool _inited = inited;
     address[] memory existStrategies = strategies;
@@ -198,6 +199,9 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
         uint startTime = scheduledStrategies[strategy];
         require(startTime != 0 && startTime + TIME_LOCK < block.timestamp, "SS: Time lock");
         scheduledStrategies[strategy] = 0;
+      } else {
+        // only initial action requires strict access
+        _onlyGov();
       }
       // ----------------------------
 
@@ -276,7 +280,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     }
     require(lowStrategyBalance != 0, "SS: No strategies");
 
-    if(percent == 100) {
+    if (percent == 100) {
       IStrategyV2(lowStrategy).withdrawAllToSplitter();
     } else {
       IStrategyV2(lowStrategy).withdrawToSplitter(lowStrategyBalance * percent / 100);

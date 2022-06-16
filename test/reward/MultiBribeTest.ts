@@ -2,13 +2,7 @@ import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {ethers} from "hardhat";
 import chai from "chai";
 import {formatUnits, parseUnits} from "ethers/lib/utils";
-import {
-  MockStakingToken,
-  MockToken, MultiBribe,
-  MultiGauge,
-  MultiGauge__factory, TetuVoter,
-  VeTetu
-} from "../../typechain";
+import {MockToken, MultiBribe, TetuVoter, VeTetu} from "../../typechain";
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {Misc} from "../../scripts/utils/Misc";

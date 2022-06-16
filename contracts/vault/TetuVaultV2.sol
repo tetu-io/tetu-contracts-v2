@@ -78,6 +78,8 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   event MaxDepositChanged(uint maxAssets, uint maxShares);
   event FeeChanged(uint depositFee, uint withdrawFee);
   event DoHardWorkOnInvestChanged(bool oldValue, bool newValue);
+  event FeeTransfer(uint amount);
+  event LossCovered(uint amount);
 
   // *************************************************************
   //                        INIT
@@ -244,7 +246,9 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
     uint _depositFee = depositFee;
     // send fee to insurance contract
     if (_depositFee != 0) {
-      _asset.safeTransfer(address(insurance), assets * _depositFee / FEE_DENOMINATOR);
+      uint toFees = assets * _depositFee / FEE_DENOMINATOR;
+      _asset.safeTransfer(address(insurance), toFees);
+      emit FeeTransfer(toFees);
     }
     uint256 toInvest = _availableToInvest(_splitter, _asset);
     // invest only when buffer is filled
@@ -357,6 +361,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
       uint toFees = Math.min(fromSplitter - assets, balance - assets);
       if (toFees != 0) {
         _asset.safeTransfer(address(insurance), toFees);
+        emit FeeTransfer(toFees);
       }
     }
   }
@@ -395,7 +400,9 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
     require(msg.sender == address(splitter), "!SPLITTER");
     IVaultInsurance _insurance = insurance;
     uint balance = asset.balanceOf(address(_insurance));
-    _insurance.transferToVault(Math.min(amount, balance));
+    uint fromFees = Math.min(amount, balance);
+    _insurance.transferToVault(fromFees);
+    emit LossCovered(fromFees);
   }
 
   // *************************************************************

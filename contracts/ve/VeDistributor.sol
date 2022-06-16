@@ -42,12 +42,12 @@ contract VeDistributor is ControllableV3, IVeDistributor {
   /// @dev Voting escrow token address
   IVeTetu public ve;
   /// @dev Token for ve rewards
-  address public rewardToken;
-  /// @dev Contract address for distribute rewards to this contract
-  address public depositor;
+  address public override rewardToken;
 
   // --- CHECKPOINT
 
+  /// @dev Cursor for the current epoch
+  uint public activePeriod;
   /// @dev Tokens per week stored on checkpoint call. Predefined array size = max weeks size
   uint[1000000000000000] public tokensPerWeek;
   /// @dev Ve supply checkpoints. Predefined array size = max weeks size
@@ -84,8 +84,6 @@ contract VeDistributor is ControllableV3, IVeDistributor {
     uint maxEpoch
   );
 
-  event DepositorChanged(address value);
-
   // *************************************************************
   //                        INIT
   // *************************************************************
@@ -94,8 +92,7 @@ contract VeDistributor is ControllableV3, IVeDistributor {
   function init(
     address controller_,
     address _ve,
-    address _rewardToken,
-    address _depositor
+    address _rewardToken
   ) external initializer {
     __Controllable_init(controller_);
     uint _t = block.timestamp / WEEK * WEEK;
@@ -105,36 +102,25 @@ contract VeDistributor is ControllableV3, IVeDistributor {
 
     rewardToken = _rewardToken;
     ve = IVeTetu(_ve);
-    depositor = _depositor;
 
     IERC20(_rewardToken).safeApprove(_ve, type(uint).max);
-
-    emit DepositorChanged(_depositor);
-  }
-
-  // *************************************************************
-  //                        GOV ACTIONS
-  // *************************************************************
-
-  /// @dev Set new depositor address
-  function setDepositor(address _depositor) external {
-    require(isGovernance(msg.sender), "!gov");
-    depositor = _depositor;
-    emit DepositorChanged(_depositor);
   }
 
   // *************************************************************
   //                      CHECKPOINT
   // *************************************************************
 
-  function notifyReward(uint amount) external override {
-    require(msg.sender == depositor, "!depositor");
-
-    IERC20(rewardToken).safeTransferFrom(msg.sender, address(this), amount);
-    // checkpoint token balance that was just minted in veDist
-    _checkpointToken();
-    // checkpoint supply
-    _checkpointTotalSupply();
+  function checkpoint() external override {
+    uint _period = activePeriod;
+    // only trigger if new week
+    if (block.timestamp >= _period + 1 weeks) {
+      // set new period rounded to weeks
+      activePeriod = block.timestamp / 1 weeks * 1 weeks;
+      // checkpoint token balance that was just minted in veDist
+      _checkpointToken();
+      // checkpoint supply
+      _checkpointTotalSupply();
+    }
   }
 
   /// @dev Update tokensPerWeek value

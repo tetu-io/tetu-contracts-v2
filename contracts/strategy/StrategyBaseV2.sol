@@ -64,9 +64,9 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
     splitter = _splitter;
   }
 
-  // *********************************************
-  //                 RESTRICTIONS
-  // *********************************************
+  // *************************************************************
+  //                     RESTRICTIONS
+  // *************************************************************
 
   /// @dev Restrict access only for operators
   function _onlyOperators() internal view {
