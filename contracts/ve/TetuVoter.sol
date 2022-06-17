@@ -135,7 +135,7 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
   // *************************************************************
 
   /// @dev Resubmit exist votes for given token.
-  ///      Need to call it for ve who did not renew votes too long.
+  ///      Need to call it for ve that did not renew votes too long.
   function poke(uint _tokenId) external {
     address[] memory _vaultVotes = vaultsVotes[_tokenId];
     uint length = _vaultVotes.length;

@@ -84,8 +84,18 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
   //                        VOTES
   // *************************************************************
 
+  /// @dev Resubmit exist votes for given token.
+  ///      Need to call it for ve that did not renew votes too long.
+  function poke(uint tokenId) external {
+    Vote[] memory _votes = votes[tokenId];
+    for (uint i; i < _votes.length; ++i) {
+      Vote v = _votes[i];
+      vote(tokenId, v._type, v.weightedValue / v.weight, v.target);
+    }
+  }
+
   /// @dev Vote for given parameter using a vote power of given tokenId. Reset previous votes.
-  function vote(uint tokenId, AttributeType _type, uint value, address target) external {
+  function vote(uint tokenId, AttributeType _type, uint value, address target) public {
     require(IVeTetu(ve).isApprovedOrOwner(msg.sender, tokenId), "!owner");
     require(value <= RATIO_DENOMINATOR, "!value");
 
