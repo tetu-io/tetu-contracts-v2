@@ -126,6 +126,7 @@ describe("multi bribe tests", function () {
     expect(await bribe.balanceOf(vault.address, await bribe.tokenIdToAddress(1))).above(parseUnits('0.98'));
   });
   it("balance after vote reset test", async function () {
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 7);
     await voter.reset(1);
     expect(await bribe.balanceOf(vault.address, await bribe.tokenIdToAddress(1))).eq(0);
   });

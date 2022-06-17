@@ -9,6 +9,8 @@ import "../interfaces/IVeTetu.sol";
 import "../interfaces/IStrategyV2.sol";
 import "../proxy/ControllableV3.sol";
 
+import "hardhat/console.sol";
+
 /// @title Ve holders can vote for platform attributes values.
 /// @author belbix
 contract PlatformVoter is ControllableV3, IPlatformVoter {
@@ -60,6 +62,14 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
     uint totalAttributeValue,
     uint newValue
   );
+  event VoteReset(
+    uint tokenId,
+    uint _type,
+    address target,
+    uint weight,
+    uint weightedValue,
+    uint timestamp
+  );
 
   // *************************************************************
   //                        INIT
@@ -89,14 +99,18 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
   function poke(uint tokenId) external {
     Vote[] memory _votes = votes[tokenId];
     for (uint i; i < _votes.length; ++i) {
-      Vote v = _votes[i];
-      vote(tokenId, v._type, v.weightedValue / v.weight, v.target);
+      Vote memory v = _votes[i];
+      _vote(tokenId, v._type, v.weightedValue / v.weight, v.target);
     }
   }
 
-  /// @dev Vote for given parameter using a vote power of given tokenId. Reset previous votes.
-  function vote(uint tokenId, AttributeType _type, uint value, address target) public {
+  function vote(uint tokenId, AttributeType _type, uint value, address target) external {
     require(IVeTetu(ve).isApprovedOrOwner(msg.sender, tokenId), "!owner");
+    _vote(tokenId, _type, value, target);
+  }
+
+  /// @dev Vote for given parameter using a vote power of given tokenId. Reset previous votes.
+  function _vote(uint tokenId, AttributeType _type, uint value, address target) internal {
     require(value <= RATIO_DENOMINATOR, "!value");
 
     // load maps for reduce gas usage
@@ -157,6 +171,16 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
       _attributeWeights[target] = totalAttributeWeight;
       _attributeValues[target] = totalAttributeValue;
 
+      console.log("tokenId", tokenId);
+      console.log("_type", uint(_type));
+      console.log("value", value);
+      console.log("target", target);
+      console.log("veWeight", veWeight);
+      console.log("veWeightedValue", veWeightedValue);
+      console.log("totalAttributeWeight", totalAttributeWeight);
+      console.log("totalAttributeValue", totalAttributeValue);
+      console.log("NEW VALUE", totalAttributeValue / totalAttributeWeight);
+
       // set new attribute value
       _setAttribute(_type, totalAttributeValue / totalAttributeWeight, target);
 
@@ -182,14 +206,11 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
   function _setAttribute(AttributeType _type, uint newValue, address target) internal {
     if (_type == AttributeType.INVEST_FUND_RATIO) {
       require(target == address(0), "!target");
-      require(newValue <= RATIO_DENOMINATOR, "!new_value");
       IForwarder(IController(controller()).forwarder()).setInvestFundRatio(newValue);
     } else if (_type == AttributeType.GAUGE_RATIO) {
       require(target == address(0), "!target");
-      require(newValue <= RATIO_DENOMINATOR, "!new_value");
       IForwarder(IController(controller()).forwarder()).setGaugesRatio(newValue);
     } else if (_type == AttributeType.STRATEGY_COMPOUND) {
-      require(newValue <= RATIO_DENOMINATOR, "!new_value");
       IStrategyV2(target).setCompoundRatio(newValue);
     } else {
       revert("!type");
@@ -198,53 +219,68 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
   }
 
   /// @dev Remove all votes for given tokenId.
-  function reset(uint tokenId, uint[] memory ids) external {
+  function reset(uint tokenId, uint[] memory types, address[] memory targets) external {
     require(IVeTetu(ve).isApprovedOrOwner(msg.sender, tokenId) || msg.sender == ve, "!owner");
-    _reset(tokenId, ids);
-  }
 
-  function _reset(uint tokenId, uint[] memory ids) internal {
-    // need to copy to memory, we will change this array in the loop
-    Vote[] memory _votes = votes[tokenId];
-    for (uint i; i < ids.length; ++i) {
-      uint index = ids[i];
-      Vote memory v = _votes[index];
-      _removeVote(tokenId, v._type, v.target, true);
-    }
-    IVeTetu(ve).abstain(tokenId);
-  }
-
-  function _removeVote(uint tokenId, AttributeType _type, address target, bool delay) internal {
     Vote[] storage _votes = votes[tokenId];
-
     uint length = _votes.length;
-    if (length != 0) {
-      uint oldVeWeight;
-      uint oldVeValue;
-      uint i;
-      for (; i < length; ++i) {
-        Vote memory v = _votes[i];
-        if (v._type == _type && v.target == target) {
-          // user should not able to manually remove votes without delay
-          if (delay) {
-            require(v.timestamp + VOTE_DELAY < block.timestamp, "delay");
-          }
-          oldVeWeight = v.weight;
-          oldVeValue = v.weightedValue;
+    for (uint i = length; i > 0; --i) {
+
+      Vote memory v = _votes[i - 1];
+      bool found;
+      for (uint j; j < types.length; ++j) {
+        uint _type = types[j];
+        address target = targets[j];
+        if (uint(v._type) == _type && v.target == target) {
+          found = true;
           break;
         }
       }
-      if (i != 0) {
-        _votes[i] = _votes[length - 1];
-      }
-      _votes.pop();
 
-      attributeWeights[_type][target] -= oldVeWeight;
-      if (oldVeValue != 0) {
-        attributeValues[_type][target] -= oldVeValue;
+      if (found) {
+        console.log("REMOVE _type", uint(v._type));
+        console.log("REMOVE target", v.target);
+        console.log("REMOVE weight", v.weight);
+        console.log("REMOVE weightedValue", v.weightedValue);
+        console.log("REMOVE timestamp", v.timestamp);
+
+        require(v.timestamp + VOTE_DELAY < block.timestamp, "delay");
+        _removeVote(v._type, v.target, v.weight, v.weightedValue);
+        _removeFromArray(tokenId, i - 1);
+
+        IVeTetu(ve).abstain(tokenId);
+        emit VoteReset(
+          tokenId,
+          uint(v._type),
+          v.target,
+          v.weight,
+          v.weightedValue,
+          v.timestamp
+        );
       }
     }
+  }
 
+  function _removeFromArray(uint tokenId, uint index) internal {
+    Vote[] storage _votes = votes[tokenId];
+    if (index != 0) {
+      _votes[index] = _votes[_votes.length - 1];
+    }
+    _votes.pop();
+  }
+
+  function _removeVote(AttributeType _type, address target, uint weight, uint veValue) internal {
+    uint totalWeights = attributeWeights[_type][target] - weight;
+    uint totalValues = attributeValues[_type][target] - veValue;
+    attributeWeights[_type][target] = totalWeights;
+    if (veValue != 0) {
+      attributeValues[_type][target] = totalValues;
+    }
+    uint newValue;
+    if (totalWeights != 0) {
+      newValue = totalValues / totalWeights;
+    }
+    _setAttribute(_type, newValue, target);
   }
 
   function detachTokenFromAll(uint tokenId, address) external override {
@@ -252,9 +288,18 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
 
     Vote[] storage _votes = votes[tokenId];
     uint length = _votes.length;
-    for (uint i = 0; i < length; ++i) {
-      Vote memory v = _votes[i];
-      _removeVote(tokenId, v._type, v.target, false);
+    console.log("REMOVE length", length);
+    for (uint i = length; i > 0; --i) {
+      Vote memory v = _votes[i - 1];
+
+      console.log("REMOVE _type", uint(v._type));
+      console.log("REMOVE target", v.target);
+      console.log("REMOVE weight", v.weight);
+      console.log("REMOVE weightedValue", v.weightedValue);
+      console.log("REMOVE timestamp", v.timestamp);
+
+      _removeVote(v._type, v.target, v.weight, v.weightedValue);
+      _votes.pop();
     }
   }
 
