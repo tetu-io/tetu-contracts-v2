@@ -39,6 +39,10 @@ contract ControllerMinimal is IController {
     investFund = value;
   }
 
+  function setForwarder(address value) external {
+    forwarder = value;
+  }
+
   function setVeDistributor(address value) external {
     veDistributor = value;
   }

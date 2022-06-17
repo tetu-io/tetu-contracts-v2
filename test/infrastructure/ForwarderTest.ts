@@ -138,6 +138,14 @@ describe("forwarder tests", function () {
     await expect(forwarder.setSlippage(tetu.address, 1000_000)).revertedWith('TOO_HIGH');
   });
 
+  it("set gauge ratio from not voter revert", async function () {
+    await expect(forwarder.setGaugesRatio(1000_000)).revertedWith('DENIED');
+  });
+
+  it("set fund ratio from not voter revert", async function () {
+    await expect(forwarder.setInvestFundRatio(1000_000)).revertedWith('DENIED');
+  });
+
   it("set threshold test", async function () {
     await forwarder.setTetuThreshold(1);
     expect(await forwarder.tetuThreshold()).eq(1);

@@ -13,18 +13,6 @@ import "../proxy/ControllableV3.sol";
 /// @author belbix
 contract PlatformVoter is ControllableV3, IPlatformVoter {
 
-  enum AttributeType {
-    UNKNOWN,
-    INVEST_FUND_RATIO,
-    GAUGE_RATIO,
-    STRATEGY_COMPOUND
-  }
-
-  struct Vote {
-    AttributeType _type;
-    address target;
-  }
-
   // *************************************************************
   //                        CONSTANTS
   // *************************************************************
@@ -35,6 +23,8 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
   uint public constant RATIO_DENOMINATOR = 100_000;
   /// @dev Delay between votes.
   uint public constant VOTE_DELAY = 1 weeks;
+  /// @dev Maximum votes per veNFT
+  uint public constant MAX_VOTES = 20;
 
   // *************************************************************
   //                        VARIABLES
@@ -48,16 +38,10 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
   // --- VOTES
   /// @dev veId => votes
   mapping(uint => Vote[]) public votes;
-  /// @dev veId => Attribute => Target(zero for not-strategy) => Last vote timestamp
-  mapping(uint => mapping(AttributeType => mapping(address => uint))) public lastVote;
   /// @dev Attribute => Target(zero for not-strategy) => sum of votes
   mapping(AttributeType => mapping(address => uint)) public attributeWeights;
   /// @dev Attribute => Target(zero for not-strategy) => sum of nft power multiple on values
   mapping(AttributeType => mapping(address => uint)) public attributeValues;
-  /// @dev veId => Attribute => Target(zero for not-strategy) => nft power
-  mapping(uint => mapping(AttributeType => mapping(address => uint))) public veWeights;
-  /// @dev veId => Attribute => Target(zero for not-strategy) => nft power multiple on value
-  mapping(uint => mapping(AttributeType => mapping(address => uint))) public veValues;
 
 
   // *************************************************************
@@ -65,6 +49,17 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
   // *************************************************************
 
   event AttributeChanged(uint _type, uint value);
+  event Voted(
+    uint tokenId,
+    uint _type,
+    uint value,
+    address target,
+    uint veWeight,
+    uint veWeightedValue,
+    uint totalAttributeWeight,
+    uint totalAttributeValue,
+    uint newValue
+  );
 
   // *************************************************************
   //                        INIT
@@ -80,6 +75,11 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
   //                        VIEWS
   // *************************************************************
 
+  /// @dev Array of votes. Safe to return the whole array until we have MAX_VOTES restriction.
+  function veVotes(uint veId) external view returns (Vote[] memory) {
+    return votes[veId];
+  }
+
   // *************************************************************
   //                        VOTES
   // *************************************************************
@@ -90,44 +90,46 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
     require(value <= RATIO_DENOMINATOR, "!value");
 
     // load maps for reduce gas usage
-    mapping(address => uint) storage _lastVote = lastVote[tokenId][_type];
-    mapping(address => uint) storage _veWeights = veWeights[tokenId][_type];
-    mapping(address => uint) storage _veValues = veValues[tokenId][_type];
     mapping(address => uint) storage _attributeWeights = attributeWeights[_type];
     mapping(address => uint) storage _attributeValues = attributeValues[_type];
     Vote[] storage _votes = votes[tokenId];
-
-    // check delay and renew counter
-    require(_lastVote[target] + VOTE_DELAY < block.timestamp, "delay");
-    _lastVote[target] = block.timestamp;
 
     uint totalAttributeWeight;
     uint totalAttributeValue;
 
     //remove votes optimised
     {
-      uint oldVeWeight = _veWeights[target];
-      uint oldVeValue = _veValues[target];
+      uint oldVeWeight;
+      uint oldVeValue;
 
-      totalAttributeWeight = _attributeWeights[target] - oldVeWeight;
-      totalAttributeValue = _attributeValues[target] - oldVeValue;
-
-      if (oldVeValue != 0 || oldVeWeight != 0) {
-        uint length = _votes.length;
-        if (length != 0) {
-          uint i;
-          for (; i < length; ++i) {
-            Vote memory v = _votes[i];
-            if (v._type == _type && v.target == target) {
-              break;
-            }
+      uint length = _votes.length;
+      if (length != 0) {
+        uint i;
+        bool found;
+        for (; i < length; ++i) {
+          Vote memory v = _votes[i];
+          if (v._type == _type && v.target == target) {
+            require(v.timestamp + VOTE_DELAY < block.timestamp, "delay");
+            oldVeWeight = v.weight;
+            oldVeValue = v.weightedValue;
+            found = true;
+            break;
           }
+        }
+        if (found) {
           if (i != 0) {
             _votes[i] = _votes[length - 1];
           }
           _votes.pop();
+        } else {
+          // it is a new type of vote
+          // we should have restrictions for votes per user for reset votes on ve transfer
+          require(length < MAX_VOTES, "max");
         }
       }
+
+      totalAttributeWeight = _attributeWeights[target] - oldVeWeight;
+      totalAttributeValue = _attributeValues[target] - oldVeValue;
     }
 
 
@@ -135,10 +137,7 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
     uint veWeight = IVeTetu(ve).balanceOfNFT(tokenId);
     uint veWeightedValue = veWeight * value;
 
-    if (veWeight != 0 && veWeightedValue != 0) {
-      // store new ve values
-      _veWeights[target] = veWeight;
-      _veValues[target] = veWeightedValue;
+    if (veWeight != 0) {
 
       // add ve values to total values
       totalAttributeWeight += veWeight;
@@ -153,7 +152,19 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
 
       // write attachments
       IVeTetu(ve).voting(tokenId);
-      _votes.push(Vote(_type, target));
+      _votes.push(Vote(_type, target, veWeight, veWeightedValue, block.timestamp));
+
+      emit Voted(
+        tokenId,
+        uint(_type),
+        value,
+        target,
+        veWeight,
+        veWeightedValue,
+        totalAttributeWeight,
+        totalAttributeValue,
+        totalAttributeValue / totalAttributeWeight
+      );
     }
   }
 
@@ -188,26 +199,28 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
     for (uint i; i < ids.length; ++i) {
       uint index = ids[i];
       Vote memory v = _votes[index];
-      _removeVote(tokenId, v._type, v.target);
+      _removeVote(tokenId, v._type, v.target, true);
     }
     IVeTetu(ve).abstain(tokenId);
   }
 
-  function _removeVote(uint tokenId, AttributeType _type, address target) internal {
-    uint oldVeWeight = veWeights[tokenId][_type][target];
-    uint oldVeValue = veValues[tokenId][_type][target];
-
-    attributeWeights[_type][target] -= oldVeWeight;
-    attributeValues[_type][target] -= oldVeValue;
-
+  function _removeVote(uint tokenId, AttributeType _type, address target, bool delay) internal {
     Vote[] storage _votes = votes[tokenId];
 
     uint length = _votes.length;
     if (length != 0) {
+      uint oldVeWeight;
+      uint oldVeValue;
       uint i;
       for (; i < length; ++i) {
         Vote memory v = _votes[i];
         if (v._type == _type && v.target == target) {
+          // user should not able to manually remove votes without delay
+          if (delay) {
+            require(v.timestamp + VOTE_DELAY < block.timestamp, "delay");
+          }
+          oldVeWeight = v.weight;
+          oldVeValue = v.weightedValue;
           break;
         }
       }
@@ -215,16 +228,23 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
         _votes[i] = _votes[length - 1];
       }
       _votes.pop();
+
+      attributeWeights[_type][target] -= oldVeWeight;
+      if (oldVeValue != 0) {
+        attributeValues[_type][target] -= oldVeValue;
+      }
     }
 
   }
 
   function detachTokenFromAll(uint tokenId, address) external override {
+    require(msg.sender == ve, "!ve");
+
     Vote[] storage _votes = votes[tokenId];
     uint length = _votes.length;
     for (uint i = 0; i < length; ++i) {
       Vote memory v = _votes[i];
-      _removeVote(tokenId, v._type, v.target);
+      _removeVote(tokenId, v._type, v.target, false);
     }
   }
 

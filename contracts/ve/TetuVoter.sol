@@ -134,12 +134,27 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
   //                        VOTES
   // *************************************************************
 
+  /// @dev Resubmit exist votes for given token.
+  ///      Need to call it for ve who did not renew votes too long.
+  function poke(uint _tokenId) external {
+    address[] memory _vaultVotes = vaultsVotes[_tokenId];
+    uint length = _vaultVotes.length;
+    int256[] memory _weights = new int256[](length);
+
+    for (uint i; i < length; i++) {
+      _weights[i] = votes[_tokenId][_vaultVotes[i]];
+    }
+
+    _vote(_tokenId, _vaultVotes, _weights);
+  }
+
   /// @dev Remove all votes for given tokenId.
   ///      Ve token should be able to remove votes on transfer/withdraw
-  function reset(uint _tokenId) external {
-    require(IVeTetu(ve).isApprovedOrOwner(msg.sender, _tokenId) || msg.sender == ve, "!owner");
-    _reset(_tokenId);
-    IVeTetu(ve).abstain(_tokenId);
+  function reset(uint tokenId) external {
+    require(IVeTetu(ve).isApprovedOrOwner(msg.sender, tokenId) || msg.sender == ve, "!owner");
+    require(lastVote[tokenId] + VOTE_DELAY < block.timestamp, "delay");
+    _reset(tokenId);
+    IVeTetu(ve).abstain(tokenId);
   }
 
   /// @dev Vote for given pools using a vote power of given tokenId. Reset previous votes.
