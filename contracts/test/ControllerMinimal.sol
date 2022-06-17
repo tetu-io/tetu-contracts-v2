@@ -27,6 +27,10 @@ contract ControllerMinimal is IController {
     voter = _voter;
   }
 
+  function setPlatformVoter(address _voter) external {
+    platformVoter = _voter;
+  }
+
   function setLiquidator(address value) external {
     liquidator = value;
   }

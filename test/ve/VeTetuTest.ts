@@ -58,6 +58,9 @@ describe("veTETU tests", function () {
 
     await ve.setApprovalForAll(pawnshop.address, true);
     await ve.connect(owner2).setApprovalForAll(pawnshop.address, true);
+
+    const platformVoter = await DeployerUtils.deployPlatformVoter(owner, controller.address, ve.address);
+    await controller.setPlatformVoter(platformVoter.address);
   });
 
   after(async function () {
@@ -116,10 +119,10 @@ describe("veTETU tests", function () {
     await voter.attachTokenToGauge(Misc.ZERO_ADDRESS, 1, Misc.ZERO_ADDRESS);
     await voter.voting(1);
     expect(await ve.attachments(1)).eq(1)
-    expect(await ve.voted(1)).eq(true)
+    expect(await ve.voted(1)).eq(1)
     await pawnshop.transfer(ve.address, owner.address, pawnshop.address, 1)
     expect(await ve.attachments(1)).eq(0);
-    expect(await ve.voted(1)).eq(false);
+    expect(await ve.voted(1)).eq(0);
   });
 
   it("transferFrom not owner revert test", async function () {
@@ -175,6 +178,7 @@ describe("veTETU tests", function () {
   });
 
   it("abstain test", async function () {
+    await voter.voting(1);
     await voter.abstain(1);
   });
 

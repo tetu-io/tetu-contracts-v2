@@ -14,7 +14,7 @@ import {
   MockVault__factory,
   MockVoter,
   MultiBribe__factory,
-  MultiGauge__factory,
+  MultiGauge__factory, PlatformVoter, PlatformVoter__factory,
   ProxyControlled,
   StrategySplitterV2,
   StrategySplitterV2__factory,
@@ -293,6 +293,22 @@ export class DeployerUtils {
     await forwarder.init(
       controller,
       tetu
+    );
+    return forwarder;
+  }
+
+  public static async deployPlatformVoter(
+    signer: SignerWithAddress,
+    controller: string,
+    ve: string
+  ) {
+    const logic = await DeployerUtils.deployContract(signer, 'PlatformVoter') as PlatformVoter;
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
+    await proxy.initProxy(logic.address);
+    const forwarder = PlatformVoter__factory.connect(proxy.address, signer);
+    await forwarder.init(
+      controller,
+      ve
     );
     return forwarder;
   }

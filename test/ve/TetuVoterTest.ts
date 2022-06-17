@@ -100,6 +100,9 @@ describe("Tetu voter tests", function () {
     pawnshop = await DeployerUtils.deployContract(owner, 'MockPawnshop') as MockPawnshop;
     await ve.whitelistPawnshop(pawnshop.address);
 
+    const platformVoter = await DeployerUtils.deployPlatformVoter(owner, controller.address, ve.address);
+    await controller.setPlatformVoter(platformVoter.address);
+
     await TimeUtils.advanceBlocksOnTs(WEEK * 2);
   });
 

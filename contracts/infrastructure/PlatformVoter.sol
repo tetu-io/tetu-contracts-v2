@@ -219,11 +219,12 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
 
   }
 
-  function detachTokenFromAll(uint tokenId, address owner) external override {
+  function detachTokenFromAll(uint tokenId, address) external override {
     Vote[] storage _votes = votes[tokenId];
     uint length = _votes.length;
     for (uint i = 0; i < length; ++i) {
-      _removeVote();
+      Vote memory v = _votes[i];
+      _removeVote(tokenId, v._type, v.target);
     }
   }
 

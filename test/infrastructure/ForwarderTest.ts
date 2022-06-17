@@ -7,7 +7,7 @@ import {
   MockStakingToken,
   MockToken, MockVoter, MultiBribe,
   MultiGauge,
-  MultiGauge__factory, TetuVoter, VeDistributor,
+  MultiGauge__factory, PlatformVoter, TetuVoter, VeDistributor,
   VeTetu
 } from "../../typechain";
 import {TimeUtils} from "../TimeUtils";
@@ -34,6 +34,7 @@ describe("forwarder tests", function () {
   let liquidator: MockLiquidator;
   let veDist: VeDistributor;
   let voter: MockVoter;
+  let platformVoter: PlatformVoter;
 
   let tetu: MockToken;
 
@@ -53,10 +54,13 @@ describe("forwarder tests", function () {
     veDist = await DeployerUtils.deployVeDistributor(signer, controller.address, ve.address, tetu.address);
     voter = await DeployerUtils.deployMockVoter(signer, ve.address);
 
+    platformVoter = await DeployerUtils.deployPlatformVoter(signer, controller.address, ve.address);
+
     await controller.setLiquidator(liquidator.address);
     await controller.setVoter(voter.address);
     await controller.setVeDistributor(veDist.address);
     await controller.setInvestFund(investFund.address);
+    await controller.setPlatformVoter(platformVoter.address);
   });
 
   after(async function () {
@@ -73,8 +77,8 @@ describe("forwarder tests", function () {
   });
 
   it("distribute tetu test", async function () {
-    await forwarder.setInvestFundRatio(10_000);
-    await forwarder.setGaugesRatio(30_000);
+    await forwarder.connect(await Misc.impersonate(platformVoter.address)).setInvestFundRatio(10_000);
+    await forwarder.connect(await Misc.impersonate(platformVoter.address)).setGaugesRatio(30_000);
 
     await tetu.transfer(forwarder.address, parseUnits('100000'));
     await forwarder.distribute(tetu.address);
@@ -102,24 +106,24 @@ describe("forwarder tests", function () {
   });
 
   it("distribute tetu for zero to gauges test", async function () {
-    await forwarder.setInvestFundRatio(10_000);
+    await forwarder.connect(await Misc.impersonate(platformVoter.address)).setInvestFundRatio(10_000);
     await tetu.transfer(forwarder.address, parseUnits('100000'));
     await forwarder.distribute(tetu.address);
   });
 
   it("distribute tetu with 0% ve test", async function () {
-    await forwarder.setInvestFundRatio(0);
-    await forwarder.setGaugesRatio(100_000);
+    await forwarder.connect(await Misc.impersonate(platformVoter.address)).setInvestFundRatio(0);
+    await forwarder.connect(await Misc.impersonate(platformVoter.address)).setGaugesRatio(100_000);
     await tetu.transfer(forwarder.address, parseUnits('100000'));
     await forwarder.distribute(tetu.address);
   });
 
   it("set if ratio too high revert", async function () {
-    await expect(forwarder.setInvestFundRatio(1000_000)).revertedWith('TOO_HIGH');
+    await expect(forwarder.connect(await Misc.impersonate(platformVoter.address)).setInvestFundRatio(1000_000)).revertedWith('TOO_HIGH');
   });
 
   it("set gauge ratio too high revert", async function () {
-    await expect(forwarder.setGaugesRatio(1000_000)).revertedWith('TOO_HIGH');
+    await expect(forwarder.connect(await Misc.impersonate(platformVoter.address)).setGaugesRatio(1000_000)).revertedWith('TOO_HIGH');
   });
 
   it("set slippage from not gov revert", async function () {
@@ -131,7 +135,7 @@ describe("forwarder tests", function () {
   });
 
   it("set slippage too high revert", async function () {
-    await expect(forwarder.setSlippage(tetu.address,1000_000)).revertedWith('TOO_HIGH');
+    await expect(forwarder.setSlippage(tetu.address, 1000_000)).revertedWith('TOO_HIGH');
   });
 
   it("set threshold test", async function () {

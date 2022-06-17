@@ -5,16 +5,16 @@ import {ethers} from "hardhat";
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {
-  ControllerMinimal, IERC20__factory, MockGauge,
+  ControllerMinimal,
+  IERC20__factory,
+  MockGauge,
   MockToken,
-  MockVault,
-  MockVaultSimple,
-  MockVaultSimple__factory,
-  ProxyControlled, TetuVaultV2__factory, VaultFactory
+  ProxyControlled,
+  TetuVaultV2__factory,
+  VaultFactory
 } from "../../typechain";
 import {Misc} from "../../scripts/utils/Misc";
 import {parseUnits} from "ethers/lib/utils";
-import exp from "constants";
 
 
 const {expect} = chai;
@@ -71,7 +71,7 @@ describe("Vault factory tests", function () {
       mockGauge.address,
       10
     );
-    expect((await tx.wait()).gasUsed).below(1020266);
+    expect((await tx.wait()).gasUsed).below(1020288);
     expect(await vaultFactory.deployedVaultsLength()).eq(1);
 
     const vaultAdr = await vaultFactory.deployedVaults(0);
