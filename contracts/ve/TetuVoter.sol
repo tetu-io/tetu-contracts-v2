@@ -49,7 +49,7 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
   // --- VOTES
 
   /// @dev veID => Last vote timestamp
-  mapping(uint => uint) lastVote;
+  mapping(uint => uint) public lastVote;
   /// @dev Total voting weight
   uint public totalWeight;
   /// @dev vault => weight

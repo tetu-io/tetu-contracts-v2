@@ -19,6 +19,8 @@ interface IController {
 
   function veDistributor() external view returns (address);
 
+  function platformVoter() external view returns (address);
+
   // --- VAULTS
 
   function vaults(uint id) external view returns (address);

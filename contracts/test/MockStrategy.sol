@@ -85,4 +85,8 @@ contract MockStrategy is StrategyBaseV2 {
     isReadyToHardWork = value;
   }
 
+  function setCompoundRatio(uint value) external override {
+    compoundRatio = value;
+  }
+
 }

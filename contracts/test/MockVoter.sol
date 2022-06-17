@@ -41,7 +41,7 @@ contract MockVoter {
     while (ve.attachments(tokenId) > 0) {
       ve.detachToken(tokenId);
     }
-    if (ve.voted(tokenId)) {
+    if (ve.voted(tokenId) > 0) {
       IVeTetu(ve).abstain(tokenId);
     }
   }

@@ -24,7 +24,7 @@ interface IVeTetu {
 
   function attachments(uint tokenId) external view returns (uint);
 
-  function voted(uint tokenId) external view returns (bool);
+  function voted(uint tokenId) external view returns (uint);
 
   function tokens(uint idx) external view returns (address);
 

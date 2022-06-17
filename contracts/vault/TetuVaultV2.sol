@@ -409,14 +409,27 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   //                 GAUGE HOOK
   // *************************************************************
 
-  /// @dev Connect this vault to the gauge
+  /// @dev Connect this vault to the gauge for non-contract addresses.
   function _afterTokenTransfer(
     address from,
     address to,
     uint
   ) internal override {
-    gauge.handleBalanceChange(from);
-    gauge.handleBalanceChange(to);
+    if (isNotSmartContract(from)) {
+      gauge.handleBalanceChange(from);
+    }
+    if (isNotSmartContract(to)) {
+      gauge.handleBalanceChange(to);
+    }
+  }
+
+  /// @notice Return true if given address is not a smart contract but a wallet address
+  /// @dev it is not 100% guarantee after EIP-3074 implementation
+  ///       use it as an additional check
+  /// @param _adr Address for check
+  /// @return true if the address is a wallet
+  function isNotSmartContract(address _adr) private view returns (bool) {
+    return _adr == tx.origin;
   }
 
 }

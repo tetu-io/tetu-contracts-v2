@@ -215,8 +215,8 @@ describe("Tetu voter tests", function () {
     await gauge.attachVe(stakingToken2.address, owner.address, 1);
     // check attachments
     const attached = await voter.attachedStakingTokens(1);
-    expect(attached.find(x => x === stakingToken.address)).eq(stakingToken.address);
-    expect(attached.find(x => x === stakingToken2.address)).eq(stakingToken2.address);
+    expect(attached.find((x: string) => x === stakingToken.address)).eq(stakingToken.address);
+    expect(attached.find((x: string) => x === stakingToken2.address)).eq(stakingToken2.address);
     // check votes
     expect(await voter.votes(1, vault.address)).above(parseUnits('0.98'))
     // transfer should reset everything

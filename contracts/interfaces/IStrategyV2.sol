@@ -28,4 +28,6 @@ interface IStrategyV2 {
 
   function doHardWork() external returns (uint earned, uint lost);
 
+  function setCompoundRatio(uint value) external;
+
 }

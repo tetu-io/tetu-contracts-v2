@@ -65,5 +65,8 @@ contract MockStrategySimple is ControllableV3, IStrategyV2 {
     slippage = value;
   }
 
+  function setCompoundRatio(uint value) external override {
+    compoundRatio = value;
+  }
 
 }

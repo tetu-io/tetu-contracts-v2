@@ -22,7 +22,7 @@ contract ForwarderV3 is ReentrancyGuard, ControllableV3, IForwarder {
 
   /// @dev Version of this contract. Adjust manually on each code modification.
   string public constant FORWARDER_VERSION = "3.0.0";
-  /// @dev Denominator for different ratios. Is default for the whole platform.
+  /// @dev Denominator for different ratios. It is default for the whole platform.
   uint public constant RATIO_DENOMINATOR = 100_000;
   /// @dev If slippage not defined for concrete token will be used 5% tolerance.
   uint public constant DEFAULT_SLIPPAGE = 5_000;
@@ -105,14 +105,14 @@ contract ForwarderV3 is ReentrancyGuard, ControllableV3, IForwarder {
   //                     VOTER ACTIONS
   // *************************************************************
 
-  /// @dev Check that sender is governance.
-  function _onlyControlVoter() internal view {
-    // todo
+  /// @dev Check that sender is platform voter.
+  function _onlyPlatformVoter() internal view {
+    require(msg.sender == IController(controller()).platformVoter(), "DENIED");
   }
 
   /// @dev veTETU holders can change proportion via special voter.
-  function setInvestFundRatio(uint value) external {
-    _onlyControlVoter();
+  function setInvestFundRatio(uint value) external override {
+    _onlyPlatformVoter();
     require(value <= RATIO_DENOMINATOR, "TOO_HIGH");
 
     emit InvestFundRatioChanged(toInvestFundRatio, value);
@@ -120,8 +120,8 @@ contract ForwarderV3 is ReentrancyGuard, ControllableV3, IForwarder {
   }
 
   /// @dev veTETU holders can change proportion via special voter.
-  function setGaugesRatio(uint value) external {
-    _onlyControlVoter();
+  function setGaugesRatio(uint value) external override {
+    _onlyPlatformVoter();
     require(value <= RATIO_DENOMINATOR, "TOO_HIGH");
 
     emit GaugeRatioChanged(toGaugesRatio, value);

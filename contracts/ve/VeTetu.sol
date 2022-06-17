@@ -11,6 +11,7 @@ import "../interfaces/IVeTetu.sol";
 import "../interfaces/IERC721Receiver.sol";
 import "../interfaces/IController.sol";
 import "../interfaces/IVoter.sol";
+import "../interfaces/IPlatformVoter.sol";
 import "../lib/FixedPointMathLib.sol";
 import "../proxy/ControllableV3.sol";
 import "./VeTetuLogo.sol";
@@ -106,8 +107,8 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
 
   /// @dev veId -> Attachments counter. With positive counter user unable to transfer NFT
   mapping(uint => uint) public override attachments;
-  /// @dev veId -> have voted. With vote NFT unable to transfer
-  mapping(uint => bool) public override voted;
+  /// @dev veId -> votes counter. With votes NFT unable to transfer
+  mapping(uint => uint) public override voted;
 
   // --- STATISTICS
 
@@ -210,6 +211,11 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   /// @dev Voter should handle attach/detach and vote actions
   function voter() public view returns (address) {
     return IController(controller()).voter();
+  }
+
+  /// @dev Specific voter for control platform attributes.
+  function platformVoter() public view returns (address) {
+    return IController(controller()).platformVoter();
   }
 
   /// @dev Interface identification is specified in ERC-165.
@@ -316,26 +322,49 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   //                        VOTER ACTIONS
   // *************************************************************
 
+  function _onlyVoters() internal view {
+    require(msg.sender == voter() || msg.sender == platformVoter(), "!voter");
+  }
+
+  /// @dev Increment the votes counter.
+  ///      Should be called only once per any amount of votes from 1 voter contract.
   function voting(uint _tokenId) external override {
-    require(msg.sender == voter(), "!voter");
-    voted[_tokenId] = true;
+    _onlyVoters();
+
+    // counter reflects only amount of voter contracts
+    // restrictions for votes should be implemented on voter side
+    voted[_tokenId]++;
   }
 
+  /// @dev Decrement the votes counter. Call only once per voter.
   function abstain(uint _tokenId) external override {
-    require(msg.sender == voter(), "!voter");
-    voted[_tokenId] = false;
+    _onlyVoters();
+
+    voted[_tokenId]--;
   }
 
+  /// @dev Increment attach counter. Call it for each boosted gauge position.
   function attachToken(uint _tokenId) external override {
+    // only central voter
     require(msg.sender == voter(), "!voter");
+
     uint count = attachments[_tokenId];
     require(count < MAX_ATTACHMENTS, "Too many attachments");
     attachments[_tokenId] = count + 1;
   }
 
+  /// @dev Decrement attach counter. Call it for each boosted gauge position.
   function detachToken(uint _tokenId) external override {
+    // only central voter
     require(msg.sender == voter(), "!voter");
+
     attachments[_tokenId] = attachments[_tokenId] - 1;
+  }
+
+  /// @dev Remove all votes/attachments for given veID.
+  function _detachAll(uint _tokenId, address owner) internal {
+    IVoter(voter()).detachTokenFromAll(_tokenId, owner);
+    IPlatformVoter(platformVoter()).detachTokenFromAll(_tokenId, owner);
   }
 
   // *************************************************************
@@ -422,8 +451,8 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     require(_to != address(0), "dst is zero");
     // from address will be checked in _removeTokenFrom()
 
-    if (attachments[_tokenId] != 0 || voted[_tokenId]) {
-      IVoter(voter()).detachTokenFromAll(_tokenId, _from);
+    if (attachments[_tokenId] != 0 || voted[_tokenId] != 0) {
+      _detachAll(_tokenId, _from);
     }
 
     if (_idToApprovals[_tokenId] != address(0)) {
@@ -890,7 +919,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   /// @dev Only possible if the lock has expired
   function withdraw(address stakingToken, uint _tokenId) external nonReentrant {
     require(isApprovedOrOwner(msg.sender, _tokenId), "!owner");
-    require(attachments[_tokenId] == 0 && !voted[_tokenId], "attached");
+    require(attachments[_tokenId] == 0 && voted[_tokenId] == 0, "attached");
 
     (uint oldLockedAmount,uint oldLockedDerivedAmount,uint oldLockedEnd) =
     _lockInfo(stakingToken, _tokenId);

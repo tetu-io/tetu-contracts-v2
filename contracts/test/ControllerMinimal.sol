@@ -14,6 +14,7 @@ contract ControllerMinimal is IController {
   address public override forwarder;
   address public override investFund;
   address public override veDistributor;
+  address public override platformVoter;
   address[] public override vaults;
   mapping(address => bool) public operators;
 
