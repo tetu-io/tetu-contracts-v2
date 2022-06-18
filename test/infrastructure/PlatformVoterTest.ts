@@ -87,6 +87,11 @@ describe("Platform voter tests", function () {
     expect(await forwarder.toInvestFundRatio()).eq(60);
   });
 
+  it("vote delay revert", async function () {
+    await platformVoter.vote(1, 1, 100, Misc.ZERO_ADDRESS);
+    await expect(platformVoter.vote(1, 1, 100, Misc.ZERO_ADDRESS)).revertedWith('delay');
+  });
+
   it("vote without weight test", async function () {
     await TimeUtils.advanceBlocksOnTs(LOCK_PERIOD);
     await platformVoter.vote(1, 1, 100, Misc.ZERO_ADDRESS);
@@ -112,7 +117,7 @@ describe("Platform voter tests", function () {
     await platformVoter.vote(1, 1, 100, Misc.ZERO_ADDRESS);
     await platformVoter.vote(1, 2, 100, Misc.ZERO_ADDRESS);
     await TimeUtils.advanceBlocksOnTs(WEEK);
-    await platformVoter.reset(1, [1,2], [Misc.ZERO_ADDRESS, Misc.ZERO_ADDRESS]);
+    await platformVoter.reset(1, [1, 2], [Misc.ZERO_ADDRESS, Misc.ZERO_ADDRESS]);
     expect(await forwarder.toInvestFundRatio()).eq(0);
     expect(await forwarder.toGaugesRatio()).eq(0);
     expect((await platformVoter.veVotes(1)).length).eq(0);
@@ -124,6 +129,41 @@ describe("Platform voter tests", function () {
     await TimeUtils.advanceBlocksOnTs(WEEK);
     await platformVoter.reset(1, [1], [Misc.ZERO_ADDRESS]);
     expect(await forwarder.toInvestFundRatio()).eq(0);
+  });
+
+  it("reset vote with zero value test", async function () {
+    await platformVoter.vote(1, 1, 0, Misc.ZERO_ADDRESS);
+    await TimeUtils.advanceBlocksOnTs(WEEK);
+    await platformVoter.reset(1, [1], [Misc.ZERO_ADDRESS]);
+  });
+
+  it("reset vote with zero value multi test", async function () {
+    await platformVoter.connect(owner2).vote(2, 1, 100, Misc.ZERO_ADDRESS);
+    await platformVoter.vote(1, 1, 0, Misc.ZERO_ADDRESS);
+    await TimeUtils.advanceBlocksOnTs(WEEK);
+    await platformVoter.reset(1, [1], [Misc.ZERO_ADDRESS]);
+  });
+
+  it("reset vote delay revert", async function () {
+    await platformVoter.vote(1, 1, 100, Misc.ZERO_ADDRESS);
+    await expect(platformVoter.reset(1, [1], [Misc.ZERO_ADDRESS])).revertedWith('delay');
+  });
+
+  it("reset vote not owner revert", async function () {
+    await expect(platformVoter.reset(2, [1], [Misc.ZERO_ADDRESS])).revertedWith('!owner');
+  });
+
+  it("detache not ve revert", async function () {
+    await expect(platformVoter.detachTokenFromAll(1, Misc.ZERO_ADDRESS)).revertedWith('!ve');
+  });
+
+  it("reset empty votes test", async function () {
+    await platformVoter.reset(1, [1], [Misc.ZERO_ADDRESS])
+  });
+
+  it("reset not exist vote test", async function () {
+    await platformVoter.vote(1, 2, 100, Misc.ZERO_ADDRESS);
+    await platformVoter.reset(1, [1], [Misc.ZERO_ADDRESS])
   });
 
   it("transfer without votes test", async function () {
@@ -160,6 +200,14 @@ describe("Platform voter tests", function () {
   });
 
   it("re vote test", async function () {
+    await platformVoter.vote(1, 1, 100, Misc.ZERO_ADDRESS);
+    await TimeUtils.advanceBlocksOnTs(WEEK);
+    await platformVoter.vote(1, 1, 50, Misc.ZERO_ADDRESS);
+    expect(await forwarder.toInvestFundRatio()).eq(50);
+  });
+
+  it("re vote multiple test", async function () {
+    await platformVoter.vote(1, 2, 100, Misc.ZERO_ADDRESS);
     await platformVoter.vote(1, 1, 100, Misc.ZERO_ADDRESS);
     await TimeUtils.advanceBlocksOnTs(WEEK);
     await platformVoter.vote(1, 1, 50, Misc.ZERO_ADDRESS);

@@ -177,6 +177,11 @@ describe("Tetu voter tests", function () {
     await expect(voter.vote(1, [vault.address ], [1])).revertedWith("delay");
   });
 
+  it("reset delay revert test", async function () {
+    await voter.vote(1, [vault.address], [-100]);
+    await expect(voter.reset(1)).revertedWith("delay");
+  });
+
   it("vote negative test", async function () {
     await voter.vote(1, [vault.address], [-100]);
     await TimeUtils.advanceBlocksOnTs(WEEK * 2);
@@ -201,9 +206,9 @@ describe("Tetu voter tests", function () {
   it("poke test", async function () {
     await voter.vote(1, [vault.address], [100]);
     expect(await voter.votes(1, vault.address)).above(parseUnits('0.94'))
-    await TimeUtils.advanceBlocksOnTs(WEEK / 2);
+    await TimeUtils.advanceBlocksOnTs(LOCK_PERIOD / 2);
     await voter.poke(1)
-    expect(await voter.votes(1, vault.address)).above(parseUnits('0.47'))
+    expect(await voter.votes(1, vault.address)).below(parseUnits('0.5'))
   });
 
   // *** ATTACHMENTS
