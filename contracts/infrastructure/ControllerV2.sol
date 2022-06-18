@@ -18,15 +18,15 @@ contract ControllerV2 is ControllableV3, IController {
   using EnumerableMap for EnumerableMap.AddressToUintMap;
 
   enum AddressType {
-    UNKNOWN,
-    GOVERNANCE,
-    TETU_VOTER,
-    VAULT_CONTROLLER,
-    LIQUIDATOR,
-    FORWARDER,
-    INVEST_FUND,
-    VE_DIST,
-    PLATFORM_VOTER
+    UNKNOWN, // 0
+    GOVERNANCE, // 1
+    TETU_VOTER, // 2
+    VAULT_CONTROLLER, // 3
+    LIQUIDATOR, // 4
+    FORWARDER, // 5
+    INVEST_FUND, // 6
+    VE_DIST, // 7
+    PLATFORM_VOTER // 8
   }
 
   struct AddressAnnounce {
@@ -109,8 +109,8 @@ contract ControllerV2 is ControllableV3, IController {
 
   /// @dev Proxy initialization. Call it after contract deploy.
   function init(address _governance) external initializer {
-    __Controllable_init(address(this));
     governance = _governance;
+    __Controllable_init(address(this));
     _operators.add(_governance);
   }
 
@@ -187,30 +187,25 @@ contract ControllerV2 is ControllableV3, IController {
   //          SET ADDRESSES WITH TIME-LOCK PROTECTION
   // *************************************************************
 
-  /// @dev Change time-locked address and remove lock info.
-  function _addressChange(AddressType _type) internal {
-
-  }
-
   /// @dev Add announce information for given address type.
-  function announceNewAddress(AddressType _type, address value) external {
+  function announceAddressChange(AddressType _type, address value) external {
     _onlyGovernance();
+    require(value != address(0), "ZERO_VALUE");
     require(_addressAnnounces.set(uint(_type), value), "ANNOUNCED");
     _addressTimeLocks.set(uint(_type), block.timestamp + TIME_LOCK);
 
     emit AddressChangeAnnounced(uint(_type), value);
   }
 
-  /// @dev Change announced address. Less strict for reduce governance actions.
+  /// @dev Change time-locked address and remove lock info.
+  ///      Less strict for reduce governance actions.
   function changeAddress(AddressType _type) external {
     _onlyOperators();
 
     address newAddress = _addressAnnounces.get(uint(_type));
     uint timeLock = _addressTimeLocks.get(uint(_type));
+    // no need to check values - get for non-exist values will be reverted
     address oldAddress;
-
-    require(newAddress != address(0), "ZERO_ADDRESS");
-    require(timeLock != 0, "ZERO_TIME_LOCK");
 
     if (_type == AddressType.GOVERNANCE) {
       oldAddress = governance;
@@ -265,6 +260,7 @@ contract ControllerV2 is ControllableV3, IController {
       address proxy = proxies[i];
       address implementation = implementations[i];
 
+      require(implementation != address(0), "ZERO_IMPL");
       require(_proxyTimeLocks.set(proxy, block.timestamp + TIME_LOCK), "ANNOUNCED");
       proxyAnnounces[proxy] = implementation;
 
@@ -279,9 +275,9 @@ contract ControllerV2 is ControllableV3, IController {
     for (uint i; i < proxies.length; i++) {
       address proxy = proxies[i];
       uint timeLock = _proxyTimeLocks.get(proxy);
+      // Map get will revert on not exist key, no need to check to zero
       address implementation = proxyAnnounces[proxy];
 
-      require(implementation != address(0), "IMPLEMENTATION");
       require(timeLock < block.timestamp, "LOCKED");
 
       IProxyControlled(proxy).upgrade(implementation);
@@ -297,7 +293,7 @@ contract ControllerV2 is ControllableV3, IController {
   //                     REGISTER ACTIONS
   // *************************************************************
 
-  /// @dev Register vault for eligibility for rewards.
+  /// @dev Register vault in the system.
   ///      Operator should do it as part of deployment process.
   function registerVault(address vault) external {
     _onlyOperators();

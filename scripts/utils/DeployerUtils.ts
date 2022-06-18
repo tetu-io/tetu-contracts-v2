@@ -7,7 +7,7 @@ import {Logger} from "tslog";
 import {Libraries} from "hardhat-deploy/dist/types";
 import {parseUnits} from "ethers/lib/utils";
 import {
-  ControllerMinimal, ForwarderV3, ForwarderV3__factory,
+  ControllerMinimal, ControllerV2, ControllerV2__factory, ForwarderV3, ForwarderV3__factory,
   MockStakingToken,
   MockToken,
   MockVault,
@@ -311,6 +311,15 @@ export class DeployerUtils {
       ve
     );
     return forwarder;
+  }
+
+  public static async deployController(signer: SignerWithAddress) {
+    const logic = await DeployerUtils.deployContract(signer, 'ControllerV2') as ControllerV2;
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
+    await proxy.initProxy(logic.address);
+    const controller = ControllerV2__factory.connect(proxy.address, signer);
+    await controller.init(signer.address);
+    return controller;
   }
 
 }

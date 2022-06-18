@@ -8,6 +8,6 @@ interface IProxyControlled {
 
   function upgrade(address _newImplementation) external;
 
-  function implementation() external returns (address);
+  function implementation() external view returns (address);
 
 }
