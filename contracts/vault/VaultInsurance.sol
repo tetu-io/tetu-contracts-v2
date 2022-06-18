@@ -16,6 +16,8 @@ contract VaultInsurance is IVaultInsurance {
   /// @dev Vault underlying asset
   address public override asset;
 
+  /// @dev Init contract with given attributes.
+  ///      Should be called from factory during creation process.
   function init(address _vault, address _asset) external override {
     require(vault == address(0) && asset == address(0), "INITED");
     vault = _vault;

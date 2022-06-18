@@ -10,19 +10,27 @@ import "../interfaces/IVaultInsurance.sol";
 import "../interfaces/ISplitter.sol";
 import "../openzeppelin/Clones.sol";
 
+/// @title Factory for vaults.
+/// @author belbix
 contract VaultFactory {
 
   // *************************************************************
   //                        VARIABLES
   // *************************************************************
 
+  /// @dev Platform controller, need for restrictions.
   address public immutable controller;
 
+  /// @dev ProxyControlled contract address
   address public proxyImpl;
+  /// @dev TetuVaultV2 contract address
   address public vaultImpl;
+  /// @dev VaultInsurance contract address
   address public vaultInsuranceImpl;
+  /// @dev StrategySplitterV2 contract address
   address public splitterImpl;
 
+  /// @dev Array of deployed vaults.
   address[] public deployedVaults;
 
   // *************************************************************
@@ -65,11 +73,13 @@ contract VaultFactory {
   //                        RESTRICTIONS
   // *************************************************************
 
+  /// @dev Only governance
   modifier onlyGov() {
     require(msg.sender == IController(controller).governance(), "!GOV");
     _;
   }
 
+  /// @dev Only platform operators
   modifier onlyOperator() {
     require(IController(controller).isOperator(msg.sender), "!OPERATOR");
     _;
@@ -79,26 +89,31 @@ contract VaultFactory {
   //                        GOV ACTIONS
   // *************************************************************
 
+  /// @dev Set ProxyControlled contract address
   function setProxyImpl(address value) external onlyGov {
     proxyImpl = value;
   }
 
+  /// @dev Set TetuVaultV2 contract address
   function setVaultImpl(address value) external onlyGov {
     vaultImpl = value;
   }
 
+  /// @dev Set VaultInsurance contract address
   function setVaultInsuranceImpl(address value) external onlyGov {
     vaultInsuranceImpl = value;
   }
 
+  /// @dev Set StrategySplitterV2 contract address
   function setSplitterImpl(address value) external onlyGov {
     splitterImpl = value;
   }
 
   // *************************************************************
-  //                        OPERATOR ACTIONS
+  //                    OPERATOR ACTIONS
   // *************************************************************
 
+  /// @dev Create and init vault with given attributes.
   function createVault(
     IERC20 asset,
     string memory name,

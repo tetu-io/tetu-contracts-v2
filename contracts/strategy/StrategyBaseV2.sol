@@ -8,7 +8,6 @@ import "../interfaces/ISplitter.sol";
 import "../proxy/ControllableV3.sol";
 
 /// @title Abstract contract for base strategy functionality
-///        Implementation must support proxy
 /// @author belbix
 abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   using SafeERC20 for IERC20;
