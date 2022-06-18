@@ -500,6 +500,20 @@ describe("Splitter and base strategy tests", function () {
       await strategy.connect(await Misc.impersonate(splitter.address)).withdrawToSplitter(parseUnits('1', 6));
     });
 
+    it("set compound ratio test", async () => {
+      await controller.setPlatformVoter(signer.address);
+      await strategy.setCompoundRatio(100);
+    });
+
+    it("set compound ratio from not voter revert", async () => {
+      await expect(strategy.setCompoundRatio(100)).revertedWith("SB: Denied");
+    });
+
+    it("set compound ratio too high revert", async () => {
+      await controller.setPlatformVoter(signer.address);
+      await expect(strategy.setCompoundRatio(1000000)).revertedWith("SB: Too high");
+    });
+
   });
 
 });

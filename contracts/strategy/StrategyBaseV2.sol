@@ -32,6 +32,8 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   address public override asset;
   /// @dev Linked splitter
   address public override splitter;
+  /// @dev Percent of profit for autocompound inside this strategy.
+  uint public override compoundRatio;
 
   // *************************************************************
   //                        EVENTS
@@ -46,6 +48,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   event WithdrawFromPool(uint amount);
   event WithdrawAllFromPool(uint amount);
   event Claimed(address token, uint amount);
+  event CompoundRatioChanged(uint oldValue, uint newValue);
 
   // *************************************************************
   //                        INIT
@@ -85,6 +88,19 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   /// @dev Total amount of underlying assets under control of this strategy.
   function totalAssets() public view override returns (uint) {
     return IERC20(asset).balanceOf(address(this)) + investedAssets();
+  }
+
+  // *************************************************************
+  //                   VOTER ACTIONS
+  // *************************************************************
+
+  /// @dev PlatformVoter can change compound ratio for some strategies.
+  ///      A strategy can implement another logic for some uniq cases.
+  function setCompoundRatio(uint value) external virtual override {
+    require(msg.sender == IController(controller()).platformVoter(), "SB: Denied");
+    require(value <= COMPOUND_DENOMINATOR, "SB: Too high");
+    emit CompoundRatioChanged(compoundRatio, value);
+    compoundRatio = value;
   }
 
   // *************************************************************

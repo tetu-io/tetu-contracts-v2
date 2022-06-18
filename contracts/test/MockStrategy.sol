@@ -12,7 +12,6 @@ contract MockStrategy is StrategyBaseV2 {
   string public constant override STRATEGY_VERSION = "1.0.0";
 
   bool public override isReadyToHardWork;
-  uint public override compoundRatio;
 
   uint slippage;
   uint lastEarned;
@@ -83,10 +82,6 @@ contract MockStrategy is StrategyBaseV2 {
 
   function setReady(bool value) external {
     isReadyToHardWork = value;
-  }
-
-  function setCompoundRatio(uint value) external override {
-    compoundRatio = value;
   }
 
 }

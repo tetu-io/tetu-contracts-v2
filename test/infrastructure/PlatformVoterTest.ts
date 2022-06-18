@@ -3,12 +3,13 @@ import {ethers} from "hardhat";
 import chai from "chai";
 import {parseUnits} from "ethers/lib/utils";
 import {
-  ForwarderV3,
+  ControllerMinimal,
+  ForwarderV3, MockGauge,
   MockPawnshop,
   MockStakingToken, MockStrategy,
   MockToken,
   MultiBribe,
-  MultiGauge, PlatformVoter,
+  MultiGauge, PlatformVoter, StrategySplitterV2,
   TetuVoter,
   VeTetu
 } from "../../typechain";
@@ -35,6 +36,8 @@ describe("Platform voter tests", function () {
   let platformVoter: PlatformVoter;
   let pawnshop: MockPawnshop;
   let forwarder: ForwarderV3;
+  let controller: ControllerMinimal;
+  let splitter: StrategySplitterV2;
 
   before(async function () {
     snapshotBefore = await TimeUtils.snapshot();
@@ -42,7 +45,7 @@ describe("Platform voter tests", function () {
 
     tetu = await DeployerUtils.deployMockToken(owner, 'TETU', 18);
 
-    const controller = await DeployerUtils.deployMockController(owner);
+    controller = await DeployerUtils.deployMockController(owner);
     ve = await DeployerUtils.deployVeTetu(owner, tetu.address, controller.address);
 
     pawnshop = await DeployerUtils.deployContract(owner, 'MockPawnshop') as MockPawnshop;
@@ -54,6 +57,18 @@ describe("Platform voter tests", function () {
 
     forwarder = await DeployerUtils.deployForwarder(owner, controller.address, tetu.address);
     await controller.setForwarder(forwarder.address);
+
+    const mockGauge = await DeployerUtils.deployContract(owner, 'MockGauge', controller.address) as MockGauge;
+    const vault = await DeployerUtils.deployTetuVaultV2(
+      owner,
+      controller.address,
+      tetu.address,
+      'TETU',
+      'TETU',
+      mockGauge.address,
+      0
+    );
+    splitter = await DeployerUtils.deploySplitter(owner, controller.address, tetu.address, vault.address);
 
     await tetu.mint(owner2.address, parseUnits('100'));
     await tetu.mint(owner3.address, parseUnits('100'));
@@ -221,6 +236,7 @@ describe("Platform voter tests", function () {
 
   it("vote for strategy test", async function () {
     const strategy = await DeployerUtils.deployContract(owner, 'MockStrategy') as MockStrategy;
+    await strategy.init(controller.address, splitter.address)
     await platformVoter.vote(1, 3, 100, strategy.address);
     expect(await strategy.compoundRatio()).eq(100);
   });
@@ -240,8 +256,28 @@ describe("Platform voter tests", function () {
   it("too many votes revert", async function () {
     for (let i = 0; i < 20; i++) {
       const strategy = await DeployerUtils.deployContract(owner, 'MockStrategy') as MockStrategy;
+      await strategy.init(controller.address, splitter.address)
       await platformVoter.vote(1, 3, 100, strategy.address);
     }
     await expect(platformVoter.vote(1, 3, 100, Misc.ZERO_ADDRESS)).revertedWith('max');
   });
+
+  it("votes length test", async function () {
+    await platformVoter.vote(1, 1, 100, Misc.ZERO_ADDRESS)
+    expect(await platformVoter.veVotesLength(1)).eq(1);
+  });
+
+
+  it("vote batch test", async function () {
+    const strategy = await DeployerUtils.deployContract(owner, 'MockStrategy') as MockStrategy;
+    await strategy.init(controller.address, splitter.address)
+    await platformVoter.voteBatch(1, [2, 3], [100, 100], [Misc.ZERO_ADDRESS, strategy.address]);
+    expect(await forwarder.toGaugesRatio()).eq(100);
+    expect(await strategy.compoundRatio()).eq(100);
+  });
+
+  it("vote batch not owner revert", async function () {
+    await expect(platformVoter.voteBatch(2, [2], [100], [Misc.ZERO_ADDRESS])).revertedWith('!owner');
+  });
+
 });
