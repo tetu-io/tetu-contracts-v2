@@ -203,8 +203,8 @@ describe("Platform voter tests", function () {
     expect(votes.length).eq(1);
     expect(votes[0]._type).eq(1);
     expect(votes[0].target).eq(Misc.ZERO_ADDRESS);
-    expect(votes[0].weight).above(parseUnits('0.99'));
-    expect(votes[0].weightedValue).above(parseUnits('99'));
+    expect(votes[0].weight).above(parseUnits('0.98'));
+    expect(votes[0].weightedValue).above(parseUnits('98'));
     expect(votes[0].timestamp).above(0);
   });
 

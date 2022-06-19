@@ -10,6 +10,8 @@ import "../interfaces/IStrategyV2.sol";
 import "../interfaces/ISplitter.sol";
 import "../proxy/ControllableV3.sol";
 
+import "hardhat/console.sol";
+
 /// @title Proxy solution for connection a vault with multiple strategies
 ///        Version 2 has auto-rebalance logic adopted to strategies with fees.
 /// @author belbix
@@ -252,16 +254,12 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     emit StrategyRemoved(strategy);
   }
 
-
-  // *********************************************
-  //                OPERATOR ACTIONS
-  // *********************************************
-
   /// @dev Withdraw some percent from strategy with lowest APR and deposit to strategy with highest APR.
+  ///      Strict access because possible losses during deposit/withdraw.
   /// @param percent Range of 1-100
   /// @param slippageTolerance Range of 0-100_000
   function rebalance(uint percent, uint slippageTolerance) external {
-    _onlyOperators();
+    _onlyGov();
 
     uint balance = totalAssets();
 
@@ -291,8 +289,14 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     IStrategyV2(topStrategy).investAll();
 
     uint balanceAfter = totalAssets();
-    uint slippage = (balance - balanceAfter) * 100_000 / balance;
-    require(slippage <= slippageTolerance, "SS: Slippage");
+    uint slippage;
+    // for some reason we can have profit during rebalance
+    if (balanceAfter < balance) {
+      uint loss = balance - balanceAfter;
+      ITetuVaultV2(vault).coverLoss(loss);
+      slippage = loss * 100_000 / balance;
+      require(slippage <= slippageTolerance, "SS: Slippage");
+    }
 
     emit Rebalance(
       topStrategy,
@@ -303,6 +307,10 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
       lowStrategyBalance
     );
   }
+
+  // *********************************************
+  //                OPERATOR ACTIONS
+  // *********************************************
 
   function setAPRs(address[] memory _strategies, uint[] memory aprs) external {
     _onlyOperators();
@@ -349,12 +357,19 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     _onlyVault();
 
     if (strategies.length != 0) {
+      uint totalAssetsBefore = totalAssets();
+
       address _asset = asset;
       uint balance = IERC20(_asset).balanceOf(address(this));
       address strategy = strategies[0];
       require(!pausedStrategies[strategy], "SS: Paused");
       IERC20(_asset).safeTransfer(strategy, balance);
       IStrategyV2(strategy).investAll();
+
+      uint totalAssetsAfter = totalAssets();
+      if (totalAssetsAfter < totalAssetsBefore) {
+        ITetuVaultV2(msg.sender).coverLoss(totalAssetsBefore - totalAssetsAfter);
+      }
     }
   }
 
@@ -473,6 +488,9 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
         uint apr;
         if (earned > lost) {
           apr = computeApr(tvl, earned - lost, sinceLastHardWork);
+        }
+        if (lost > 0) {
+          ITetuVaultV2(vault).coverLoss(lost);
         }
 
         strategiesAPRHistory[strategy].push(apr);

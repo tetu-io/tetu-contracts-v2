@@ -444,6 +444,71 @@ describe("Splitter and base strategy tests", function () {
       expect(await splitter.strategyAPRHistoryLength(strategy2.address)).eq(4);
     });
 
+    it("deposit with loss without covering", async () => {
+      expect(await vault.sharePrice()).eq(1000000);
+      await strategy2.setSlippageDeposit(50);
+      await vault.deposit(1000, signer.address);
+      expect(await vault.totalAssets()).eq(600);
+      expect(await vault.sharePrice()).eq(545454);
+    });
+
+    it("deposit with loss with covering", async () => {
+      expect(await vault.sharePrice()).eq(1000000);
+      await strategy2.setSlippageDeposit(1);
+      await vault.setFees(1_000, 0);
+      await vault.deposit(1000, signer.address);
+      expect(await vault.sharePrice()).eq(1000000);
+      expect(await vault.totalAssets()).eq(1090);
+    });
+
+    it("hardwork with loss with covering", async () => {
+      expect(await vault.sharePrice()).eq(1000000);
+      await strategy2.setSlippageHardWork(1);
+      await vault.setFees(1_000, 0);
+      await vault.deposit(1000, signer.address);
+      await splitter.doHardWorkForStrategy(strategy2.address, true);
+      expect(await vault.sharePrice()).eq(1000000);
+      expect(await vault.totalAssets()).eq(1090);
+    });
+
+    it("hardwork with loss without covering", async () => {
+      expect(await vault.sharePrice()).eq(1000000);
+      await strategy2.setSlippageHardWork(100);
+      await vault.deposit(1000, signer.address);
+      await splitter.doHardWorkForStrategy(strategy2.address, true);
+      expect(await vault.sharePrice()).eq(900000);
+      expect(await vault.totalAssets()).eq(990);
+    });
+
+    it("rebalance with loss without covering", async () => {
+      expect(await vault.sharePrice()).eq(1000000);
+      await splitter.setAPRs([strategy.address], [200]);
+
+      await vault.deposit(1000, signer.address);
+
+      await strategy.setSlippageDeposit(1);
+
+      await splitter.rebalance(100, 1_000);
+
+      expect(await vault.sharePrice()).eq(999090);
+      expect(await vault.totalAssets()).eq(1099);
+    });
+
+    it("rebalance with loss with covering", async () => {
+      expect(await vault.sharePrice()).eq(1000000);
+      await splitter.setAPRs([strategy.address], [200]);
+
+      await vault.setFees(1_000, 0);
+      await vault.deposit(1000, signer.address);
+
+      await strategy.setSlippageDeposit(1);
+
+      await splitter.rebalance(100, 1_000);
+
+      expect(await vault.sharePrice()).eq(1000000);
+      expect(await vault.totalAssets()).eq(1090);
+    });
+
   });
 
 

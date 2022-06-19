@@ -14,6 +14,8 @@ contract MockStrategy is StrategyBaseV2 {
   bool public override isReadyToHardWork;
 
   uint slippage;
+  uint slippageDeposit;
+  uint hardWorkSlippage;
   uint lastEarned;
   uint lastLost;
 
@@ -29,8 +31,14 @@ contract MockStrategy is StrategyBaseV2 {
     pool = new MockPool();
   }
 
-  function doHardWork() external view override returns (uint earned, uint lost) {
-    return (lastEarned, lastLost);
+  function doHardWork() external override returns (uint earned, uint lost) {
+    pool.withdraw(asset, investedAssets());
+    uint _slippage = IERC20(asset).balanceOf(address(this)) * hardWorkSlippage / 1000;
+    if (_slippage != 0) {
+      IERC20(asset).transfer(controller(), _slippage);
+    }
+    IERC20(asset).transfer(address(pool), IERC20(asset).balanceOf(address(this)));
+    return (lastEarned, Math.max(lastLost, _slippage));
   }
 
   /// @dev Amount of underlying assets invested to the pool.
@@ -40,7 +48,13 @@ contract MockStrategy is StrategyBaseV2 {
 
   /// @dev Deposit given amount to the pool.
   function _depositToPool(uint amount) internal override {
-    IERC20(asset).transfer(address(pool), amount);
+    uint _slippage = amount * slippageDeposit / 100;
+    if (_slippage != 0) {
+      IERC20(asset).transfer(controller(), _slippage);
+    }
+    if (amount - _slippage != 0) {
+      IERC20(asset).transfer(address(pool), amount - _slippage);
+    }
   }
 
   /// @dev Withdraw given amount from the pool.
@@ -78,6 +92,14 @@ contract MockStrategy is StrategyBaseV2 {
 
   function setSlippage(uint value) external {
     slippage = value;
+  }
+
+  function setSlippageDeposit(uint value) external {
+    slippageDeposit = value;
+  }
+
+  function setSlippageHardWork(uint value) external {
+    hardWorkSlippage = value;
   }
 
   function setReady(bool value) external {
