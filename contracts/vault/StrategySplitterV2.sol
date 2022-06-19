@@ -10,8 +10,6 @@ import "../interfaces/IStrategyV2.sol";
 import "../interfaces/ISplitter.sol";
 import "../proxy/ControllableV3.sol";
 
-import "hardhat/console.sol";
-
 /// @title Proxy solution for connection a vault with multiple strategies
 ///        Version 2 has auto-rebalance logic adopted to strategies with fees.
 /// @author belbix
