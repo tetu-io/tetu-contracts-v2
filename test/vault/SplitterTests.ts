@@ -120,7 +120,7 @@ describe("Splitter and base strategy tests", function () {
     await strategy2.init(controller.address, splitter.address);
 
     await splitter.scheduleStrategies([strategy2.address]);
-    await TimeUtils.advanceBlocksOnTs(60 * 60 * 12);
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 18);
     await splitter.addStrategies([strategy2.address], [100]);
     expect((await splitter.allStrategies()).length).eq(2);
   });

@@ -29,7 +29,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   /// @dev How much APR history elements will be counted in average APR calculation.
   uint public constant HISTORY_DEEP = 3;
   /// @dev Time lock for adding new strategies.
-  uint public constant TIME_LOCK = 12 hours;
+  uint public constant TIME_LOCK = 18 hours;
 
 
   // *********************************************
