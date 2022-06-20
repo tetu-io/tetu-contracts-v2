@@ -2,9 +2,6 @@ import hre, {ethers} from "hardhat";
 import {Logger} from "tslog";
 import Common from "ethereumjs-common";
 import logSettings from "../../log_settings";
-import {MaticAddresses} from "../addresses/MaticAddresses";
-import {FtmAddresses} from "../addresses/FtmAddresses";
-import {EthAddresses} from "../addresses/EthAddresses";
 
 const log: Logger = new Logger(logSettings);
 
@@ -114,10 +111,7 @@ export class Misc {
 
   // ************** ADDRESSES **********************
 
-  public static async impersonate(address: string | null = null) {
-    if (address === null) {
-      address = await Misc.getGovernance();
-    }
+  public static async impersonate(address: string) {
     await hre.network.provider.request({
       method: "hardhat_impersonateAccount",
       params: [address],
@@ -129,21 +123,6 @@ export class Misc {
     });
     console.log('address impersonated', address);
     return ethers.getSigner(address);
-  }
-
-  public static async getGovernance() {
-    const net = await ethers.provider.getNetwork();
-    if (net.chainId === 137) {
-      return MaticAddresses.GOV_ADDRESS;
-    } else if (net.chainId === 250) {
-      return FtmAddresses.GOV_ADDRESS;
-    } else if (net.chainId === 1) {
-      return EthAddresses.GOV_ADDRESS;
-    } else if (net.chainId === 31337) {
-      return ((await ethers.getSigners())[0]).address;
-    } else {
-      throw Error('No config for ' + net.chainId);
-    }
   }
 
   public static async isNetwork(id: number) {

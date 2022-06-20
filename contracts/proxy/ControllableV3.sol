@@ -31,7 +31,7 @@ abstract contract ControllableV3 is Initializable, IControllable {
   ///         Save block.timestamp in the "created" variable
   /// @dev Use it only once after first logic setup
   /// @param controller_ Controller address
-  function __Controllable_init(address controller_) public onlyInitializing {
+  function __Controllable_init(address controller_) internal onlyInitializing {
     require(controller_ != address(0), "Zero controller");
     require(IController(controller_).governance() != address(0), "Zero governance");
     _CONTROLLER_SLOT.set(controller_);

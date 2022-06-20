@@ -1,6 +1,6 @@
 import {ethers, web3} from "hardhat";
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
-import {BigNumberish, ContractFactory, utils} from "ethers";
+import {BigNumber, BigNumberish, ContractFactory, utils} from "ethers";
 import {Misc} from "./Misc";
 import logSettings from "../../log_settings";
 import {Logger} from "tslog";
@@ -21,13 +21,14 @@ import {
   TetuVaultV2,
   TetuVaultV2__factory,
   TetuVoter,
-  TetuVoter__factory,
+  TetuVoter__factory, VaultFactory,
   VaultInsurance,
   VeDistributor__factory,
   VeTetu,
   VeTetu__factory
 } from "../../typechain";
 import {VerifyUtils} from "./VerifyUtils";
+import {RunHelper} from "./RunHelper";
 
 // tslint:disable-next-line:no-var-requires
 const hre = require("hardhat");
@@ -76,8 +77,11 @@ export class DeployerUtils {
     let gas = 19_000_000;
     if (hre.network.name === 'hardhat') {
       gas = 999_999_999;
+    } else if (hre.network.name === 'mumbai') {
+      gas = 5_000_000;
     }
-    const instance = await _factory.deploy(...args, {gasLimit: gas});
+    // const instance = await _factory.deploy(...args, {gasLimit: gas, gasPrice: +gasPrice * 5});
+    const instance = await _factory.deploy(...args, {gasPrice: +gasPrice * 5});
     log.info('Deploy tx:', instance.deployTransaction.hash);
     await instance.deployed();
 
@@ -115,7 +119,7 @@ export class DeployerUtils {
   public static async deployProxy(signer: SignerWithAddress, contract: string) {
     const logic = await DeployerUtils.deployContract(signer, contract);
     const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
-    await proxy.initProxy(logic.address);
+    await RunHelper.runAndWait(() => proxy.initProxy(logic.address));
     return proxy.address;
   }
 
@@ -148,11 +152,11 @@ export class DeployerUtils {
   public static async deployVeTetu(signer: SignerWithAddress, token: string, controller: string) {
     const logic = await DeployerUtils.deployContract(signer, 'VeTetu');
     const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
-    await proxy.initProxy(logic.address);
-    await VeTetu__factory.connect(proxy.address, signer).init(
+    await RunHelper.runAndWait(() => proxy.initProxy(logic.address));
+    await RunHelper.runAndWait(() => VeTetu__factory.connect(proxy.address, signer).init(
       token,
       controller
-    )
+    ));
     return VeTetu__factory.connect(proxy.address, signer);
   }
 
@@ -166,14 +170,14 @@ export class DeployerUtils {
   ) {
     const logic = await DeployerUtils.deployContract(signer, 'TetuVoter');
     const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
-    await proxy.initProxy(logic.address);
-    await TetuVoter__factory.connect(proxy.address, signer).init(
+    await RunHelper.runAndWait(() => proxy.initProxy(logic.address));
+    await RunHelper.runAndWait(() => TetuVoter__factory.connect(proxy.address, signer).init(
       controller,
       ve,
       rewardToken,
       gauge,
       bribe,
-    );
+    ));
     return TetuVoter__factory.connect(proxy.address, signer);
   }
 
@@ -186,13 +190,13 @@ export class DeployerUtils {
   ) {
     const logic = await DeployerUtils.deployContract(signer, 'MultiGauge');
     const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
-    await proxy.initProxy(logic.address);
-    await MultiGauge__factory.connect(proxy.address, signer).init(
+    await RunHelper.runAndWait(() => proxy.initProxy(logic.address));
+    await RunHelper.runAndWait(() => MultiGauge__factory.connect(proxy.address, signer).init(
       controller,
       operator,
       ve,
       defaultRewardToken,
-    );
+    ));
     return MultiGauge__factory.connect(proxy.address, signer);
   }
 
@@ -205,13 +209,13 @@ export class DeployerUtils {
   ) {
     const logic = await DeployerUtils.deployContract(signer, 'MultiBribe');
     const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
-    await proxy.initProxy(logic.address);
-    await MultiBribe__factory.connect(proxy.address, signer).init(
+    await RunHelper.runAndWait(() => proxy.initProxy(logic.address));
+    await RunHelper.runAndWait(() => MultiBribe__factory.connect(proxy.address, signer).init(
       controller,
       operator,
       ve,
       defaultReward
-    );
+    ));
     return MultiBribe__factory.connect(proxy.address, signer);
   }
 
@@ -227,12 +231,12 @@ export class DeployerUtils {
   ) {
     const logic = await DeployerUtils.deployContract(signer, 'VeDistributor');
     const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
-    await proxy.initProxy(logic.address);
-    await VeDistributor__factory.connect(proxy.address, signer).init(
+    await RunHelper.runAndWait(() => proxy.initProxy(logic.address));
+    await RunHelper.runAndWait(() => VeDistributor__factory.connect(proxy.address, signer).init(
       controller,
       ve,
       rewardToken
-    );
+    ));
     return VeDistributor__factory.connect(proxy.address, signer);
   }
 
@@ -288,12 +292,12 @@ export class DeployerUtils {
   ) {
     const logic = await DeployerUtils.deployContract(signer, 'ForwarderV3') as ForwarderV3;
     const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
-    await proxy.initProxy(logic.address);
+    await RunHelper.runAndWait(() => proxy.initProxy(logic.address));
     const forwarder = ForwarderV3__factory.connect(proxy.address, signer);
-    await forwarder.init(
+    await RunHelper.runAndWait(() => forwarder.init(
       controller,
       tetu
-    );
+    ));
     return forwarder;
   }
 
@@ -304,22 +308,39 @@ export class DeployerUtils {
   ) {
     const logic = await DeployerUtils.deployContract(signer, 'PlatformVoter') as PlatformVoter;
     const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
-    await proxy.initProxy(logic.address);
+    await RunHelper.runAndWait(() => proxy.initProxy(logic.address));
     const forwarder = PlatformVoter__factory.connect(proxy.address, signer);
-    await forwarder.init(
+    await RunHelper.runAndWait(() => forwarder.init(
       controller,
       ve
-    );
+    ));
     return forwarder;
   }
 
   public static async deployController(signer: SignerWithAddress) {
     const logic = await DeployerUtils.deployContract(signer, 'ControllerV2') as ControllerV2;
     const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
-    await proxy.initProxy(logic.address);
+    await RunHelper.runAndWait(() => proxy.initProxy(logic.address));
     const controller = ControllerV2__factory.connect(proxy.address, signer);
-    await controller.init(signer.address);
+    await RunHelper.runAndWait(() => controller.init(signer.address));
     return controller;
+  }
+
+  public static async deployVaultFactory(
+    signer: SignerWithAddress,
+    controller: string,
+    proxyImpl: string,
+    vaultImpl: string,
+    vaultInsuranceImpl: string,
+    splitterImpl: string,
+  ) {
+    return await DeployerUtils.deployContract(signer, 'VaultFactory',
+      controller,
+      proxyImpl,
+      vaultImpl,
+      vaultInsuranceImpl,
+      splitterImpl
+    ) as VaultFactory;
   }
 
 }

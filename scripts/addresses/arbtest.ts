@@ -1,0 +1,18 @@
+import {CoreAddresses} from "../models/CoreAddresses";
+
+export class ArbtestCoreAddresses {
+
+  public static ADDRESSES = new CoreAddresses(
+    "0x6678814c273d5088114B6E40cC49C8DB04F9bC29", // tetu
+  "0x286c02C93f3CF48BB759A93756779A1C78bCF833", // controller
+  "0xd353254872E8797B159594c1E528b8Be9a6cb1F8", // ve
+  "0x099C314F792e1F91f53765Fc64AaDCcf4dCf1538", // veDist
+  "0x255707B70BF90aa112006E1b07B9AeA6De021424", // gauge
+  "0x5373C3d09C39D8F256f88E08aa61402FE14A3792", // bribe
+  "0x6ce857d3037e87465b003aCbA264DDF2Cec6D5E4", // tetuVoter
+  "0xC363F3D4e1C005bf5321040653A088F71Bb974Ab", // platformVoter
+  "0x0C6868831c504Fb0bB61A54FEfC6464804380508", // forwarder
+  "0x2d91C960b03F2C39604aE1b644ba508a1366057c", // vaultFactory
+  );
+
+}
