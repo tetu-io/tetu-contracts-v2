@@ -3,29 +3,30 @@
 pragma solidity 0.8.4;
 
 import "../interfaces/IVeTetu.sol";
+import "../interfaces/IVoter.sol";
 import "../interfaces/IERC20.sol";
 
-contract MockVoter {
+contract MockVoter is IVoter{
 
-  IVeTetu public ve;
+  address public override ve;
 
   constructor(address _ve) {
-    ve = IVeTetu(_ve);
+    ve = _ve;
   }
 
-  function attachTokenToGauge(address, uint tokenId, address) external {
+  function attachTokenToGauge(address, uint tokenId, address) external override {
     if (tokenId > 0) {
-      ve.attachToken(tokenId);
+      IVeTetu(ve).attachToken(tokenId);
     }
   }
 
-  function detachTokenFromGauge(address, uint tokenId, address) external {
+  function detachTokenFromGauge(address, uint tokenId, address) external override {
     if (tokenId > 0) {
-      ve.detachToken(tokenId);
+      IVeTetu(ve).detachToken(tokenId);
     }
   }
 
-  function distribute(address, address) external {
+  function distribute(address) external override {
     // noop
   }
 
@@ -37,17 +38,17 @@ contract MockVoter {
     IVeTetu(ve).abstain(id);
   }
 
-  function detachTokenFromAll(uint tokenId, address) external {
-    while (ve.attachments(tokenId) > 0) {
-      ve.detachToken(tokenId);
+  function detachTokenFromAll(uint tokenId, address) external override {
+    while (IVeTetu(ve).attachments(tokenId) > 0) {
+      IVeTetu(ve).detachToken(tokenId);
     }
-    if (ve.voted(tokenId) > 0) {
+    if (IVeTetu(ve).voted(tokenId) > 0) {
       IVeTetu(ve).abstain(tokenId);
     }
   }
 
-  function notifyRewardAmount(uint amount) external {
-    IERC20(ve.tokens(0)).transferFrom(msg.sender, address(this), amount);
+  function notifyRewardAmount(uint amount) external override {
+    IERC20(IVeTetu(ve).tokens(0)).transferFrom(msg.sender, address(this), amount);
   }
 
 }

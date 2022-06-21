@@ -98,8 +98,10 @@ contract ControllerV2 is ControllableV3, IController {
 
   event AddressChangeAnnounced(uint _type, address value);
   event AddressChanged(uint _type, address oldAddress, address newAddress);
+  event AddressAnnounceRemove(uint _type);
   event ProxyUpgradeAnnounced(address proxy, address implementation);
   event ProxyUpgraded(address proxy, address implementation);
+  event ProxyAnnounceRemoved(address proxy);
   event RegisterVault(address vault);
   event VaultRemoved(address vault);
 
@@ -246,6 +248,16 @@ contract ControllerV2 is ControllableV3, IController {
     emit AddressChanged(uint(_type), oldAddress, newAddress);
   }
 
+  /// @dev Remove announced address change.
+  function removeAddressAnnounce(AddressType _type) external {
+    _onlyOperators();
+
+    _addressAnnounces.remove(uint(_type));
+    _addressTimeLocks.remove(uint(_type));
+
+    emit AddressAnnounceRemove(uint(_type));
+  }
+
   // *************************************************************
   //          UPGRADE PROXIES WITH TIME-LOCK PROTECTION
   // *************************************************************
@@ -287,6 +299,15 @@ contract ControllerV2 is ControllableV3, IController {
 
       emit ProxyUpgraded(proxy, implementation);
     }
+  }
+
+  function removeProxyAnnounce(address proxy) external {
+    _onlyOperators();
+
+    _proxyTimeLocks.remove(proxy);
+    delete proxyAnnounces[proxy];
+
+    emit ProxyAnnounceRemoved(proxy);
   }
 
   // *************************************************************

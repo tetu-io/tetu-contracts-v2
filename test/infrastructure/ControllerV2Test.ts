@@ -4,12 +4,7 @@ import chai from "chai";
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {Misc} from "../../scripts/utils/Misc";
-import {
-  ControllerV2,
-  IProxyControlled,
-  IProxyControlled__factory,
-  ProxyControlled__factory
-} from "../../typechain";
+import {ControllerV2, ProxyControlled__factory} from "../../typechain";
 
 
 const {expect} = chai;
@@ -141,6 +136,13 @@ describe("controller v2 tests", function () {
     expect(await controller.platformVoter()).eq(signer.address);
   });
 
+
+  it("remove address announce test", async function () {
+    await controller.announceAddressChange(1, signer2.address);
+    await controller.removeAddressAnnounce(1);
+    expect((await controller.addressAnnouncesList()).length).eq(0)
+  });
+
   it("change address already announced revert", async function () {
     await controller.announceAddressChange(1, signer2.address);
     await expect(controller.announceAddressChange(1, signer2.address)).revertedWith('ANNOUNCED');
@@ -172,6 +174,10 @@ describe("controller v2 tests", function () {
     await expect(controller.connect(signer2).changeAddress(1)).revertedWith('DENIED');
   });
 
+  it("remove adr announce not gov revert", async function () {
+    await expect(controller.connect(signer2).removeAddressAnnounce(1)).revertedWith('DENIED');
+  });
+
   // ********** PROXY UPDATE *****
 
   it("proxy upgrade test", async function () {
@@ -191,12 +197,19 @@ describe("controller v2 tests", function () {
     await expect(controller.announceProxyUpgrade([controller.address], [signer2.address])).revertedWith('ANNOUNCED');
   });
 
+  it("remove proxy announce test", async function () {
+    await controller.announceProxyUpgrade([controller.address], [signer2.address]);
+    await controller.removeProxyAnnounce(controller.address);
+    expect((await controller.proxyAnnouncesList()).length).eq(0)
+    expect(await controller.proxyAnnounces(controller.address)).eq(Misc.ZERO_ADDRESS)
+  });
+
   it("proxy upgrade not announced revert", async function () {
     await expect(controller.upgradeProxy([controller.address])).revertedWith('EnumerableMap: nonexistent key');
   });
 
   it("proxy upgrade zero adr revert", async function () {
-    await expect(controller.announceProxyUpgrade([controller.address],[Misc.ZERO_ADDRESS])).revertedWith('ZERO_IMPL');
+    await expect(controller.announceProxyUpgrade([controller.address], [Misc.ZERO_ADDRESS])).revertedWith('ZERO_IMPL');
   });
 
   it("proxy upgrade early revert", async function () {
@@ -210,6 +223,10 @@ describe("controller v2 tests", function () {
 
   it("change adr not gov revert", async function () {
     await expect(controller.connect(signer2).upgradeProxy([])).revertedWith('DENIED');
+  });
+
+  it("remove proxy announce not gov revert", async function () {
+    await expect(controller.connect(signer2).removeProxyAnnounce(signer.address)).revertedWith('DENIED');
   });
 
   // ********** register actions *****
