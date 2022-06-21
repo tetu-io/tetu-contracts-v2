@@ -113,7 +113,7 @@ contract MultiGauge is StakelessMultiPoolBase, ControllableV3, IGauge {
   }
 
   function _getReward(address stakingToken, address account, address[] memory tokens) internal {
-    voter().distribute(stakingToken, address(this));
+    voter().distribute(stakingToken);
     _getReward(stakingToken, account, tokens, account);
   }
 

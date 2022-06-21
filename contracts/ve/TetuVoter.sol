@@ -16,8 +16,7 @@ import "../proxy/ControllableV3.sol";
 /// @title Voter for veTETU.
 ///        Based on Solidly contract.
 /// @author belbix
-// todo add interface
-contract TetuVoter is ReentrancyGuard, ControllableV3 {
+contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
   using SafeERC20 for IERC20;
   using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -41,7 +40,7 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
   // *************************************************************
 
   /// @dev The ve token that governs these contracts
-  address public ve;
+  address public override ve;
   address public token;
   address public gauge;
   address public bribe;
@@ -238,7 +237,7 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
   // *************************************************************
 
   /// @dev A gauge should be able to attach a token for preventing transfers/withdraws.
-  function attachTokenToGauge(address stakingToken, uint tokenId, address account) external {
+  function attachTokenToGauge(address stakingToken, uint tokenId, address account) external override {
     require(gauge == msg.sender, "!gauge");
     IVeTetu(ve).attachToken(tokenId);
     // no need to check the result - the gauge should send only new values
@@ -247,7 +246,7 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
   }
 
   /// @dev Detach given token.
-  function detachTokenFromGauge(address stakingToken, uint tokenId, address account) external {
+  function detachTokenFromGauge(address stakingToken, uint tokenId, address account) external override {
     require(gauge == msg.sender, "!gauge");
     IVeTetu(ve).detachToken(tokenId);
     // no need to check the result - the gauge should send only exist values
@@ -258,7 +257,7 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
   /// @dev Detach given token from all gauges and votes
   ///      It could be pretty expensive call.
   ///      Need to have restrictions for max attached tokens and votes.
-  function detachTokenFromAll(uint tokenId, address account) external {
+  function detachTokenFromAll(uint tokenId, address account) external override {
     require(msg.sender == ve, "!ve");
 
     _reset(tokenId);
@@ -322,7 +321,7 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
   // *************************************************************
 
   /// @dev Add rewards to this contract. It will be distributed to vaults.
-  function notifyRewardAmount(uint amount) external {
+  function notifyRewardAmount(uint amount) external override {
     require(amount != 0, "zero amount");
     uint _totalWeight = totalWeight;
     // without votes rewards can not be added
@@ -338,7 +337,7 @@ contract TetuVoter is ReentrancyGuard, ControllableV3 {
   }
 
   /// @dev Notify rewards for given vault. Anyone can call
-  function distribute(address _vault) external {
+  function distribute(address _vault) external override {
     _distribute(_vault);
   }
 

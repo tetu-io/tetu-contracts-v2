@@ -10,11 +10,7 @@ interface IVoter {
 
   function detachTokenFromGauge(address stakingToken, uint _tokenId, address account) external;
 
-  function emitDeposit(uint _tokenId, address account, uint amount) external;
-
-  function emitWithdraw(uint _tokenId, address account, uint amount) external;
-
-  function distribute(address stakingToken, address _gauge) external;
+  function distribute(address stakingToken) external;
 
   function notifyRewardAmount(uint amount) external;
 

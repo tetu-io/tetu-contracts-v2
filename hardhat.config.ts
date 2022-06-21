@@ -50,6 +50,9 @@ const argv = require('yargs/yargs')()
     networkScanKeyFtm: {
       type: "string",
     },
+    networkScanKeyArbitrum: {
+      type: "string",
+    },
     privateKey: {
       type: "string",
       default: "85bb5fa78d5c4ed1fde856e9d0d1fe19973d7a79ce9ed6c0358ee06a4550504e" // random account
@@ -191,6 +194,6 @@ export default {
     path: './artifacts/abi',
     runOnCompile: false,
     spacing: 2,
-    pretty: true,
+    pretty: false,
   }
 };
