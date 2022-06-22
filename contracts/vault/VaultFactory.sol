@@ -50,6 +50,10 @@ contract VaultFactory {
     address splitterProxy,
     address splitterLogic
   );
+  event ProxyImplChanged(address value);
+  event VaultImplChanged(address value);
+  event VaultInsuranceImplChanged(address value);
+  event SplitterImplChanged(address value);
 
   constructor(
     address _controller,
@@ -92,21 +96,25 @@ contract VaultFactory {
   /// @dev Set ProxyControlled contract address
   function setProxyImpl(address value) external onlyGov {
     proxyImpl = value;
+    emit ProxyImplChanged(value);
   }
 
   /// @dev Set TetuVaultV2 contract address
   function setVaultImpl(address value) external onlyGov {
     vaultImpl = value;
+    emit VaultImplChanged(value);
   }
 
   /// @dev Set VaultInsurance contract address
   function setVaultInsuranceImpl(address value) external onlyGov {
     vaultInsuranceImpl = value;
+    emit VaultInsuranceImplChanged(value);
   }
 
   /// @dev Set StrategySplitterV2 contract address
   function setSplitterImpl(address value) external onlyGov {
     splitterImpl = value;
+    emit SplitterImplChanged(value);
   }
 
   // *************************************************************
