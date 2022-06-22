@@ -3,9 +3,10 @@ import {DeployerUtils} from "../utils/DeployerUtils";
 import {appendFileSync} from "fs";
 import {Addresses} from "../addresses/addresses";
 import {VaultFactory__factory} from "../../typechain";
+import {RunHelper} from "../utils/RunHelper";
 
 
-const ASSET = '0x01D0b17AC7B72cD4b051840e27A2134F25C53265';
+const ASSET = '0x0C27719A3EdC8F3F1E530213c33548456f379892';
 const NAME = 'tetuUSDC';
 const BUFFER = 100;
 
@@ -15,13 +16,13 @@ async function main() {
 
   const factory = VaultFactory__factory.connect(core.vaultFactory, signer)
 
-  await factory.createVault(
+  await RunHelper.runAndWait(() => factory.createVault(
     ASSET,
     NAME,
     NAME,
     core.gauge,
     BUFFER
-  );
+  ));
   const l = (await factory.deployedVaultsLength()).toNumber();
   console.log(l, 'VAULT: ', await factory.deployedVaults(l - 1))
 }

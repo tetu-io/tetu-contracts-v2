@@ -38,14 +38,13 @@ describe("Vault factory tests", function () {
 
     controller = await DeployerUtils.deployMockController(signer);
     usdc = await DeployerUtils.deployMockToken(signer, 'USDC', 6);
-    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled');
     const vaultLogic = await DeployerUtils.deployContract(signer, 'TetuVaultV2');
     const insurance = await DeployerUtils.deployContract(signer, 'VaultInsurance');
     const splitter = await DeployerUtils.deployContract(signer, 'MockSplitter');
 
 
     vaultFactory = await DeployerUtils.deployContract(signer, 'VaultFactory', controller.address,
-      proxy.address, vaultLogic.address, insurance.address, splitter.address) as VaultFactory;
+      vaultLogic.address, insurance.address, splitter.address) as VaultFactory;
 
     mockGauge = await DeployerUtils.deployContract(signer, 'MockGauge', controller.address) as MockGauge;
   });
@@ -71,7 +70,7 @@ describe("Vault factory tests", function () {
       mockGauge.address,
       10
     );
-    expect((await tx.wait()).gasUsed).below(1020288);
+    expect((await tx.wait()).gasUsed).below(3526899);
     expect(await vaultFactory.deployedVaultsLength()).eq(1);
 
     const vaultAdr = await vaultFactory.deployedVaults(0);
@@ -97,15 +96,6 @@ describe("Vault factory tests", function () {
       mockGauge.address,
       10
     )).revertedWith('!OPERATOR');
-  });
-
-  it("set proxy test", async () => {
-    await vaultFactory.setProxyImpl(Misc.ZERO_ADDRESS);
-    expect(await vaultFactory.proxyImpl()).eq(Misc.ZERO_ADDRESS);
-  });
-
-  it("set proxy revert", async () => {
-    await expect(vaultFactory.connect(signer2).setProxyImpl(Misc.ZERO_ADDRESS)).revertedWith('!GOV');
   });
 
   it("set vault test", async () => {
