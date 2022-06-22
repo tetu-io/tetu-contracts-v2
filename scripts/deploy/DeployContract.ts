@@ -5,7 +5,7 @@ import {appendFileSync} from "fs";
 
 async function main() {
   const signer = (await ethers.getSigners())[0];
-  await DeployerUtils.deployContract(signer, 'ControllerV2');
+  await DeployerUtils.deployContract(signer, 'TetuVaultV2');
 }
 
 main()

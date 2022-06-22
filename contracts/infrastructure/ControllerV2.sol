@@ -104,8 +104,8 @@ contract ControllerV2 is ControllableV3, IController {
   event ProxyAnnounceRemoved(address proxy);
   event RegisterVault(address vault);
   event VaultRemoved(address vault);
-  event OperatorAdded(address vault);
-  event OperatorRemoved(address vault);
+  event OperatorAdded(address operator);
+  event OperatorRemoved(address operator);
 
   // *************************************************************
   //                        INIT

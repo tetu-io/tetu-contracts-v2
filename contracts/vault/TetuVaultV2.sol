@@ -22,7 +22,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   /// @dev Version of this contract. Adjust manually on each code modification.
   string public constant VAULT_VERSION = "2.0.0";
   /// @dev Denominator for buffer calculation. 100% of the buffer amount.
-  uint private constant BUFFER_DENOMINATOR = 100_000;
+  uint constant public BUFFER_DENOMINATOR = 100_000;
   /// @dev Denominator for fee calculation.
   uint constant public FEE_DENOMINATOR = 100_000;
   /// @dev Max 1% fee.
@@ -44,13 +44,13 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   uint public buffer;
 
   /// @dev Maximum amount for withdraw. Max UINT256 by default.
-  uint internal _maxWithdrawAssets;
+  uint public maxWithdrawAssets;
   /// @dev Maximum amount for redeem. Max UINT256 by default.
-  uint internal _maxRedeemShares;
+  uint public maxRedeemShares;
   /// @dev Maximum amount for deposit. Max UINT256 by default.
-  uint internal _maxDepositAssets;
+  uint public maxDepositAssets;
   /// @dev Maximum amount for mint. Max UINT256 by default.
-  uint internal _maxMintShares;
+  uint public maxMintShares;
   /// @dev Fee for deposit/mint actions. Zero by default.
   uint public depositFee;
   /// @dev Fee for withdraw/redeem actions. Zero by default.
@@ -105,10 +105,10 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
     buffer = _buffer;
 
     // set defaults
-    _maxWithdrawAssets = type(uint).max;
-    _maxRedeemShares = type(uint).max;
-    _maxDepositAssets = type(uint).max - 1;
-    _maxMintShares = type(uint).max - 1;
+    maxWithdrawAssets = type(uint).max;
+    maxRedeemShares = type(uint).max;
+    maxDepositAssets = type(uint).max - 1;
+    maxMintShares = type(uint).max - 1;
     doHardWorkOnInvest = true;
 
     emit Init(
@@ -146,8 +146,8 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   function setMaxDeposit(uint maxAssets, uint maxShares) external {
     require(isGovernance(msg.sender), "DENIED");
 
-    _maxDepositAssets = maxAssets;
-    _maxMintShares = maxShares;
+    maxDepositAssets = maxAssets;
+    maxMintShares = maxShares;
     emit MaxDepositChanged(maxAssets, maxShares);
   }
 
@@ -156,8 +156,8 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   function setMaxWithdraw(uint maxAssets, uint maxShares) external {
     require(isGovernance(msg.sender), "DENIED");
 
-    _maxWithdrawAssets = maxAssets;
-    _maxRedeemShares = maxShares;
+    maxWithdrawAssets = maxAssets;
+    maxRedeemShares = maxShares;
     emit MaxWithdrawChanged(maxAssets, maxShares);
   }
 
@@ -308,19 +308,19 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   }
 
   function maxDeposit(address) public view override returns (uint) {
-    return _maxDepositAssets;
+    return maxDepositAssets;
   }
 
   function maxMint(address) public view override returns (uint) {
-    return _maxMintShares;
+    return maxMintShares;
   }
 
   function maxWithdraw(address owner) public view override returns (uint) {
-    return Math.min(_maxWithdrawAssets, convertToAssets(_balances[owner]));
+    return Math.min(maxWithdrawAssets, convertToAssets(_balances[owner]));
   }
 
   function maxRedeem(address owner) public view override returns (uint) {
-    return Math.min(_maxRedeemShares, _balances[owner]);
+    return Math.min(maxRedeemShares, _balances[owner]);
   }
 
   /// @dev Internal hook for getting necessary assets from splitter.
