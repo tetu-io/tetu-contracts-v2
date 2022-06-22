@@ -104,6 +104,8 @@ contract ControllerV2 is ControllableV3, IController {
   event ProxyAnnounceRemoved(address proxy);
   event RegisterVault(address vault);
   event VaultRemoved(address vault);
+  event OperatorAdded(address vault);
+  event OperatorRemoved(address vault);
 
   // *************************************************************
   //                        INIT
@@ -336,6 +338,7 @@ contract ControllerV2 is ControllableV3, IController {
     _onlyGovernance();
 
     require(_operators.add(value), "EXIST");
+    emit OperatorAdded(value);
   }
 
   /// @dev Remove operator.
@@ -343,6 +346,7 @@ contract ControllerV2 is ControllableV3, IController {
     _onlyGovernance();
 
     require(_operators.remove(value), "NOT_EXIST");
+    emit OperatorRemoved(value);
   }
 
 }

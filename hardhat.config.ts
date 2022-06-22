@@ -41,6 +41,10 @@ const argv = require('yargs/yargs')()
       type: "string",
       default: ''
     },
+    fujiRpcUrl: {
+      type: "string",
+      default: 'https://api.avax-test.network/ext/bc/C/rpc'
+    },
     networkScanKey: {
       type: "string",
     },
@@ -51,6 +55,9 @@ const argv = require('yargs/yargs')()
       type: "string",
     },
     networkScanKeyArbitrum: {
+      type: "string",
+    },
+    networkScanKeyAvalanche: {
       type: "string",
     },
     privateKey: {
@@ -138,6 +145,12 @@ export default {
       // gas: 50_000_000_000,
       accounts: [argv.privateKey],
     },
+    fuji: {
+      url: argv.fujiRpcUrl || '',
+      chainId: 43113,
+      // gas: 50_000_000_000,
+      accounts: [argv.privateKey],
+    },
   },
   etherscan: {
     //  https://hardhat.org/plugins/nomiclabs-hardhat-etherscan.html#multiple-api-keys-and-alternative-block-explorers
@@ -146,7 +159,8 @@ export default {
       polygon: argv.networkScanKeyMatic || argv.networkScanKey,
       opera: argv.networkScanKeyFtm || argv.networkScanKey,
       polygonMumbai: argv.networkScanKeyMatic || argv.networkScanKey,
-      arbitrumTestnet: argv.networkScanKeyArbitrum || argv.networkScanKey
+      arbitrumTestnet: argv.networkScanKeyArbitrum || argv.networkScanKey,
+      avalancheFujiTestnet: argv.networkScanKeyAvalanche || argv.networkScanKey
     },
   },
   solidity: {

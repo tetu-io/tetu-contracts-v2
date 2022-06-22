@@ -1,5 +1,5 @@
 import {CoreAddresses} from "../models/CoreAddresses";
-import {ArbtestCoreAddresses} from "./arbtest";
+import {FujiCoreAddresses} from "./fuji";
 
 // tslint:disable-next-line:no-var-requires
 const hre = require("hardhat");
@@ -7,7 +7,7 @@ const hre = require("hardhat");
 export class Addresses {
 
   public static CORE = new Map<number, CoreAddresses>([
-    [421611, ArbtestCoreAddresses.ADDRESSES],
+    [43113, FujiCoreAddresses.ADDRESSES],
   ]);
 
   public static getCore(): CoreAddresses {

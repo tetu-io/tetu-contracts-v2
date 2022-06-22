@@ -6,6 +6,8 @@ import {VaultFactory__factory} from "../../typechain";
 
 
 const ASSET = '0x01D0b17AC7B72cD4b051840e27A2134F25C53265';
+const NAME = 'tetuUSDC';
+const BUFFER = 100;
 
 async function main() {
   const signer = (await ethers.getSigners())[0];
@@ -15,10 +17,10 @@ async function main() {
 
   await factory.createVault(
     ASSET,
-    'tetuUSDC',
-    'tetuUSDC',
+    NAME,
+    NAME,
     core.gauge,
-    100
+    BUFFER
   );
   const l = (await factory.deployedVaultsLength()).toNumber();
   console.log(l, 'VAULT: ', await factory.deployedVaults(l - 1))
