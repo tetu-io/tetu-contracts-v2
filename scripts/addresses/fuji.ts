@@ -12,7 +12,7 @@ export class FujiCoreAddresses {
   "0x08d7607b2FD46ae255040014a39CDC2094e55901", // tetuVoter
   "0x2d91C960b03F2C39604aE1b644ba508a1366057c", // platformVoter
   "0xeE7FFE79689B3d826C7389B95780F42849Fb7019", // forwarder
-  "0xA86F858e6687Dd6331bD8091534D832A08a58000", // vaultFactory
+  "0xc8Be20e84E608c9c17422a4928D77Cb7c677d260", // vaultFactory
   );
 
 }

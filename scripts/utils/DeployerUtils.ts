@@ -329,14 +329,12 @@ export class DeployerUtils {
   public static async deployVaultFactory(
     signer: SignerWithAddress,
     controller: string,
-    proxyImpl: string,
     vaultImpl: string,
     vaultInsuranceImpl: string,
     splitterImpl: string,
   ) {
     return await DeployerUtils.deployContract(signer, 'VaultFactory',
       controller,
-      proxyImpl,
       vaultImpl,
       vaultInsuranceImpl,
       splitterImpl
