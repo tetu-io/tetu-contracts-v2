@@ -7,7 +7,7 @@ import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {
   ControllerMinimal,
   MockGauge,
-  MockSplitter, MockStrategy, MockStrategySimple,
+  MockSplitter, MockStrategy, MockStrategy__factory, MockStrategySimple, MockStrategySimple__factory,
   MockToken,
   MockVault,
   MockVaultController,
@@ -68,7 +68,7 @@ describe("Splitter and base strategy tests", function () {
     await usdc.connect(signer1).approve(vault.address, Misc.MAX_UINT);
     await usdc.approve(vault.address, Misc.MAX_UINT);
 
-    strategy = await DeployerUtils.deployContract(signer, 'MockStrategy') as MockStrategy;
+    strategy = MockStrategy__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategy')), signer);
   });
 
   after(async function () {
@@ -116,7 +116,7 @@ describe("Splitter and base strategy tests", function () {
     await strategy.init(controller.address, splitter.address);
     await splitter.addStrategies([strategy.address], [100]);
 
-    const strategy2 = await DeployerUtils.deployContract(signer, 'MockStrategy') as MockStrategy;
+    const strategy2 = MockStrategy__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategy')), signer)
     await strategy2.init(controller.address, splitter.address);
 
     await splitter.scheduleStrategies([strategy2.address]);
@@ -126,19 +126,19 @@ describe("Splitter and base strategy tests", function () {
   });
 
   it("set strategy wrong asset revert", async () => {
-    const s = await DeployerUtils.deployContract(signer, 'MockStrategySimple') as MockStrategySimple;
+    const s = MockStrategySimple__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategySimple')), signer)
     await s.init(controller.address, splitter.address, tetu.address);
     await expect(splitter.addStrategies([s.address], [100])).revertedWith("SS: Wrong asset");
   });
 
   it("set strategy wrong splitter revert", async () => {
-    const s = await DeployerUtils.deployContract(signer, 'MockStrategySimple') as MockStrategySimple;
+    const s = MockStrategySimple__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategySimple')), signer)
     await s.init(controller.address, tetu.address, usdc.address);
     await expect(splitter.addStrategies([s.address], [100])).revertedWith("SS: Wrong splitter");
   });
 
   it("set strategy wrong controller revert", async () => {
-    const s = await DeployerUtils.deployContract(signer, 'MockStrategySimple') as MockStrategySimple;
+    const s = MockStrategySimple__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategySimple')), signer)
     const c = await DeployerUtils.deployMockController(signer);
     await s.init(c.address, splitter.address, usdc.address);
     await expect(splitter.addStrategies([s.address], [100])).revertedWith("SS: Wrong controller");
@@ -150,6 +150,12 @@ describe("Splitter and base strategy tests", function () {
     await expect(splitter.addStrategies([strategy.address], [100])).revertedWith("SS: Already exist");
   });
 
+  it("set strategy wrong proxy revert", async () => {
+    const s = await DeployerUtils.deployContract(signer, 'MockStrategy');
+    await s.init(controller.address, splitter.address);
+    await expect(splitter.addStrategies([s.address], [100])).revertedWith("");
+  });
+
   it("set strategy duplicate revert", async () => {
     await strategy.init(controller.address, splitter.address);
     await expect(splitter.addStrategies([strategy.address, strategy.address], [100, 100])).revertedWith("SS: Duplicate");
@@ -158,7 +164,7 @@ describe("Splitter and base strategy tests", function () {
   it("set strategy time lock revert", async () => {
     await strategy.init(controller.address, splitter.address);
     await splitter.addStrategies([strategy.address], [100])
-    const strategy2 = await DeployerUtils.deployContract(signer, 'MockStrategy') as MockStrategy;
+    const strategy2 = MockStrategy__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategy')), signer)
     await strategy2.init(controller.address, splitter.address);
     await expect(splitter.addStrategies([strategy2.address], [100])).revertedWith("SS: Time lock");
   });
@@ -169,7 +175,7 @@ describe("Splitter and base strategy tests", function () {
 
   it("remove strategy test", async () => {
     await strategy.init(controller.address, splitter.address);
-    const strategy2 = await DeployerUtils.deployContract(signer, 'MockStrategy') as MockStrategy;
+    const strategy2 = MockStrategy__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategy')), signer)
     await strategy2.init(controller.address, splitter.address);
     await splitter.addStrategies([strategy.address, strategy2.address], [100, 100]);
     expect((await splitter.allStrategies()).length).eq(2);
@@ -206,7 +212,7 @@ describe("Splitter and base strategy tests", function () {
 
   it("rebalance wrong percent revert", async () => {
     await strategy.init(controller.address, splitter.address);
-    const strategy2 = await DeployerUtils.deployContract(signer, 'MockStrategy') as MockStrategy;
+    const strategy2 = MockStrategy__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategy')), signer)
     await strategy2.init(controller.address, splitter.address);
     await splitter.addStrategies([strategy.address, strategy2.address], [100, 100]);
     await expect(splitter.rebalance(1000, 1)).revertedWith("SS: Percent");
@@ -214,7 +220,7 @@ describe("Splitter and base strategy tests", function () {
 
   it("rebalance no liq revert", async () => {
     await strategy.init(controller.address, splitter.address);
-    const strategy2 = await DeployerUtils.deployContract(signer, 'MockStrategy') as MockStrategy;
+    const strategy2 = MockStrategy__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategy')), signer)
     await strategy2.init(controller.address, splitter.address);
     await splitter.addStrategies([strategy.address, strategy2.address], [100, 100]);
     await expect(splitter.rebalance(1, 1)).revertedWith("SS: No strategies");
@@ -222,7 +228,7 @@ describe("Splitter and base strategy tests", function () {
 
   it("rebalance test", async () => {
     await strategy.init(controller.address, splitter.address);
-    const strategy2 = await DeployerUtils.deployContract(signer, 'MockStrategy') as MockStrategy;
+    const strategy2 = MockStrategy__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategy')), signer)
     await strategy2.init(controller.address, splitter.address);
     await splitter.addStrategies([strategy.address, strategy2.address], [50, 100]);
     await vault.deposit(100, signer.address);
@@ -301,9 +307,9 @@ describe("Splitter and base strategy tests", function () {
     before(async function () {
       snapshotBefore2 = await TimeUtils.snapshot();
       await strategy.init(controller.address, splitter.address);
-      strategy2 = await DeployerUtils.deployContract(signer, 'MockStrategy') as MockStrategy;
+      strategy2 = MockStrategy__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategy')), signer)
       await strategy2.init(controller.address, splitter.address);
-      strategy3 = await DeployerUtils.deployContract(signer, 'MockStrategy') as MockStrategy;
+      strategy3 = MockStrategy__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategy')), signer)
       await strategy3.init(controller.address, splitter.address);
       await splitter.addStrategies([strategy.address, strategy2.address, strategy3.address], [50, 100, 1]);
 

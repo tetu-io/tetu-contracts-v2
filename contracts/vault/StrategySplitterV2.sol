@@ -8,6 +8,7 @@ import "../openzeppelin/SafeERC20.sol";
 import "../interfaces/ITetuVaultV2.sol";
 import "../interfaces/IStrategyV2.sol";
 import "../interfaces/ISplitter.sol";
+import "../interfaces/IProxyControlled.sol";
 import "../proxy/ControllableV3.sol";
 
 /// @title Proxy solution for connection a vault with multiple strategies
@@ -194,6 +195,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
       require(IControllable(strategy).isController(controller()), "SS: Wrong controller");
       require(!_contains(existStrategies, strategy), "SS: Already exist");
       require(!_contains(addedStrategies, strategy), "SS: Duplicate");
+      require(IProxyControlled(strategy).implementation() != address(0), "SS: Wrong proxy");
       // allow add strategies without time lock only for the fist call (assume the splitter is new)
       if (_inited) {
         uint startTime = scheduledStrategies[strategy];
