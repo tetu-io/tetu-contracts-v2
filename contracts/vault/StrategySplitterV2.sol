@@ -66,7 +66,6 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
   event StrategyAdded(address strategy, uint apr);
   event StrategyRemoved(address strategy);
-  event StrategyRatioChanged(address strategy, uint ratio);
   event Rebalance(
     address topStrategy,
     address lowStrategy,
