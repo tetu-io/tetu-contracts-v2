@@ -1,12 +1,10 @@
 import {ethers} from "hardhat";
-import {DeployerUtils} from "../utils/DeployerUtils";
-import {appendFileSync} from "fs";
 import {Addresses} from "../addresses/addresses";
 import {VaultFactory__factory} from "../../typechain";
 import {RunHelper} from "../utils/RunHelper";
 
 
-const ASSET = '0x0C27719A3EdC8F3F1E530213c33548456f379892';
+const ASSET = '0x57D3e8CA53878d6Aa8B1c48Bd8F3e52a3bCeC005';
 const NAME = 'tetuUSDC';
 const BUFFER = 100;
 

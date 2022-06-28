@@ -20,7 +20,6 @@ async function main() {
   const platformVoter = await DeployerUtils.deployPlatformVoter(signer, controller.address, ve.address);
   const forwarder = await DeployerUtils.deployForwarder(signer, controller.address, tetu.address);
 
-  const proxyImpl = await DeployerUtils.deployContract(signer, 'ProxyControlled');
   const vaultImpl = await DeployerUtils.deployContract(signer, 'TetuVaultV2');
   const vaultInsuranceImpl = await DeployerUtils.deployContract(signer, 'VaultInsurance');
   const splitterImpl = await DeployerUtils.deployContract(signer, 'StrategySplitterV2');
@@ -28,7 +27,6 @@ async function main() {
   const vaultFactory = await DeployerUtils.deployVaultFactory(
     signer,
     controller.address,
-    proxyImpl.address,
     vaultImpl.address,
     vaultInsuranceImpl.address,
     splitterImpl.address,

@@ -5,6 +5,7 @@ pragma solidity 0.8.4;
 import "../openzeppelin/ReentrancyGuard.sol";
 import "../openzeppelin/Math.sol";
 import "../openzeppelin/SafeERC20.sol";
+import "../openzeppelin/EnumerableMap.sol";
 import "../interfaces/ITetuVaultV2.sol";
 import "../interfaces/IStrategyV2.sol";
 import "../interfaces/ISplitter.sol";
@@ -16,6 +17,7 @@ import "../proxy/ControllableV3.sol";
 /// @author belbix
 contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   using SafeERC20 for IERC20;
+  using EnumerableMap for EnumerableMap.AddressToUintMap;
 
   // *********************************************
   //                  CONSTANTS
@@ -54,7 +56,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   /// @dev Flag represents doHardWork call. Need for not call HW on deposit again in connected vault.
   bool public override isHardWorking;
   /// @dev Strategy => timestamp. Strategies scheduled for adding.
-  mapping(address => uint) scheduledStrategies;
+  EnumerableMap.AddressToUintMap internal _scheduledStrategies;
   /// @dev Changed to true after a strategy adding
   bool inited;
 
@@ -83,6 +85,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     uint avgApr
   );
   event StrategyScheduled(address strategy, uint startTime, uint timeLock);
+  event ScheduledStrategyRemove(address strategy);
   event ManualAprChanged(address sender, address strategy, uint newApr, uint oldApr);
   event Paused(address strategy, address sender);
   event ContinueInvesting(address strategy, uint apr, address sender);
@@ -162,16 +165,38 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     return strategiesAPRHistory[strategy].length;
   }
 
+  /// @dev Return all scheduled strategies with start lock time.
+  function scheduledStrategies() external view returns (address[] memory _strategies, uint[] memory locks) {
+    uint length = _scheduledStrategies.length();
+    _strategies = new address[](length);
+    locks = new uint[](length);
+    for (uint i; i < length; ++i) {
+      (_strategies[i], locks[i]) = _scheduledStrategies.at(i);
+    }
+  }
+
   // *********************************************
   //                GOV ACTIONS
   // *********************************************
 
+  /// @dev Schedule strategy for adding in the splitter.
+  ///      Not inited splitter(without strategies) not require scheduling.
   function scheduleStrategies(address[] memory _strategies) external {
     _onlyGov();
 
     for (uint i; i < _strategies.length; i++) {
-      scheduledStrategies[_strategies[i]] = block.timestamp;
+      require(_scheduledStrategies.set(_strategies[i], block.timestamp), "SS: Exist");
       emit StrategyScheduled(_strategies[i], block.timestamp, TIME_LOCK);
+    }
+  }
+
+  /// @dev Remove scheduled strategies.
+  function removeScheduledStrategies(address[] memory _strategies) external {
+    _onlyGov();
+
+    for (uint i; i < _strategies.length; i++) {
+      require(_scheduledStrategies.remove(_strategies[i]), "SS: Not exist");
+      emit ScheduledStrategyRemove(_strategies[i]);
     }
   }
 
@@ -198,9 +223,9 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
       require(IProxyControlled(strategy).implementation() != address(0), "SS: Wrong proxy");
       // allow add strategies without time lock only for the fist call (assume the splitter is new)
       if (_inited) {
-        uint startTime = scheduledStrategies[strategy];
-        require(startTime != 0 && startTime + TIME_LOCK < block.timestamp, "SS: Time lock");
-        scheduledStrategies[strategy] = 0;
+        (bool found, uint startTime) = _scheduledStrategies.tryGet(strategy);
+        require(found && startTime != 0 && startTime + TIME_LOCK < block.timestamp, "SS: Time lock");
+        _scheduledStrategies.remove(strategy);
       } else {
         // only initial action requires strict access
         _onlyGov();

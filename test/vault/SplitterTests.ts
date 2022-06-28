@@ -125,6 +125,33 @@ describe("Splitter and base strategy tests", function () {
     expect((await splitter.allStrategies()).length).eq(2);
   });
 
+  it("schedule strategy test", async () => {
+    await splitter.scheduleStrategies([signer.address]);
+    const data = await splitter.scheduledStrategies();
+    expect(data._strategies[0]).eq(signer.address);
+    expect(data.locks[0]).above(0);
+  });
+
+  it("schedule strategy twice revert", async () => {
+    await splitter.scheduleStrategies([signer.address]);
+    await expect(splitter.scheduleStrategies([signer.address])).revertedWith('SS: Exist');
+  });
+
+  it("schedule strategy remove test", async () => {
+    await splitter.scheduleStrategies([signer.address]);
+    let data = await splitter.scheduledStrategies();
+    expect(data._strategies[0]).eq(signer.address);
+    expect(data.locks[0]).above(0);
+    await splitter.removeScheduledStrategies([signer.address]);
+    data = await splitter.scheduledStrategies();
+    expect(data._strategies.length).eq(0);
+    expect(data.locks.length).eq(0);
+  });
+
+  it("schedule strategy remove not exist revert", async () => {
+    await expect(splitter.removeScheduledStrategies([signer.address])).revertedWith('SS: Not exist');
+  });
+
   it("set strategy wrong asset revert", async () => {
     const s = MockStrategySimple__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategySimple')), signer)
     await s.init(controller.address, splitter.address, tetu.address);
