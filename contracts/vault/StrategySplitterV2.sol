@@ -88,7 +88,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   event ManualAprChanged(address sender, address strategy, uint newApr, uint oldApr);
   event Paused(address strategy, address sender);
   event ContinueInvesting(address strategy, uint apr, address sender);
-  event Loss(uint amount);
+  event Loss(address strategy, uint amount);
   event Invested(address strategy, uint amount);
   event WithdrawFromStrategy(address strategy);
 
@@ -310,20 +310,29 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     } else {
       IStrategyV2(lowStrategy).withdrawToSplitter(lowStrategyBalance * percent / 100);
     }
+    uint balanceAfterWithdraw = totalAssets();
 
     address _asset = asset;
     IERC20(_asset).safeTransfer(topStrategy, IERC20(_asset).balanceOf(address(this)));
     IStrategyV2(topStrategy).investAll();
 
-    uint balanceAfter = totalAssets();
+    uint balanceAfterInvest = totalAssets();
     uint slippage;
-    // for some reason we can have profit during rebalance
-    if (balanceAfter < balance) {
-      uint loss = balance - balanceAfter;
+    // slippage for withdraw
+    if (balanceAfterWithdraw < balance) {
+      uint loss = balance - balanceAfterWithdraw;
       ITetuVaultV2(vault).coverLoss(loss);
-      emit Loss(loss);
+      emit Loss(lowStrategy, loss);
       slippage = loss * 100_000 / balance;
-      require(slippage <= slippageTolerance, "SS: Slippage");
+      require(slippage <= slippageTolerance, "SS: Slippage withdraw");
+    }
+    // slippage for invest
+    if (balanceAfterInvest < balanceAfterWithdraw) {
+      uint loss = balanceAfterWithdraw - balanceAfterInvest;
+      ITetuVaultV2(vault).coverLoss(loss);
+      emit Loss(topStrategy, loss);
+      slippage += loss * 100_000 / balanceAfterWithdraw;
+      require(slippage <= slippageTolerance, "SS: Slippage deposit");
     }
 
     emit Rebalance(
@@ -397,7 +406,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
       uint totalAssetsAfter = totalAssets();
       if (totalAssetsAfter < totalAssetsBefore) {
         ITetuVaultV2(msg.sender).coverLoss(totalAssetsBefore - totalAssetsAfter);
-        emit Loss(totalAssetsBefore - totalAssetsAfter);
+        emit Loss(strategy, totalAssetsBefore - totalAssetsAfter);
       }
       emit Invested(strategy, balance);
     }
@@ -409,20 +418,27 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
     address _asset = asset;
     uint balance = totalAssets();
+    uint balanceBefore = balance;
+    uint balanceAfter;
 
     uint length = strategies.length;
     for (uint i = 0; i < length; i++) {
       IStrategyV2(strategies[i]).withdrawAllToSplitter();
       emit WithdrawFromStrategy(strategies[i]);
+      // register possible loses
+      balanceAfter = totalAssets();
+      if (balanceAfter < balanceBefore) {
+        emit Loss(strategies[i], balanceBefore - balanceAfter);
+      }
+      balanceBefore = balanceAfter;
     }
 
-    uint balanceAfter = IERC20(_asset).balanceOf(address(this));
+    balanceAfter = IERC20(_asset).balanceOf(address(this));
 
     address _vault = vault;
     // if we withdrew not enough try to cover loss from vault insurance
     if (balanceAfter < balance) {
       ITetuVaultV2(_vault).coverLoss(balance - balanceAfter);
-      emit Loss(balance - balanceAfter);
     }
 
     if (balanceAfter > 0) {
@@ -441,14 +457,28 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
       uint length = strategies.length;
       for (uint i = length; i > 0; i--) {
         IStrategyV2 strategy = IStrategyV2(strategies[i - 1]);
+
+
         uint strategyBalance = strategy.totalAssets();
+        uint balanceBefore = strategyBalance + balance;
+
+        // withdraw from strategy
         if (strategyBalance <= amount) {
           strategy.withdrawAllToSplitter();
         } else {
           strategy.withdrawToSplitter(amount);
         }
         emit WithdrawFromStrategy(address(strategy));
+
+
         balance = IERC20(_asset).balanceOf(address(this));
+        uint balanceAfter = strategy.totalAssets() + balance;
+
+        // register loss
+        if(balanceAfter < balanceBefore) {
+          emit Loss(address(strategy), balanceBefore - balanceAfter);
+        }
+
         if (balance >= amount) {
           break;
         }
@@ -459,7 +489,6 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     // if we withdrew not enough try to cover loss from vault insurance
     if (amount > balance) {
       ITetuVaultV2(_vault).coverLoss(amount - balance);
-      emit Loss(amount - balance);
     }
 
     if (balance != 0) {

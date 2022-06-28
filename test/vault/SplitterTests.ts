@@ -361,10 +361,16 @@ describe("Splitter and base strategy tests", function () {
       await expect(splitter.setAPRs([strategy.address], [200])).revertedWith('SS: Paused');
     });
 
-    it("rebalance slippage revert", async () => {
+    it("rebalance slippage withdraw revert", async () => {
       await splitter.setAPRs([strategy.address], [200]);
       await strategy2.setSlippage(10);
-      await expect(splitter.rebalance(100, 9_999)).revertedWith('SS: Slippage');
+      await expect(splitter.rebalance(100, 9_999)).revertedWith('SS: Slippage withdraw');
+    });
+
+    it("rebalance slippage deposit revert", async () => {
+      await splitter.setAPRs([strategy.address], [200]);
+      await strategy.setSlippageDeposit(10);
+      await expect(splitter.rebalance(100, 9_999)).revertedWith('SS: Slippage deposit');
     });
 
     it("rebalance pause revert", async () => {
