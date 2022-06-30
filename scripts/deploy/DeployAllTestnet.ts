@@ -1,11 +1,10 @@
 import {ethers} from "hardhat";
 import {DeployerUtils} from "../utils/DeployerUtils";
-import {appendFileSync, writeFileSync} from "fs";
-import {VaultFactory} from "../../typechain";
+import {writeFileSync} from "fs";
+import {InvestFundV2__factory} from "../../typechain";
 import {RunHelper} from "../utils/RunHelper";
 
 const GOVERNANCE = '0xbbbbb8C4364eC2ce52c59D2Ed3E56F307E529a94';
-const INVEST_FUND = '0xbbbbb8C4364eC2ce52c59D2Ed3E56F307E529a94';
 
 async function main() {
   const signer = (await ethers.getSigners())[0];
@@ -19,6 +18,9 @@ async function main() {
   const tetuVoter = await DeployerUtils.deployTetuVoter(signer, controller.address, ve.address, tetu.address, gauge.address, bribe.address);
   const platformVoter = await DeployerUtils.deployPlatformVoter(signer, controller.address, ve.address);
   const forwarder = await DeployerUtils.deployForwarder(signer, controller.address, tetu.address);
+  const fundAdr = await DeployerUtils.deployProxy(signer, 'InvestFundV2');
+  const investFund = InvestFundV2__factory.connect(fundAdr, signer);
+  await investFund.init(controller.address);
 
   const vaultImpl = await DeployerUtils.deployContract(signer, 'TetuVaultV2');
   const vaultInsuranceImpl = await DeployerUtils.deployContract(signer, 'VaultInsurance');
@@ -36,7 +38,7 @@ async function main() {
   // await controller.announceAddressChange(3, .address); // VAULT_CONTROLLER
   // await controller.announceAddressChange(4, .address); // LIQUIDATOR
   await RunHelper.runAndWait(() => controller.announceAddressChange(5, forwarder.address)); // FORWARDER
-  await RunHelper.runAndWait(() => controller.announceAddressChange(6, INVEST_FUND)); // INVEST_FUND
+  await RunHelper.runAndWait(() => controller.announceAddressChange(6, fundAdr)); // INVEST_FUND
   await RunHelper.runAndWait(() => controller.announceAddressChange(7, veDist.address)); // VE_DIST
   await RunHelper.runAndWait(() => controller.announceAddressChange(8, platformVoter.address)); // PLATFORM_VOTER
 
