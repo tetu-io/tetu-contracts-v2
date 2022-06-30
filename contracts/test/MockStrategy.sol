@@ -4,6 +4,7 @@ pragma solidity 0.8.4;
 
 import "../strategy/StrategyBaseV2.sol";
 import "./MockPool.sol";
+import "./MockToken.sol";
 
 contract MockStrategy is StrategyBaseV2 {
 
@@ -38,6 +39,9 @@ contract MockStrategy is StrategyBaseV2 {
       IERC20(asset).transfer(controller(), _slippage);
     }
     IERC20(asset).transfer(address(pool), IERC20(asset).balanceOf(address(this)));
+    if (lastEarned != 0) {
+      MockToken(asset).mint(address(this), lastEarned);
+    }
     return (lastEarned, Math.max(lastLost, _slippage));
   }
 
