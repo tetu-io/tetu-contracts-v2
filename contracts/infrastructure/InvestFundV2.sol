@@ -4,11 +4,13 @@ pragma solidity 0.8.4;
 
 import "../proxy/ControllableV3.sol";
 import "../openzeppelin/SafeERC20.sol";
+import "../openzeppelin/EnumerableSet.sol";
 
 /// @title Upgradable contract with assets for invest in different places under control of Tetu platform.
 /// @author belbix
 contract InvestFundV2 is ControllableV3 {
   using SafeERC20 for IERC20;
+  using EnumerableSet for EnumerableSet.AddressSet;
 
   // *************************************************************
   //                        CONSTANTS
@@ -16,6 +18,14 @@ contract InvestFundV2 is ControllableV3 {
 
   /// @dev Version of this contract. Adjust manually on each code modification.
   string public constant INVEST_FUND_VERSION = "2.0.0";
+
+  // *************************************************************
+  //                        VARIABLES
+  //                Keep names and ordering!
+  //                 Add only in the bottom.
+  // *************************************************************
+
+  EnumerableSet.AddressSet internal _tokens;
 
   // *************************************************************
   //                        EVENTS
@@ -44,6 +54,14 @@ contract InvestFundV2 is ControllableV3 {
   }
 
   // *************************************************************
+  //                         VIEWS
+  // *************************************************************
+
+  function tokens() external view returns (address[] memory) {
+    return _tokens.values();
+  }
+
+  // *************************************************************
   //                     GOVERNANCE ACTIONS
   // *************************************************************
 
@@ -53,9 +71,12 @@ contract InvestFundV2 is ControllableV3 {
     emit FundWithdrawn(_token, amount);
   }
 
-  /// @dev Transfer any token to this contract with calling event for statistic purposes.
-  function deposit(address _token, uint256 amount) external {
-    IERC20(_token).safeTransferFrom(msg.sender, address(this), amount);
+  /// @dev Transfer any token to this contract. The token will be added in the token list.
+  function deposit(address _token, uint256 amount) external onlyGov {
+    _tokens.add(_token);
+    if (amount != 0) {
+      IERC20(_token).safeTransferFrom(msg.sender, address(this), amount);
+    }
     emit FundDeposit(_token, amount);
   }
 

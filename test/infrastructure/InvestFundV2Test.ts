@@ -61,6 +61,12 @@ describe("invest fund v2 tests", function () {
     await tetu.approve(fund.address, parseUnits('1'))
     await fund.deposit(tetu.address, parseUnits('1'))
     expect(await tetu.balanceOf(fund.address)).eq(parseUnits('1'))
+    expect((await fund.tokens())[0]).eq(tetu.address)
+  });
+
+  it("deposit zero test", async function () {
+    await fund.deposit(tetu.address, 0)
+    expect((await fund.tokens())[0]).eq(tetu.address)
   });
 
 });
