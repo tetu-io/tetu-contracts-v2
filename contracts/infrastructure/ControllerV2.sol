@@ -21,12 +21,11 @@ contract ControllerV2 is ControllableV3, IController {
     UNKNOWN, // 0
     GOVERNANCE, // 1
     TETU_VOTER, // 2
-    VAULT_CONTROLLER, // 3
+    PLATFORM_VOTER, // 3
     LIQUIDATOR, // 4
     FORWARDER, // 5
     INVEST_FUND, // 6
-    VE_DIST, // 7
-    PLATFORM_VOTER // 8
+    VE_DIST // 7
   }
 
   struct AddressAnnounce {
@@ -66,8 +65,6 @@ contract ControllerV2 is ControllableV3, IController {
 
   /// @dev Voter for distribute TETU to gauges.
   address public override voter;
-  /// @dev Contract for set vaults attributes.
-  address public override vaultController;
   /// @dev External solution for sell any tokens with minimal gas usage.
   address public override liquidator;
   /// @dev Accumulate performance fees and distribute them properly.
@@ -217,9 +214,6 @@ contract ControllerV2 is ControllableV3, IController {
     } else if (_type == AddressType.TETU_VOTER) {
       oldAddress = voter;
       voter = newAddress;
-    } else if (_type == AddressType.VAULT_CONTROLLER) {
-      oldAddress = vaultController;
-      vaultController = newAddress;
     } else if (_type == AddressType.LIQUIDATOR) {
       oldAddress = liquidator;
       liquidator = newAddress;

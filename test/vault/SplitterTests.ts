@@ -7,18 +7,13 @@ import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {
   ControllerMinimal,
   MockGauge,
-  MockSplitter, MockStrategy, MockStrategy__factory, MockStrategySimple, MockStrategySimple__factory,
+  MockStrategy,
+  MockStrategy__factory,
+  MockStrategySimple,
+  MockStrategySimple__factory,
   MockToken,
-  MockVault,
-  MockVaultController,
-  MockVaultSimple,
-  MockVaultSimple__factory,
-  ProxyControlled,
   StrategySplitterV2,
-  TetuVaultV2,
-  TetuVaultV2__factory,
-  VaultInsurance,
-  VaultInsurance__factory
+  TetuVaultV2
 } from "../../typechain";
 import {Misc} from "../../scripts/utils/Misc";
 import {parseUnits} from "ethers/lib/utils";

@@ -4,8 +4,8 @@ import {ControllerV2__factory, MultiGauge__factory, VaultFactory__factory} from 
 import {RunHelper} from "../utils/RunHelper";
 
 
-const ASSET = '0x9DAAF475d6773e08aA6bd9D3c10372c3a6eD426F';
-const NAME = 'tetuBTC';
+const ASSET = '0xcb7ecc5f81d90de6ddb1071daa48d5b4c4f7ed2f';
+const NAME = 'tetuWETH';
 const BUFFER = 100;
 
 async function main() {

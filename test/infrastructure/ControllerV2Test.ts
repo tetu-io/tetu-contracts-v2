@@ -67,17 +67,6 @@ describe("controller v2 tests", function () {
     expect(await controller.voter()).eq(signer.address);
   });
 
-  it("change vault controller test", async function () {
-    await controller.announceAddressChange(3, signer2.address);
-    await controller.changeAddress(3);
-    expect(await controller.vaultController()).eq(signer2.address);
-
-    await controller.announceAddressChange(3, signer.address);
-    await TimeUtils.advanceBlocksOnTs(LOCK);
-    await controller.changeAddress(3);
-    expect(await controller.vaultController()).eq(signer.address);
-  });
-
   it("change liquidator test", async function () {
     await controller.announceAddressChange(4, signer2.address);
     await controller.changeAddress(4);
@@ -125,7 +114,7 @@ describe("controller v2 tests", function () {
   });
 
   it("change platformVoter test", async function () {
-    const type = 8;
+    const type = 3;
     await controller.announceAddressChange(type, signer2.address);
     await controller.changeAddress(type);
     expect(await controller.platformVoter()).eq(signer2.address);

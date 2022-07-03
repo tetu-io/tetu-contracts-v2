@@ -5,12 +5,15 @@ import {ethers} from "hardhat";
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {
-  ControllerMinimal, MockGauge, MockSplitter,
+  ControllerMinimal,
+  MockGauge,
+  MockSplitter,
   MockToken,
-  MockVault, MockVaultController,
-  MockVaultSimple,
-  MockVaultSimple__factory,
-  ProxyControlled, TetuVaultV2, TetuVaultV2__factory, VaultInsurance, VaultInsurance__factory
+  ProxyControlled,
+  TetuVaultV2,
+  TetuVaultV2__factory,
+  VaultInsurance,
+  VaultInsurance__factory
 } from "../../typechain";
 import {Misc} from "../../scripts/utils/Misc";
 import {parseUnits} from "ethers/lib/utils";
@@ -488,15 +491,6 @@ describe("Tetu Vault V2 tests", function () {
       const s = await DeployerUtils.deployContract(signer, 'MockSplitter') as MockSplitter;
       await s.init(cc.address, usdc.address, v.address);
       await expect(v.setSplitter(s.address)).revertedWith("WRONG_CONTROLLER");
-    });
-
-    it("upgrade exist splitter", async () => {
-      const vc = await DeployerUtils.deployContract(signer, 'MockVaultController') as MockVaultController
-      await controller.setVaultController(vc.address);
-      const s = await DeployerUtils.deployContract(signer, 'MockSplitter') as MockSplitter;
-      await s.init(controller.address, usdc.address, vault.address);
-      await vc.setSplitter(vault.address, s.address);
-
     });
   });
 

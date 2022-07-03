@@ -71,7 +71,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
     address gauge,
     uint buffer
   );
-  event SplitterChanged(address oldValue, address newValue);
+  event SplitterSetup(address splitter);
   event BufferChanged(uint oldValue, uint newValue);
   event Invest(address splitter, uint amount);
   event MaxWithdrawChanged(uint maxAssets, uint maxShares);
@@ -178,23 +178,16 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
     doHardWorkOnInvest = value;
   }
 
-  /// @dev Change splitter address. If old value exist properly withdraw and remove allowance.
+  /// @dev Set splitter address. Can not change exist splitter.
   function setSplitter(address _splitter) external override {
-    address oldSplitter = address(splitter);
     IERC20 _asset = asset;
-    require(oldSplitter == address(0)
-      || IController(controller()).vaultController() == msg.sender, "DENIED");
+    require(address(splitter) == address(0), "DENIED");
     require(ISplitter(_splitter).asset() == address(_asset), "WRONG_UNDERLYING");
     require(ISplitter(_splitter).vault() == address(this), "WRONG_VAULT");
     require(IControllable(_splitter).isController(controller()), "WRONG_CONTROLLER");
-    if (oldSplitter != address(0)) {
-      _asset.safeApprove(oldSplitter, 0);
-      ISplitter(oldSplitter).withdrawAllToVault();
-    }
-    _asset.safeApprove(_splitter, 0);
-    _asset.safeApprove(_splitter, type(uint).max);
+    _asset.approve(_splitter, type(uint).max);
     splitter = ISplitter(_splitter);
-    emit SplitterChanged(oldSplitter, _splitter);
+    emit SplitterSetup(_splitter);
   }
 
   // *************************************************************

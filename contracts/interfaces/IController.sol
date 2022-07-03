@@ -9,8 +9,6 @@ interface IController {
 
   function voter() external view returns (address);
 
-  function vaultController() external view returns (address);
-
   function liquidator() external view returns (address);
 
   function forwarder() external view returns (address);
