@@ -40,7 +40,12 @@ contract MockStrategy is StrategyBaseV2 {
     }
     IERC20(asset).transfer(address(pool), IERC20(asset).balanceOf(address(this)));
     if (lastEarned != 0) {
-      MockToken(asset).mint(address(this), lastEarned);
+      uint toCompound = lastEarned * compoundRatio / COMPOUND_DENOMINATOR;
+      MockToken(asset).mint(address(this), toCompound);
+      address forwarder = IController(controller()).forwarder();
+      if (forwarder != address(0)) {
+        MockToken(asset).mint(forwarder, lastEarned - toCompound);
+      }
     }
     return (lastEarned, Math.max(lastLost, _slippage));
   }
