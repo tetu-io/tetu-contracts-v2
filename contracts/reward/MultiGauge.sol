@@ -37,6 +37,7 @@ contract MultiGauge is StakelessMultiPoolBase, ControllableV3, IGauge {
   //                        EVENTS
   // *************************************************************
 
+  event AddStakingToken(address token);
   event Deposit(address indexed stakingToken, address indexed account, uint amount);
   event Withdraw(address indexed stakingToken, address indexed account, uint amount, bool full, uint veId);
   event VeTokenLocked(address indexed stakingToken, address indexed account, uint tokenId);
@@ -62,12 +63,13 @@ contract MultiGauge is StakelessMultiPoolBase, ControllableV3, IGauge {
   }
 
   // *************************************************************
-  //                        OPERATOR ACTIONS
+  //                    OPERATOR ACTIONS
   // *************************************************************
 
   /// @dev Operator can whitelist token. Removing is forbidden.
   function addStakingToken(address token) external onlyOperator {
     stakingTokens[token] = true;
+    emit AddStakingToken(token);
   }
 
   // *************************************************************
