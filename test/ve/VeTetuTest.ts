@@ -76,6 +76,10 @@ describe("veTETU tests", function () {
     await TimeUtils.rollback(snapshot);
   });
 
+  it("token length test", async function () {
+    expect(await ve.tokensLength()).eq(1);
+  });
+
   it("safeTransfer should revert", async function () {
     await expect(ve["safeTransferFrom(address,address,uint256)"](owner.address, owner2.address, 1)).revertedWith('Forbidden')
   });

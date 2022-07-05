@@ -203,6 +203,11 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   //                        VIEWS
   // *************************************************************
 
+  /// @dev Return length of staking tokens.
+  function tokensLength() external view returns (uint) {
+    return tokens.length;
+  }
+
   /// @dev Current block timestamp
   function blockTimestamp() external view returns (uint) {
     return block.timestamp;
