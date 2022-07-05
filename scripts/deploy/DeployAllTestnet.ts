@@ -33,20 +33,19 @@ async function main() {
   );
 
   await RunHelper.runAndWait(() => controller.announceAddressChange(2, tetuVoter.address)); // TETU_VOTER
-  // await controller.announceAddressChange(3, .address); // VAULT_CONTROLLER
+  await RunHelper.runAndWait(() => controller.announceAddressChange(3, platformVoter.address)); // PLATFORM_VOTER
   // await controller.announceAddressChange(4, .address); // LIQUIDATOR
   await RunHelper.runAndWait(() => controller.announceAddressChange(5, forwarder.address)); // FORWARDER
   await RunHelper.runAndWait(() => controller.announceAddressChange(6, fundAdr)); // INVEST_FUND
   await RunHelper.runAndWait(() => controller.announceAddressChange(7, veDist.address)); // VE_DIST
-  await RunHelper.runAndWait(() => controller.announceAddressChange(8, platformVoter.address)); // PLATFORM_VOTER
+
 
   await RunHelper.runAndWait(() => controller.changeAddress(2)); // TETU_VOTER
-  // await controller.changeAddress(3); // VAULT_CONTROLLER
+  await RunHelper.runAndWait(() => controller.changeAddress(3)); // PLATFORM_VOTER
   // await controller.changeAddress(4); // LIQUIDATOR
   await RunHelper.runAndWait(() => controller.changeAddress(5)); // FORWARDER
   await RunHelper.runAndWait(() => controller.changeAddress(6)); // INVEST_FUND
   await RunHelper.runAndWait(() => controller.changeAddress(7)); // VE_DIST
-  await RunHelper.runAndWait(() => controller.changeAddress(8)); // PLATFORM_VOTER
 
   const result = `
   tetu: ${tetu.address}

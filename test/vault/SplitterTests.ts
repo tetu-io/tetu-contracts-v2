@@ -64,6 +64,11 @@ describe("Splitter and base strategy tests", function () {
     await usdc.approve(vault.address, Misc.MAX_UINT);
 
     strategy = MockStrategy__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategy')), signer);
+
+    const forwarder = await DeployerUtils.deployContract(signer, 'MockForwarder')
+    await controller.setForwarder(forwarder.address);
+
+
   });
 
   after(async function () {

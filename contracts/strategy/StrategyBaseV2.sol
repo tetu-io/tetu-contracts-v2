@@ -5,6 +5,7 @@ import "../openzeppelin/SafeERC20.sol";
 import "../openzeppelin/Math.sol";
 import "../interfaces/IStrategyV2.sol";
 import "../interfaces/ISplitter.sol";
+import "../interfaces/IForwarder.sol";
 import "../proxy/ControllableV3.sol";
 
 /// @title Abstract contract for base strategy functionality
@@ -48,6 +49,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   event WithdrawAllFromPool(uint amount);
   event Claimed(address token, uint amount);
   event CompoundRatioChanged(uint oldValue, uint newValue);
+  event SentToForwarder(address forwarder, address token, uint amount);
 
   // *************************************************************
   //                        INIT
@@ -170,6 +172,18 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
       IERC20(_asset).safeTransfer(splitter, amountAdjusted);
     }
     emit WithdrawToSplitter(amount, amountAdjusted, balance);
+  }
+
+  // *************************************************************
+  //                       HELPERS
+  // *************************************************************
+
+  /// @dev Must use this function for any transfers to Forwarder.
+  function _sendToForwarder(address token, uint amount) internal {
+    address forwarder = IController(controller()).forwarder();
+    IERC20(token).safeTransfer(forwarder, amount);
+    IForwarder(forwarder).distribute(token);
+    emit SentToForwarder(forwarder, token, amount);
   }
 
   // *************************************************************
