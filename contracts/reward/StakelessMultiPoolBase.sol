@@ -40,13 +40,13 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool, Initial
   /// @dev This token will be always allowed as reward
   address public defaultRewardToken;
 
-  /// @dev Supply adjusted on derived balance logic. Use for rewards boost.
+  /// @dev Staking token => Supply adjusted on derived balance logic. Use for rewards boost.
   mapping(address => uint) public override derivedSupply;
-  /// @dev Staking token virtual balance. Can be adjusted regarding rewards boost logic.
+  /// @dev Staking token => Account => Staking token virtual balance. Can be adjusted regarding rewards boost logic.
   mapping(address => mapping(address => uint)) public override derivedBalances;
-  /// @dev User virtual balance of staking token.
+  /// @dev Staking token => Account => User virtual balance of staking token.
   mapping(address => mapping(address => uint)) public override balanceOf;
-  /// @dev Total amount of attached staking tokens
+  /// @dev Staking token => Total amount of attached staking tokens
   mapping(address => uint) public override totalSupply;
 
   /// @dev Staking token => Reward token => Reward rate with precision 1e18
