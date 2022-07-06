@@ -78,16 +78,12 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
   //                        EVENTS
   // *************************************************************
 
-  event GaugeCreated(address indexed gauge, address creator, address indexed bribe, address indexed pool);
-  event Voted(address indexed voter, uint tokenId, int256 weight);
-  event Abstained(uint tokenId, int256 weight);
-  event Deposit(address indexed lp, address indexed gauge, uint tokenId, uint amount);
-  event Withdraw(address indexed lp, address indexed gauge, uint tokenId, uint amount);
+  event Voted(address indexed voter, uint tokenId, int256 weight, address vault);
+  event Abstained(uint tokenId, int256 weight, address vault);
   event NotifyReward(address indexed sender, uint amount);
-  event DistributeReward(address indexed sender, address indexed gauge, uint amount);
-  event Attach(address indexed owner, address indexed gauge, address indexed stakingToken, uint tokenId);
-  event Detach(address indexed owner, address indexed gauge, address indexed stakingToken, uint tokenId);
-  event Whitelisted(address indexed whitelister, address indexed token);
+  event DistributeReward(address indexed sender, address indexed vault, uint amount);
+  event Attach(address indexed owner, address indexed sender, address indexed stakingToken, uint tokenId);
+  event Detach(address indexed owner, address indexed sender, address indexed stakingToken, uint tokenId);
 
   // *************************************************************
   //                        INIT
@@ -200,7 +196,7 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
       }
       _usedWeight += _vaultWeight;
       _totalWeight += _vaultWeight;
-      emit Voted(msg.sender, _tokenId, _vaultWeight);
+      emit Voted(msg.sender, _tokenId, _vaultWeight, _vault);
     }
     if (_usedWeight > 0) IVeTetu(ve).voting(_tokenId);
     totalWeight += uint(_totalWeight);
@@ -225,7 +221,7 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
       } else {
         _totalWeight -= _votes;
       }
-      emit Abstained(_tokenId, _votes);
+      emit Abstained(_tokenId, _votes, _vault);
     }
     totalWeight -= uint(_totalWeight);
     usedWeights[_tokenId] = 0;
