@@ -49,13 +49,13 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool, Initial
   /// @dev Total amount of attached staking tokens
   mapping(address => uint) public override totalSupply;
 
-  /// @dev Reward rate with precision 1e18
+  /// @dev Staking token => Reward token => Reward rate with precision 1e18
   mapping(address => mapping(address => uint)) public rewardRate;
-  /// @dev Reward finish period in timestamp.
+  /// @dev Staking token => Reward token => Reward finish period in timestamp.
   mapping(address => mapping(address => uint)) public periodFinish;
-  /// @dev Last updated time for reward token for internal calculations.
+  /// @dev Staking token => Reward token => Last updated time for reward token for internal calculations.
   mapping(address => mapping(address => uint)) public lastUpdateTime;
-  /// @dev Part of SNX pool logic. Internal snapshot of reward per token value.
+  /// @dev Staking token => Reward token => Part of SNX pool logic. Internal snapshot of reward per token value.
   mapping(address => mapping(address => uint)) public rewardPerTokenStored;
 
   /// @dev Timestamp of the last claim action.
@@ -454,15 +454,15 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool, Initial
     (rewardPerTokenStored[stakingToken][rewardToken], lastUpdateTime[stakingToken][rewardToken])
     = _updateRewardPerToken(stakingToken, rewardToken, type(uint).max, true);
 
+    IERC20(rewardToken).safeTransferFrom(msg.sender, address(this), amount);
+
     if (block.timestamp >= periodFinish[stakingToken][rewardToken]) {
-      IERC20(rewardToken).safeTransferFrom(msg.sender, address(this), amount);
       rewardRate[stakingToken][rewardToken] = amount * _PRECISION / _DURATION;
     } else {
       uint _remaining = periodFinish[stakingToken][rewardToken] - block.timestamp;
       uint _left = _remaining * rewardRate[stakingToken][rewardToken];
       // rewards should not extend period infinity, only higher amount allowed
       require(amount > _left / _PRECISION, "Amount should be higher than remaining rewards");
-      IERC20(rewardToken).safeTransferFrom(msg.sender, address(this), amount);
       rewardRate[stakingToken][rewardToken] = (amount * _PRECISION + _left) / _DURATION;
     }
 
