@@ -78,7 +78,7 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
   //                        EVENTS
   // *************************************************************
 
-  event Voted(address indexed voter, uint tokenId, int256 weight, address vault);
+  event Voted(address indexed voter, uint tokenId, int256 weight, address vault, int256 userWeight, int256 vePower);
   event Abstained(uint tokenId, int256 weight, address vault);
   event NotifyReward(address indexed sender, uint amount);
   event DistributeReward(address indexed sender, address indexed vault, uint amount);
@@ -109,20 +109,29 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
   //                        VIEWS
   // *************************************************************
 
+  /// @dev Returns true for valid vault registered in controller.
   function isVault(address _vault) public view returns (bool) {
     return IController(controller()).isValidVault(_vault);
   }
 
+  /// @dev Returns register in controller vault by id .
   function validVaults(uint id) public view returns (address) {
     return IController(controller()).vaults(id);
   }
 
+  /// @dev Valid vaults registered in controller length.
   function validVaultsLength() public view returns (uint) {
     return IController(controller()).vaultsListLength();
   }
 
+  /// @dev Returns all attached addresses to given veId. Attachments suppose to be gauges.
   function attachedStakingTokens(uint veId) external view returns (address[] memory) {
     return _attachedStakingTokens[veId].values();
+  }
+
+  /// @dev Return voted vaults length for given veId.
+  function votedVaultsLength(uint veId) external view returns (uint) {
+    return vaultsVotes[veId].length;
   }
 
   // *************************************************************
@@ -196,7 +205,7 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
       }
       _usedWeight += _vaultWeight;
       _totalWeight += _vaultWeight;
-      emit Voted(msg.sender, _tokenId, _vaultWeight, _vault);
+      emit Voted(msg.sender, _tokenId, _vaultWeight, _vault, _weights[i], _weight);
     }
     if (_usedWeight > 0) IVeTetu(ve).voting(_tokenId);
     totalWeight += uint(_totalWeight);
