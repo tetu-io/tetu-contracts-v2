@@ -68,7 +68,7 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
     uint weightedValue,
     uint timestamp
   );
-  event VoteRemoved(uint _type, uint newValue, address target);
+  event VoteRemoved(uint tokenId, uint _type, uint newValue, address target);
 
   // *************************************************************
   //                        INIT
@@ -246,7 +246,7 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
 
       if (found) {
         require(v.timestamp + VOTE_DELAY < block.timestamp, "delay");
-        _removeVote(v._type, v.target, v.weight, v.weightedValue);
+        _removeVote(tokenId, v._type, v.target, v.weight, v.weightedValue);
         _removeFromArray(tokenId, i - 1);
 
         IVeTetu(ve).abstain(tokenId);
@@ -270,7 +270,7 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
     _votes.pop();
   }
 
-  function _removeVote(AttributeType _type, address target, uint weight, uint veValue) internal {
+  function _removeVote(uint tokenId, AttributeType _type, address target, uint weight, uint veValue) internal {
     uint totalWeights = attributeWeights[_type][target] - weight;
     uint totalValues = attributeValues[_type][target] - veValue;
     attributeWeights[_type][target] = totalWeights;
@@ -282,7 +282,7 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
       newValue = totalValues / totalWeights;
     }
     _setAttribute(_type, newValue, target);
-    emit VoteRemoved(uint(_type), newValue, target);
+    emit VoteRemoved(tokenId, uint(_type), newValue, target);
   }
 
   function detachTokenFromAll(uint tokenId, address) external override {
@@ -292,7 +292,7 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
     uint length = _votes.length;
     for (uint i = length; i > 0; --i) {
       Vote memory v = _votes[i - 1];
-      _removeVote(v._type, v.target, v.weight, v.weightedValue);
+      _removeVote(tokenId, v._type, v.target, v.weight, v.weightedValue);
       _votes.pop();
     }
   }
