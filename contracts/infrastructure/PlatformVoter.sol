@@ -68,6 +68,7 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
     uint weightedValue,
     uint timestamp
   );
+  event VoteRemoved(uint _type, uint newValue, address target);
 
   // *************************************************************
   //                        INIT
@@ -281,6 +282,7 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
       newValue = totalValues / totalWeights;
     }
     _setAttribute(_type, newValue, target);
+    emit VoteRemoved(uint(_type), newValue, target);
   }
 
   function detachTokenFromAll(uint tokenId, address) external override {

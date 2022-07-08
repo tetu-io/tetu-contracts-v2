@@ -313,5 +313,9 @@ describe("Ve distributor tests", function () {
     );
   });
 
+  it("claim with other unclaimed rewards", async function () {
+//todo
+  });
+
 
 });
