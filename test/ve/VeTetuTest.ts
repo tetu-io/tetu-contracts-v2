@@ -381,7 +381,7 @@ describe("veTETU tests", function () {
   });
 
   it("tokenURI test", async function () {
-    await ve.tokenURI(1);
+    console.log(await ve.tokenURI(1));
   });
 
   it("balanceOfNFTAt test", async function () {

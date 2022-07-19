@@ -325,7 +325,7 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
   //                        REWARDS
   // *************************************************************
 
-  /// @dev Add rewards to this contract. It will be distributed to vaults.
+  /// @dev Add rewards to this contract. It will be distributed to gauges.
   function notifyRewardAmount(uint amount) external override {
     require(amount != 0, "zero amount");
     uint _totalWeight = totalWeight;
