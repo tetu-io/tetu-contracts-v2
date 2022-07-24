@@ -921,6 +921,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     }));
   }
 
+  /// @dev Merge two NFTs union their balances and keep the biggest lock time.
   function merge(uint _from, uint _to) external {
     require(attachments[_from] == 0 && voted[_from] == 0, "attached");
     require(_from != _to, "the same");
