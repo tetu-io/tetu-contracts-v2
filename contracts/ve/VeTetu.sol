@@ -563,7 +563,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     // Throws if `_approved` is the current owner
     require(_approved != owner, "self approve");
     // Check requirements
-    bool senderIsOwner = (_idToOwner[_tokenId] == msg.sender);
+    bool senderIsOwner = (owner == msg.sender);
     bool senderIsApprovedForAll = (ownerToOperators[owner])[msg.sender];
     require(senderIsOwner || senderIsApprovedForAll, "!owner");
     // Set the approval
@@ -1158,7 +1158,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     // Clear approval
     approve(address(0), _tokenId);
     // Remove token
-    _removeTokenFrom(msg.sender, _tokenId);
+    _removeTokenFrom(owner, _tokenId);
     emit Transfer(owner, address(0), _tokenId);
   }
 

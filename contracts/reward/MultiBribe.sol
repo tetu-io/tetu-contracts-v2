@@ -2,10 +2,8 @@
 
 pragma solidity 0.8.4;
 
-
 import "../interfaces/IVoter.sol";
 import "../interfaces/IERC721.sol";
-import "../interfaces/IVeTetu.sol";
 import "../interfaces/IBribe.sol";
 import "../proxy/ControllableV3.sol";
 import "./StakelessMultiPoolBase.sol";

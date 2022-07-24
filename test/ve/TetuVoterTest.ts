@@ -128,6 +128,10 @@ describe("Tetu voter tests", function () {
     expect(await voter.validVaults(0)).eq(vault.address)
   });
 
+  it("voted vault length test", async function () {
+    expect(await voter.votedVaultsLength(0)).eq(0)
+  });
+
   it("valid vaults length test", async function () {
     expect(await voter.validVaultsLength()).eq(2)
   });
