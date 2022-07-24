@@ -278,6 +278,23 @@ describe("veTETU tests", function () {
     await expect(ve.withdraw(tetu.address, 1)).revertedWith('attached');
   });
 
+  it("merge from revert", async function () {
+    await expect(ve.merge(1, 3)).revertedWith('!owner to')
+  });
+
+  it("merge to revert", async function () {
+    await expect(ve.merge(3, 1)).revertedWith('!owner from')
+  });
+
+  it("merge same revert", async function () {
+    await expect(ve.merge(1, 1)).revertedWith('the same')
+  });
+
+  it("merge same revert", async function () {
+    await voter.voting(1);
+    await expect(ve.merge(1, 2)).revertedWith('attached')
+  });
+
   it("withdraw zero revert", async function () {
     await TimeUtils.advanceBlocksOnTs(LOCK_PERIOD)
     await expect(ve.withdraw(underlying2.address, 1)).revertedWith("Zero locked");
@@ -523,6 +540,35 @@ describe("veTETU tests", function () {
     expect(await tetu.balanceOf(owner.address)).eq(balTETUOwner1);
     expect(await underlying2.balanceOf(owner2.address)).eq(balUNDERLYING2Owner2);
     expect(await tetu.balanceOf(owner2.address)).eq(balTETUOwner2);
+  });
+
+  it("merge test", async function () {
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 30);
+    await ve.addToken(underlying2.address, parseUnits('10'));
+    await underlying2.mint(owner.address, parseUnits('100', 6));
+    await underlying2.approve(ve.address, Misc.MAX_UINT);
+    await ve.increaseAmount(underlying2.address, 1, parseUnits('1', 6))
+
+    await ve.createLock(tetu.address, parseUnits('1'), LOCK_PERIOD);
+
+    const lock3 = await ve.lockedEnd(3);
+
+    expect(await ve.lockedDerivedAmount(1)).eq(parseUnits('1.1'));
+    expect(await ve.lockedDerivedAmount(3)).eq(parseUnits('1'));
+    expect(await ve.lockedAmounts(1, tetu.address)).eq(parseUnits('1'));
+    expect(await ve.lockedAmounts(1, underlying2.address)).eq(parseUnits('1', 6));
+    expect(await ve.lockedAmounts(3, tetu.address)).eq(parseUnits('1'));
+
+    await ve.merge(1, 3);
+
+    expect(await ve.lockedDerivedAmount(1)).eq(parseUnits('0'));
+    expect(await ve.lockedDerivedAmount(3)).eq(parseUnits('2.1'));
+    expect(await ve.lockedAmounts(1, tetu.address)).eq(0);
+    expect(await ve.lockedAmounts(1, underlying2.address)).eq(0);
+    expect(await ve.lockedAmounts(3, tetu.address)).eq(parseUnits('2'));
+    expect(await ve.lockedAmounts(3, underlying2.address)).eq(parseUnits('1', 6));
+    expect(await ve.lockedEnd(1)).eq(0);
+    expect(await ve.lockedEnd(3)).eq(lock3);
   });
 
 });

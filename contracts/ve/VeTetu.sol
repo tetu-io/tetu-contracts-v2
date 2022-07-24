@@ -147,6 +147,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   );
   event Withdraw(address indexed stakingToken, address indexed provider, uint tokenId, uint value, uint ts);
   event Supply(address indexed stakingToken, uint prevSupply, uint supply);
+  event Merged(address indexed stakingToken, address indexed provider, uint from, uint to);
   event PawnshopWhitelisted(address value);
 
   // *************************************************************
@@ -918,6 +919,52 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     lockedEnd : _lockedEnd,
     depositType : DepositType.INCREASE_UNLOCK_TIME
     }));
+  }
+
+  function merge(uint _from, uint _to) external {
+    require(attachments[_from] == 0 && voted[_from] == 0, "attached");
+    require(_from != _to, "the same");
+    require(_idToOwner[_from] == msg.sender, "!owner from");
+    require(_idToOwner[_to] == msg.sender, "!owner to");
+
+    uint lockedEndFrom = lockedEnd[_from];
+    uint lockedEndTo = lockedEnd[_to];
+    uint end = lockedEndFrom >= lockedEndTo ? lockedEndFrom : lockedEndTo;
+    uint oldDerivedAmount = lockedDerivedAmount[_from];
+
+    uint length = tokens.length;
+    for (uint i; i < length; i++) {
+      address stakingToken = tokens[i];
+      uint _lockedAmountFrom = lockedAmounts[_from][stakingToken];
+      lockedAmounts[_from][stakingToken] = 0;
+
+      _depositFor(DepositInfo({
+      stakingToken : stakingToken,
+      tokenId : _to,
+      value : _lockedAmountFrom,
+      unlockTime : end,
+      lockedAmount : lockedAmounts[_to][stakingToken],
+      lockedDerivedAmount : lockedDerivedAmount[_to],
+      lockedEnd : end,
+      depositType : DepositType.MERGE_TYPE
+      }));
+
+      emit Merged(stakingToken, msg.sender, _from, _to);
+    }
+
+    lockedDerivedAmount[_from] = 0;
+    lockedEnd[_from] = 0;
+
+    // update checkpoint
+    _checkpoint(CheckpointInfo(
+        _from,
+        oldDerivedAmount,
+        0,
+        lockedEndFrom,
+        lockedEndFrom
+      ));
+
+    _burn(_from);
   }
 
   /// @notice Withdraw all tokens for `_tokenId`
