@@ -59,6 +59,8 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   EnumerableMap.AddressToUintMap internal _scheduledStrategies;
   /// @dev Changed to true after a strategy adding
   bool inited;
+  /// @dev How much underlying can be invested to the strategy
+  mapping(address => uint) public strategyCapacity;
 
   // *********************************************
   //                  EVENTS
@@ -91,6 +93,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   event Loss(address strategy, uint amount);
   event Invested(address strategy, uint amount);
   event WithdrawFromStrategy(address strategy);
+  event SetStrategyCapacity(address strategy, uint capacity);
 
   // *********************************************
   //                 INIT
@@ -294,14 +297,16 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     require(length > 1, "SS: Length");
     require(percent <= 100, "SS: Percent");
 
-    address topStrategy = strategies[0];
-    require(!pausedStrategies[topStrategy], "SS: Paused");
+
     address lowStrategy;
 
     uint lowStrategyBalance;
     for (uint i = length; i > 1; i--) {
       lowStrategy = strategies[i - 1];
       lowStrategyBalance = IStrategyV2(lowStrategy).totalAssets();
+      if(lowStrategyBalance == 0) {
+        continue;
+      }
     }
     require(lowStrategyBalance != 0, "SS: No strategies");
 
@@ -312,9 +317,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     }
     uint balanceAfterWithdraw = totalAssets();
 
-    address _asset = asset;
-    IERC20(_asset).safeTransfer(topStrategy, IERC20(_asset).balanceOf(address(this)));
-    IStrategyV2(topStrategy).investAll();
+    address topStrategy = _investToTopStrategy();
 
     uint balanceAfterInvest = totalAssets();
     uint slippage;
@@ -385,6 +388,12 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     emit ContinueInvesting(strategy, apr, msg.sender);
   }
 
+  function setStrategyCapacity(address strategy, uint capacity) external {
+    _onlyOperators();
+    strategyCapacity[strategy] = capacity;
+    emit SetStrategyCapacity(strategy, capacity);
+  }
+
   // *********************************************
   //                VAULT ACTIONS
   // *********************************************
@@ -396,19 +405,13 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     if (strategies.length != 0) {
       uint totalAssetsBefore = totalAssets();
 
-      address _asset = asset;
-      uint balance = IERC20(_asset).balanceOf(address(this));
-      address strategy = strategies[0];
-      require(!pausedStrategies[strategy], "SS: Paused");
-      IERC20(_asset).safeTransfer(strategy, balance);
-      IStrategyV2(strategy).investAll();
+      address strategy = _investToTopStrategy();
 
       uint totalAssetsAfter = totalAssets();
       if (totalAssetsAfter < totalAssetsBefore) {
         ITetuVaultV2(msg.sender).coverLoss(totalAssetsBefore - totalAssetsAfter);
         emit Loss(strategy, totalAssetsBefore - totalAssetsAfter);
       }
-      emit Invested(strategy, balance);
     }
   }
 
@@ -475,7 +478,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
         uint balanceAfter = strategy.totalAssets() + balance;
 
         // register loss
-        if(balanceAfter < balanceBefore) {
+        if (balanceAfter < balanceBefore) {
           emit Loss(address(strategy), balanceBefore - balanceAfter);
         }
 
@@ -633,6 +636,35 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     for (uint i; i < HISTORY_DEEP; i++) {
       strategiesAPRHistory[strategy].push(apr);
     }
+  }
+
+  function _investToTopStrategy() internal returns (address){
+    address strategy;
+    address _asset = asset;
+    uint balance = IERC20(_asset).balanceOf(address(this));
+    uint length = strategies.length;
+    for (uint i; i < length; ++i) {
+      strategy = strategies[i];
+      if (pausedStrategies[strategy]) {
+        continue;
+      }
+      uint capacity = strategyCapacity[strategy];
+      // zero means no capacity
+      if (capacity == 0) {
+        capacity = type(uint).max;
+      }
+      uint strategyBalance = IStrategyV2(strategy).totalAssets();
+      uint toInvest;
+      if (capacity > strategyBalance) {
+        toInvest = Math.min(capacity - strategyBalance, balance);
+      }
+
+      IERC20(_asset).safeTransfer(strategy, toInvest);
+      IStrategyV2(strategy).investAll();
+      balance -= toInvest;
+      emit Invested(strategy, toInvest);
+    }
+    return strategy;
   }
 
 }

@@ -318,11 +318,12 @@ describe("Splitter and base strategy tests", function () {
     await expect(splitter.continueInvesting(strategy.address, 100)).revertedWith('SS: Not paused');
   });
 
-  it("invest to paused revert", async () => {
+  it("invest to paused test", async () => {
     await strategy.init(controller.address, splitter.address);
     await splitter.addStrategies([strategy.address], [50]);
     await splitter.pauseInvesting(strategy.address);
-    await expect(vault.deposit(100, signer.address)).revertedWith('SS: Paused');
+    await vault.deposit(100, signer.address);
+    expect(await usdc.balanceOf(splitter.address)).eq(100);
   });
 
   describe("with 3 strategies and assets by default", function () {
@@ -345,6 +346,40 @@ describe("Splitter and base strategy tests", function () {
 
     after(async function () {
       await TimeUtils.rollback(snapshotBefore2);
+    });
+
+    it("rebalance with capacity", async () => {
+      expect(await strategy.totalAssets()).eq(0);
+      expect(await strategy2.totalAssets()).eq(100);
+      expect(await strategy3.totalAssets()).eq(0);
+
+      await splitter.setAPRs([strategy3.address], [300]);
+      await splitter.setStrategyCapacity(strategy.address, 10)
+      await splitter.setStrategyCapacity(strategy2.address, 10)
+      await splitter.setStrategyCapacity(strategy3.address, 10)
+      await splitter.rebalance(100, 10_001)
+      expect(await strategy.totalAssets()).eq(10);
+      expect(await strategy2.totalAssets()).eq(10);
+      expect(await strategy3.totalAssets()).eq(10);
+      expect(await usdc.balanceOf(splitter.address)).eq(70);
+    });
+
+    it("deposit with capacity", async () => {
+      expect(await strategy.totalAssets()).eq(0);
+      expect(await strategy2.totalAssets()).eq(100);
+      expect(await strategy3.totalAssets()).eq(0);
+
+      await splitter.setAPRs([strategy3.address], [300]);
+      await splitter.setStrategyCapacity(strategy.address, 10)
+      await splitter.setStrategyCapacity(strategy2.address, 10)
+      await splitter.setStrategyCapacity(strategy3.address, 10)
+
+      await vault.deposit(100, signer.address);
+
+      expect(await strategy.totalAssets()).eq(10);
+      expect(await strategy2.totalAssets()).eq(100);
+      expect(await strategy3.totalAssets()).eq(10);
+      expect(await usdc.balanceOf(splitter.address)).eq(80);
     });
 
     it("maxCheapWithdraw test", async () => {
@@ -373,11 +408,13 @@ describe("Splitter and base strategy tests", function () {
       await expect(splitter.rebalance(100, 9_999)).revertedWith('SS: Slippage deposit');
     });
 
-    it("rebalance pause revert", async () => {
+    it("rebalance pause test", async () => {
+      const bal = await usdc.balanceOf(strategy2.address);
       await splitter.pauseInvesting(strategy.address);
       await splitter.pauseInvesting(strategy2.address);
       await splitter.pauseInvesting(strategy3.address);
-      await expect(splitter.rebalance(100, 0)).revertedWith('SS: Paused');
+      await splitter.rebalance(100, 0)
+      expect(await usdc.balanceOf(strategy2.address)).eq(bal);
     });
 
     it("rebalance slippage test", async () => {
