@@ -1,7 +1,7 @@
 import {ethers} from "hardhat";
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
-import {Base64Test, DepositHelper, MockToken, MockVault} from "../../typechain";
+import {Base64Test, DepositHelper, MockToken, MockVault, VeTetu} from "../../typechain";
 import {TimeUtils} from "../TimeUtils";
 import {parseUnits} from "ethers/lib/utils";
 import {expect} from "chai";
@@ -19,6 +19,7 @@ describe("Deposit helper Tests", function () {
   let token2: MockToken;
   let vault: MockVault;
   let helper: DepositHelper;
+  let ve: VeTetu;
 
   before(async function () {
     snapshotBefore = await TimeUtils.snapshot();
@@ -30,6 +31,8 @@ describe("Deposit helper Tests", function () {
     vault = await DeployerUtils.deployMockVault(signer, controller.address, token.address, 'V', strategy.address, 1);
     const ms = await DeployerUtils.deployContract(signer, 'MockMultiswap');
     helper = await DeployerUtils.deployContract(signer, 'DepositHelper', ms.address) as DepositHelper;
+
+    ve = await DeployerUtils.deployVeTetu(signer, token.address, controller.address);
 
     await token.connect(strategy).approve(vault.address, 99999999999);
   });
@@ -108,6 +111,20 @@ describe("Deposit helper Tests", function () {
       0
     )
     expect((await token2.balanceOf(signer.address)).sub(bal)).eq(990);
+  });
+
+  it("test create lock", async () => {
+    await token.approve(helper.address, 1000)
+    await helper.createLock(ve.address, token.address, 1000, 60 * 60 * 24 * 30);
+    expect((await ve.lockedAmounts(1, token.address))).eq(1000);
+  });
+
+  it("test increase amount", async () => {
+    await token.approve(helper.address, 1000)
+    await helper.createLock(ve.address, token.address, 1000, 60 * 60 * 24 * 30);
+    await token.approve(helper.address, 1000)
+    await helper.increaseAmount(ve.address, token.address, 1, 1000);
+    expect((await ve.lockedAmounts(1, token.address))).eq(2000);
   });
 
 })

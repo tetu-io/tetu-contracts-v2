@@ -24,6 +24,12 @@ interface IVeTetu {
 
   function attachments(uint tokenId) external view returns (uint);
 
+  function lockedAmounts(uint veId, address stakingToken) external view returns (uint);
+
+  function lockedDerivedAmount(uint veId) external view returns (uint);
+
+  function lockedEnd(uint veId) external view returns (uint);
+
   function voted(uint tokenId) external view returns (uint);
 
   function tokens(uint idx) external view returns (address);
@@ -32,7 +38,7 @@ interface IVeTetu {
 
   function isApprovedOrOwner(address, uint) external view returns (bool);
 
-  function createLockFor(address _token, uint, uint, address) external returns (uint);
+  function createLockFor(address _token, uint _value, uint _lockDuration, address _to) external returns (uint);
 
   function userPointEpoch(uint tokenId) external view returns (uint);
 

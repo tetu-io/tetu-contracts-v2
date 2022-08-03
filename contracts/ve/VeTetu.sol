@@ -84,11 +84,11 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   /// @dev Current count of token
   uint public tokenId;
   /// @dev veId => stakingToken => Locked amount
-  mapping(uint => mapping(address => uint)) public lockedAmounts;
+  mapping(uint => mapping(address => uint)) public override lockedAmounts;
   /// @dev veId => Amount based on weights aka power
-  mapping(uint => uint) public lockedDerivedAmount;
+  mapping(uint => uint) public override lockedDerivedAmount;
   /// @dev veId => Lock end timestamp
-  mapping(uint => uint) public lockedEnd;
+  mapping(uint => uint) public override lockedEnd;
 
   // --- CHECKPOINTS LOGIC
 
