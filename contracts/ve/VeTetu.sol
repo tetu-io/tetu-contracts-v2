@@ -732,10 +732,6 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
 
     uint newLockedDerivedAmount = info.lockedDerivedAmount;
     if (info.value != 0) {
-      // update supply
-      uint supplyBefore = supply[info.stakingToken];
-      supply[info.stakingToken] = supplyBefore + info.value;
-      emit Supply(info.stakingToken, supplyBefore, supplyBefore + info.value);
 
       // calculate new amounts
       uint newAmount = info.lockedAmount + info.value;
@@ -771,6 +767,11 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     address from = msg.sender;
     if (info.value != 0 && info.depositType != DepositType.MERGE_TYPE) {
       IERC20(info.stakingToken).safeTransferFrom(from, address(this), info.value);
+
+      // update supply
+      uint supplyBefore = supply[info.stakingToken];
+      supply[info.stakingToken] = supplyBefore + info.value;
+      emit Supply(info.stakingToken, supplyBefore, supplyBefore + info.value);
     }
 
     emit Deposit(info.stakingToken, from, info.tokenId, info.value, newLockedEnd, info.depositType, block.timestamp);
