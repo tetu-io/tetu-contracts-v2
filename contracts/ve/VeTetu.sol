@@ -79,8 +79,6 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   mapping(address => uint) public tokenWeights;
   /// @dev token => is allowed for deposits
   mapping(address => bool) public isValidToken;
-  /// @dev token => Total locked tokens
-  mapping(address => uint) public supply;
   /// @dev Current count of token
   uint public tokenId;
   /// @dev veId => stakingToken => Locked amount
@@ -146,7 +144,6 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     uint ts
   );
   event Withdraw(address indexed stakingToken, address indexed provider, uint tokenId, uint value, uint ts);
-  event Supply(address indexed stakingToken, uint prevSupply, uint supply);
   event Merged(address indexed stakingToken, address indexed provider, uint from, uint to);
   event PawnshopWhitelisted(address value);
 
@@ -767,11 +764,6 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     address from = msg.sender;
     if (info.value != 0 && info.depositType != DepositType.MERGE_TYPE) {
       IERC20(info.stakingToken).safeTransferFrom(from, address(this), info.value);
-
-      // update supply
-      uint supplyBefore = supply[info.stakingToken];
-      supply[info.stakingToken] = supplyBefore + info.value;
-      emit Supply(info.stakingToken, supplyBefore, supplyBefore + info.value);
     }
 
     emit Deposit(info.stakingToken, from, info.tokenId, info.value, newLockedEnd, info.depositType, block.timestamp);
@@ -1002,10 +994,6 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     // set locked amount to zero, we will withdraw all
     lockedAmounts[_tokenId][stakingToken] = 0;
 
-    // update supplied amount for token
-    uint supplyBefore = supply[stakingToken];
-    supply[stakingToken] = supplyBefore - oldLockedAmount;
-
     // update checkpoint
     _checkpoint(CheckpointInfo(
         _tokenId,
@@ -1024,7 +1012,6 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
 
 
     emit Withdraw(stakingToken, msg.sender, _tokenId, oldLockedAmount, block.timestamp);
-    emit Supply(stakingToken, supplyBefore, supplyBefore - oldLockedAmount);
   }
 
   // The following ERC20/minime-compatible methods are not real balanceOf and supply!
