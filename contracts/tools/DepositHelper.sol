@@ -89,7 +89,7 @@ contract DepositHelper {
     tokenId = ve.createLockFor(token, value, lockDuration, msg.sender);
 
     lockedAmount = ve.lockedAmounts(tokenId, token);
-    power = ve.lockedDerivedAmount(tokenId);
+    power = ve.balanceOfNFT(tokenId);
     unlockDate = ve.lockedEnd(tokenId);
   }
 
@@ -103,7 +103,7 @@ contract DepositHelper {
     ve.increaseAmount(token, tokenId, value);
 
     lockedAmount = ve.lockedAmounts(tokenId, token);
-    power = ve.lockedDerivedAmount(tokenId);
+    power = ve.balanceOfNFT(tokenId);
     unlockDate = ve.lockedEnd(tokenId);
   }
 
