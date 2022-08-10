@@ -293,7 +293,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     return spenderIsOwner || spenderIsApproved || spenderIsApprovedForAll;
   }
 
-  function balanceOfNFT(uint _tokenId) external view override returns (uint) {
+  function balanceOfNFT(uint _tokenId) public view override returns (uint) {
     // flash NFT protection
     if (ownershipChange[_tokenId] == block.number) {
       return 0;
@@ -891,7 +891,10 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   /// @notice Extend the unlock time for `_tokenId`
   /// @param _tokenId ve token ID
   /// @param _lockDuration New number of seconds until tokens unlock
-  function increaseUnlockTime(uint _tokenId, uint _lockDuration) external nonReentrant {
+  function increaseUnlockTime(uint _tokenId, uint _lockDuration) external nonReentrant returns (
+    uint power,
+    uint unlockDate
+  )  {
     uint _lockedDerivedAmount = lockedDerivedAmount[_tokenId];
     uint _lockedEnd = lockedEnd[_tokenId];
     // Lock time is rounded down to weeks
@@ -912,6 +915,9 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     lockedEnd : _lockedEnd,
     depositType : DepositType.INCREASE_UNLOCK_TIME
     }));
+
+    power = balanceOfNFT(tokenId);
+    unlockDate = lockedEnd[tokenId];
   }
 
   /// @dev Merge two NFTs union their balances and keep the biggest lock time.
