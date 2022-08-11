@@ -967,9 +967,18 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     _burn(_from);
   }
 
-  /// @notice Withdraw all tokens for `_tokenId`
+  /// @notice Withdraw all staking tokens for `_tokenId`
   /// @dev Only possible if the lock has expired
-  function withdraw(address stakingToken, uint _tokenId) external nonReentrant {
+  function withdrawAll(uint _tokenId) external {
+    uint length = tokens.length;
+    for (uint i; i < length; ++i) {
+      withdraw(tokens[i], _tokenId);
+    }
+  }
+
+  /// @notice Withdraw given staking token for `_tokenId`
+  /// @dev Only possible if the lock has expired
+  function withdraw(address stakingToken, uint _tokenId) public nonReentrant {
     require(isApprovedOrOwner(msg.sender, _tokenId), "!owner");
     require(attachments[_tokenId] == 0 && voted[_tokenId] == 0, "attached");
 

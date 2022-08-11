@@ -467,8 +467,7 @@ describe("veTETU tests", function () {
 
     await TimeUtils.advanceBlocksOnTs(LOCK_PERIOD / 2);
 
-    await ve.withdraw(underlying2.address, 3);
-    await ve.withdraw(tetu.address, 3);
+    await ve.withdrawAll(3);
 
     expect(await ve.ownerOf(3)).eq(Misc.ZERO_ADDRESS);
 
