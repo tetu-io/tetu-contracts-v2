@@ -158,7 +158,6 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
     require(IVeTetu(ve).isApprovedOrOwner(msg.sender, tokenId) || msg.sender == ve, "!owner");
     require(lastVote[tokenId] + VOTE_DELAY < block.timestamp, "delay");
     _reset(tokenId);
-    IVeTetu(ve).abstain(tokenId);
   }
 
   /// @dev Vote for given pools using a vote power of given tokenId. Reset previous votes.
@@ -207,7 +206,9 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
       _totalWeight += _vaultWeight;
       emit Voted(msg.sender, _tokenId, _vaultWeight, _vault, _weights[i], _weight);
     }
-    if (_usedWeight > 0) IVeTetu(ve).voting(_tokenId);
+    if (_usedWeight > 0) {
+      IVeTetu(ve).voting(_tokenId);
+    }
     totalWeight += uint(_totalWeight);
     usedWeights[_tokenId] = uint(_usedWeight);
   }
@@ -235,6 +236,9 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
     totalWeight -= uint(_totalWeight);
     usedWeights[_tokenId] = 0;
     delete vaultsVotes[_tokenId];
+    if (_totalWeight > 0) {
+      IVeTetu(ve).abstain(_tokenId);
+    }
   }
 
   // *************************************************************

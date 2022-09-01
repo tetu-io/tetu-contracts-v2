@@ -51,6 +51,10 @@ const argv = require('yargs/yargs')()
       type: "string",
       default: 'https://api.avax.network/ext/bc/C/rpc'
     },
+    goerliRpcUrl: {
+      type: "string",
+      default: ''
+    },
     networkScanKey: {
       type: "string",
     },
@@ -169,11 +173,18 @@ export default {
       // gas: 50_000_000_000,
       accounts: [argv.privateKey],
     },
+    goerli: {
+      url: argv.goerliRpcUrl || '',
+      chainId: 5,
+      // gas: 50_000_000_000,
+      accounts: [argv.privateKey],
+    },
   },
   etherscan: {
     //  https://hardhat.org/plugins/nomiclabs-hardhat-etherscan.html#multiple-api-keys-and-alternative-block-explorers
     apiKey: {
       mainnet: argv.networkScanKey,
+      goerli: argv.networkScanKey,
       polygon: argv.networkScanKeyMatic || argv.networkScanKey,
       opera: argv.networkScanKeyFtm || argv.networkScanKey,
       polygonMumbai: argv.networkScanKeyMatic || argv.networkScanKey,

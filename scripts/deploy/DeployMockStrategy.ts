@@ -4,7 +4,7 @@ import {RunHelper} from "../utils/RunHelper";
 import {MockStrategy, MockStrategy__factory, StrategySplitterV2, StrategySplitterV2__factory} from "../../typechain";
 import {Addresses} from "../addresses/addresses";
 
-const SPLITTER = '0xe71ee698325d55ce387fe143a92d1ac2c0501e90';
+const SPLITTER = '0xdd16f9fec56f0043e5188d2a86107ee42685b6c4';
 
 async function main() {
   const signer = (await ethers.getSigners())[0];

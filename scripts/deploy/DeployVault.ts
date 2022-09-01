@@ -1,23 +1,30 @@
 import {ethers} from "hardhat";
 import {Addresses} from "../addresses/addresses";
-import {ControllerV2__factory, MultiGauge__factory, VaultFactory__factory} from "../../typechain";
+import {
+  ControllerV2__factory,
+  IERC20Metadata__factory,
+  MultiGauge__factory,
+  VaultFactory__factory
+} from "../../typechain";
 import {RunHelper} from "../utils/RunHelper";
 
 
-const ASSET = '0xB1FE2347e607775F156e9a38e44D9D07464552B9';
-const NAME = 'tetuWBTC3';
+const ASSET = '0x88a12B7b6525c0B46c0c200405f49cE0E72D71Aa';
 const BUFFER = 100;
 
 async function main() {
   const signer = (await ethers.getSigners())[0];
   const core = Addresses.getCore();
 
+  const symbol = await IERC20Metadata__factory.connect(ASSET, signer).symbol();
+  const vaultName = "tetu" + symbol;
+
   const factory = VaultFactory__factory.connect(core.vaultFactory, signer)
 
   await RunHelper.runAndWait(() => factory.createVault(
     ASSET,
-    NAME,
-    NAME,
+    vaultName,
+    vaultName,
     core.gauge,
     BUFFER
   ));

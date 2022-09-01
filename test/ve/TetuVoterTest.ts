@@ -140,8 +140,12 @@ describe("Tetu voter tests", function () {
 
   it("reset test", async function () {
     expect(await voter.votes(1, vault.address)).above(parseUnits('0.98'))
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 14)
+    await voter.vote(1, [vault.address], [100]);
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 14)
     await voter.reset(1);
     expect(await voter.votes(1, vault.address)).eq(0)
+    expect(await ve.voted(1)).eq(0)
   });
 
   it("reset not owner revert test", async function () {
@@ -246,6 +250,7 @@ describe("Tetu voter tests", function () {
     // check that everything was reset
     expect((await voter.attachedStakingTokens(1)).length).eq(0);
     expect(await voter.votes(1, vault.address)).eq(0)
+    expect(await ve.voted(1)).eq(0)
   });
 
   it("attach from not gauge revert", async function () {
