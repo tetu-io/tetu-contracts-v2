@@ -456,6 +456,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
     address _asset = asset;
     uint balance = IERC20(_asset).balanceOf(address(this));
+    uint remainingAmount = amount;
     if (balance < amount) {
       uint length = strategies.length;
       for (uint i = length; i > 0; i--) {
@@ -466,15 +467,20 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
         uint balanceBefore = strategyBalance + balance;
 
         // withdraw from strategy
-        if (strategyBalance <= amount) {
+        if (strategyBalance <= remainingAmount) {
           strategy.withdrawAllToSplitter();
         } else {
-          strategy.withdrawToSplitter(amount);
+          strategy.withdrawToSplitter(remainingAmount);
         }
         emit WithdrawFromStrategy(address(strategy));
 
+        uint currentBalance = IERC20(_asset).balanceOf(address(this));
+        // assume that we can not decrease splitter balance during withdraw process
+        uint withdrew = currentBalance - balance;
+        balance = currentBalance;
 
-        balance = IERC20(_asset).balanceOf(address(this));
+        remainingAmount = withdrew <= remainingAmount ? remainingAmount - withdrew : 0;
+
         uint balanceAfter = strategy.totalAssets() + balance;
 
         // register loss
