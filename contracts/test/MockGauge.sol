@@ -3,6 +3,7 @@
 pragma solidity 0.8.4;
 
 import "../proxy/ControllableV3.sol";
+import "../interfaces/IGauge.sol";
 
 contract MockGauge is ControllableV3 {
 
@@ -16,6 +17,11 @@ contract MockGauge is ControllableV3 {
 
   function handleBalanceChange(address) external {
     // noop
+  }
+
+  /// @dev See {IERC165-supportsInterface}.
+  function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+    return interfaceId == type(IGauge).interfaceId || super.supportsInterface(interfaceId);
   }
 
 }

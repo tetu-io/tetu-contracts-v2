@@ -77,6 +77,7 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
   /// @dev Proxy initialization. Call it after contract deploy.
   function init(address controller_, address _ve) external initializer {
     __Controllable_init(controller_);
+    _requireInterface(_ve, type(IVeTetu).interfaceId);
     ve = _ve;
   }
 

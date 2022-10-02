@@ -101,6 +101,8 @@ contract VeDistributor is ControllableV3, IVeDistributor {
     timeCursor = _t;
 
     rewardToken = _rewardToken;
+
+    _requireInterface(_ve, type(IVeTetu).interfaceId);
     ve = IVeTetu(_ve);
 
     IERC20(_rewardToken).safeApprove(_ve, type(uint).max);
@@ -403,6 +405,11 @@ contract VeDistributor is ControllableV3, IVeDistributor {
   /// @dev Block timestamp rounded to weeks
   function timestamp() external view returns (uint) {
     return block.timestamp / WEEK * WEEK;
+  }
+
+  /// @dev See {IERC165-supportsInterface}.
+  function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+    return interfaceId == type(IVeDistributor).interfaceId || super.supportsInterface(interfaceId);
   }
 
 }

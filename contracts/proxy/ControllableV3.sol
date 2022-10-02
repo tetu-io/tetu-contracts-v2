@@ -34,6 +34,7 @@ abstract contract ControllableV3 is ERC165, Initializable, IControllable {
   /// @param controller_ Controller address
   function __Controllable_init(address controller_) internal onlyInitializing {
     require(controller_ != address(0), "Zero controller");
+    _requireInterface(controller_, type(IController).interfaceId);
     require(IController(controller_).governance() != address(0), "Zero governance");
     _CONTROLLER_SLOT.set(controller_);
     _CREATED_SLOT.set(block.timestamp);

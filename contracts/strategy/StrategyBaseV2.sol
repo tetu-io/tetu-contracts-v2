@@ -60,6 +60,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
     address controller_,
     address _splitter
   ) public onlyInitializing {
+    _requireInterface(_splitter, type(ISplitter).interfaceId);
     __Controllable_init(controller_);
 
     require(IControllable(_splitter).isController(controller_), "SB: Wrong controller");

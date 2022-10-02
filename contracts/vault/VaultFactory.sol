@@ -2,6 +2,7 @@
 
 pragma solidity 0.8.4;
 
+import "../openzeppelin/ERC165.sol";
 import "../interfaces/IController.sol";
 import "../interfaces/IERC20.sol";
 import "../interfaces/ITetuVaultV2.sol";
@@ -11,7 +12,7 @@ import "./VaultInsurance.sol";
 
 /// @title Factory for vaults.
 /// @author belbix
-contract VaultFactory {
+contract VaultFactory is ERC165 {
 
   // *************************************************************
   //                        VARIABLES
@@ -57,6 +58,11 @@ contract VaultFactory {
     address _vaultInsuranceImpl,
     address _splitterImpl
   ) {
+    _requireInterface(_controller, type(IController).interfaceId);
+    _requireInterface(_vaultImpl, type(ITetuVaultV2).interfaceId);
+    _requireInterface(_vaultInsuranceImpl, type(IVaultInsurance).interfaceId);
+    _requireInterface(_splitterImpl, type(ISplitter).interfaceId);
+
     controller = _controller;
     vaultImpl = _vaultImpl;
     vaultInsuranceImpl = _vaultInsuranceImpl;
@@ -89,18 +95,21 @@ contract VaultFactory {
 
   /// @dev Set TetuVaultV2 contract address
   function setVaultImpl(address value) external onlyGov {
+    _requireInterface(value, type(ITetuVaultV2).interfaceId);
     vaultImpl = value;
     emit VaultImplChanged(value);
   }
 
   /// @dev Set VaultInsurance contract address
   function setVaultInsuranceImpl(address value) external onlyGov {
+    _requireInterface(value, type(IVaultInsurance).interfaceId);
     vaultInsuranceImpl = value;
     emit VaultInsuranceImplChanged(value);
   }
 
   /// @dev Set StrategySplitterV2 contract address
   function setSplitterImpl(address value) external onlyGov {
+    _requireInterface(value, type(ISplitter).interfaceId);
     splitterImpl = value;
     emit SplitterImplChanged(value);
   }
@@ -164,6 +173,5 @@ contract VaultFactory {
       splitterLogic
     );
   }
-
 
 }

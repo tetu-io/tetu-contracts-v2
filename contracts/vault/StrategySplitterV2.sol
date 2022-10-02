@@ -103,6 +103,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   function init(address controller_, address _asset, address _vault) external initializer override {
     __Controllable_init(controller_);
     asset = _asset;
+    _requireInterface(_vault, type(ITetuVaultV2).interfaceId);
     vault = _vault;
   }
 

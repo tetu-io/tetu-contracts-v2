@@ -9,7 +9,6 @@ import {
   IERC20__factory,
   MockGauge,
   MockToken,
-  ProxyControlled,
   TetuVaultV2__factory,
   VaultFactory
 } from "../../typechain";
@@ -99,8 +98,9 @@ describe("Vault factory tests", function () {
   });
 
   it("set vault test", async () => {
-    await vaultFactory.setVaultImpl(Misc.ZERO_ADDRESS);
-    expect(await vaultFactory.vaultImpl()).eq(Misc.ZERO_ADDRESS);
+    const vaultLogic2 = await DeployerUtils.deployContract(signer, 'TetuVaultV2');
+    await vaultFactory.setVaultImpl(vaultLogic2.address);
+    expect(await vaultFactory.vaultImpl()).eq(vaultLogic2.address);
   });
 
   it("set vault revert", async () => {
@@ -108,8 +108,9 @@ describe("Vault factory tests", function () {
   });
 
   it("set insurance test", async () => {
-    await vaultFactory.setVaultInsuranceImpl(Misc.ZERO_ADDRESS);
-    expect(await vaultFactory.vaultInsuranceImpl()).eq(Misc.ZERO_ADDRESS);
+    const insurance2 = await DeployerUtils.deployContract(signer, 'VaultInsurance');
+    await vaultFactory.setVaultInsuranceImpl(insurance2.address);
+    expect(await vaultFactory.vaultInsuranceImpl()).eq(insurance2.address);
   });
 
   it("set insurance revert", async () => {
@@ -117,8 +118,9 @@ describe("Vault factory tests", function () {
   });
 
   it("set splitter test", async () => {
-    await vaultFactory.setSplitterImpl(Misc.ZERO_ADDRESS);
-    expect(await vaultFactory.splitterImpl()).eq(Misc.ZERO_ADDRESS);
+    const splitter2 = await DeployerUtils.deployContract(signer, 'MockSplitter');
+    await vaultFactory.setSplitterImpl(splitter2.address);
+    expect(await vaultFactory.splitterImpl()).eq(splitter2.address);
   });
 
   it("set splitter revert", async () => {

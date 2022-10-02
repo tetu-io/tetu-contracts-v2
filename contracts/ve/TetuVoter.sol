@@ -97,6 +97,9 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
     address _bribe
   ) external initializer {
     __Controllable_init(controller);
+    _requireInterface(_ve, type(IVeTetu).interfaceId);
+    _requireInterface(_gauge, type(IGauge).interfaceId);
+    _requireInterface(_bribe, type(IBribe).interfaceId);
     ve = _ve;
     token = _rewardToken;
     gauge = _gauge;
@@ -132,6 +135,11 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
   /// @dev Return voted vaults length for given veId.
   function votedVaultsLength(uint veId) external view returns (uint) {
     return vaultsVotes[veId].length;
+  }
+
+  /// @dev See {IERC165-supportsInterface}.
+  function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+    return interfaceId == type(IVoter).interfaceId || super.supportsInterface(interfaceId);
   }
 
   // *************************************************************

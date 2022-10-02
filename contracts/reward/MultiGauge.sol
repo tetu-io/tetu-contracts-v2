@@ -236,4 +236,13 @@ contract MultiGauge is StakelessMultiPoolBase, ControllableV3, IGauge {
     _notifyRewardAmount(stakingToken, token, amount);
   }
 
+  // *************************************************************
+  //                        VIEWS
+  // *************************************************************
+
+  /// @dev See {IERC165-supportsInterface}.
+  function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+    return interfaceId == type(IGauge).interfaceId || super.supportsInterface(interfaceId);
+  }
+
 }

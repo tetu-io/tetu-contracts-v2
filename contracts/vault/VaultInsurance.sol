@@ -6,6 +6,7 @@ import "../openzeppelin/SafeERC20.sol";
 import "../openzeppelin/ERC165.sol";
 import "../interfaces/IERC20.sol";
 import "../interfaces/IVaultInsurance.sol";
+import "../interfaces/ITetuVaultV2.sol";
 
 /// @title Simple dedicated contract for store vault fees
 /// @author belbix
@@ -21,8 +22,9 @@ contract VaultInsurance is ERC165, IVaultInsurance  {
   ///      Should be called from factory during creation process.
   function init(address _vault, address _asset) external override {
     require(vault == address(0) && asset == address(0), "INITED");
+    _requireInterface(_vault, type(ITetuVaultV2).interfaceId);
     vault = _vault;
-    asset = _asset;
+    asset = _asset; // TODO check for 0?
   }
 
   /// @dev Transfer tokens to vault in case of covering need.

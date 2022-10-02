@@ -26,4 +26,30 @@ abstract contract ERC165 is IERC165 {
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return interfaceId == type(IERC165).interfaceId;
     }
+
+    // *************************************************************
+    //                        HELPER FUNCTIONS
+    // *************************************************************
+
+    /// @author bogdoslav
+
+    /// @dev Checks what interface with id is supported by contract.
+    function _isInterfaceSupported(address contractAddress, bytes4 interfaceId) internal view returns (bool) {
+        // check what address is contract (has some code)
+/*        uint size;
+        assembly { size := extcodesize(contractAddress) }
+        if (size == 0) return false;
+
+        try IERC165(contractAddress).supportsInterface(interfaceId) returns (bool isSupported) {
+            return isSupported;
+        } catch {
+        }
+        return false;*/
+        return IERC165(contractAddress).supportsInterface(interfaceId);
+    }
+
+    /// @dev Checks what interface with id is supported by contract and reverts otherwise
+    function _requireInterface(address contractAddress, bytes4 interfaceId) internal view {
+        require(_isInterfaceSupported(contractAddress, interfaceId), 'Interface is not supported');
+    }
 }

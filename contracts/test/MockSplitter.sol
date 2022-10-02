@@ -59,4 +59,9 @@ contract MockSplitter is ISplitter, ControllableV3 {
     ITetuVaultV2(vault).coverLoss(amount);
   }
 
+  /// @dev See {IERC165-supportsInterface}.
+  function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+    return interfaceId == type(ISplitter).interfaceId || super.supportsInterface(interfaceId);
+  }
+
 }
