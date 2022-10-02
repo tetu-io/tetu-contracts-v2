@@ -3,6 +3,7 @@
 pragma solidity 0.8.4;
 
 import "../openzeppelin/Initializable.sol";
+import "../openzeppelin/ERC165.sol";
 import "../interfaces/IControllable.sol";
 import "../interfaces/IController.sol";
 import "../lib/SlotsLib.sol";
@@ -11,7 +12,7 @@ import "../lib/SlotsLib.sol";
 /// @dev Can be used with upgradeable pattern.
 ///      Require call __Controllable_init() in any case.
 /// @author belbix
-abstract contract ControllableV3 is Initializable, IControllable {
+abstract contract ControllableV3 is ERC165, Initializable, IControllable {
   using SlotsLib for bytes32;
 
   /// @notice Version of the contract
@@ -58,6 +59,11 @@ abstract contract ControllableV3 is Initializable, IControllable {
   /// @dev Previous logic implementation
   function previousImplementation() external view returns (address){
     return _PREVIOUS_LOGIC_SLOT.getAddress();
+  }
+
+  /// @dev See {IERC165-supportsInterface}.
+  function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+    return interfaceId == type(IControllable).interfaceId || super.supportsInterface(interfaceId);
   }
 
   // ************* SETTERS/GETTERS *******************

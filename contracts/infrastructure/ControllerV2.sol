@@ -183,6 +183,10 @@ contract ControllerV2 is ControllableV3, IController {
     return _vaults.contains(_vault);
   }
 
+  /// @dev See {IERC165-supportsInterface}.
+  function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+    return interfaceId == type(IController).interfaceId || super.supportsInterface(interfaceId);
+  }
 
   // *************************************************************
   //          SET ADDRESSES WITH TIME-LOCK PROTECTION

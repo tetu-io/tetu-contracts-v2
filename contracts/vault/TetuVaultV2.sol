@@ -213,6 +213,11 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
     : units * totalAssets() / totalSupply_;
   }
 
+  /// @dev See {IERC165-supportsInterface}.
+  function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+    return interfaceId == type(ITetuVaultV2).interfaceId || super.supportsInterface(interfaceId);
+  }
+
   // *************************************************************
   //                 DEPOSIT LOGIC
   // *************************************************************

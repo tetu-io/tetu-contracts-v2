@@ -223,8 +223,8 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
 
   /// @dev Interface identification is specified in ERC-165.
   /// @param _interfaceID Id of the interface
-  function supportsInterface(bytes4 _interfaceID) external view override returns (bool) {
-    return _supportedInterfaces[_interfaceID];
+  function supportsInterface(bytes4 _interfaceID) public view override(ControllableV3,IERC165) returns (bool) {
+    return _supportedInterfaces[_interfaceID] || super.supportsInterface(_interfaceID);
   }
 
   /// @notice Get the most recently recorded rate of voting power decrease for `_tokenId`

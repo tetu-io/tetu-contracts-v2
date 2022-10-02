@@ -91,6 +91,11 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
     return IERC20(asset).balanceOf(address(this)) + investedAssets();
   }
 
+  /// @dev See {IERC165-supportsInterface}.
+  function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+    return interfaceId == type(IStrategyV2).interfaceId || super.supportsInterface(interfaceId);
+  }
+
   // *************************************************************
   //                   VOTER ACTIONS
   // *************************************************************

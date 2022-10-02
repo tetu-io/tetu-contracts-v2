@@ -3,12 +3,13 @@
 pragma solidity 0.8.4;
 
 import "../openzeppelin/SafeERC20.sol";
+import "../openzeppelin/ERC165.sol";
 import "../interfaces/IERC20.sol";
 import "../interfaces/IVaultInsurance.sol";
 
 /// @title Simple dedicated contract for store vault fees
 /// @author belbix
-contract VaultInsurance is IVaultInsurance {
+contract VaultInsurance is ERC165, IVaultInsurance  {
   using SafeERC20 for IERC20;
 
   /// @dev Vault address
@@ -28,6 +29,11 @@ contract VaultInsurance is IVaultInsurance {
   function transferToVault(uint amount) external override {
     require(msg.sender == vault, "!VAULT");
     IERC20(asset).safeTransfer(msg.sender, amount);
+  }
+
+  /// @dev See {IERC165-supportsInterface}.
+  function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+    return interfaceId == type(IVaultInsurance).interfaceId || super.supportsInterface(interfaceId);
   }
 
 }

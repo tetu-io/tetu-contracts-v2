@@ -151,4 +151,13 @@ contract MultiBribe is StakelessMultiPoolBase, ControllableV3, IBribe {
     return adr;
   }
 
+  // *************************************************************
+  //                        VIEWS
+  // *************************************************************
+
+  /// @dev See {IERC165-supportsInterface}.
+  function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+    return interfaceId == type(IBribe).interfaceId || super.supportsInterface(interfaceId);
+  }
+
 }
