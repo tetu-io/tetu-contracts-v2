@@ -34,18 +34,20 @@ abstract contract ERC165 is IERC165 {
     /// @author bogdoslav
 
     /// @dev Checks what interface with id is supported by contract.
+    /// @returns bool. Do not throws
     function _isInterfaceSupported(address contractAddress, bytes4 interfaceId) internal view returns (bool) {
-        // check what address is contract (has some code)
-/*        uint size;
-        assembly { size := extcodesize(contractAddress) }
-        if (size == 0) return false;
+        // check what address is contract
+        uint codeSize;
+        assembly {
+            codeSize := extcodesize(contractAddress)
+        }
+        if (codeSize == 0) return false;
 
         try IERC165(contractAddress).supportsInterface(interfaceId) returns (bool isSupported) {
             return isSupported;
         } catch {
         }
-        return false;*/
-        return IERC165(contractAddress).supportsInterface(interfaceId);
+        return false;
     }
 
     /// @dev Checks what interface with id is supported by contract and reverts otherwise
