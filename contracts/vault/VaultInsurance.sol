@@ -3,7 +3,7 @@
 pragma solidity 0.8.4;
 
 import "../openzeppelin/SafeERC20.sol";
-import "../openzeppelin/ERC165.sol";
+import "../tools/TetuERC165.sol";
 import "../interfaces/IERC20.sol";
 import "../interfaces/IVaultInsurance.sol";
 import "../interfaces/ITetuVaultV2.sol";
@@ -11,7 +11,7 @@ import "../lib/InterfaceIds.sol";
 
 /// @title Simple dedicated contract for store vault fees
 /// @author belbix
-contract VaultInsurance is ERC165, IVaultInsurance  {
+contract VaultInsurance is TetuERC165, IVaultInsurance  {
   using SafeERC20 for IERC20;
 
   /// @dev Vault address

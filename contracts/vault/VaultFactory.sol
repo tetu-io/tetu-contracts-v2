@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.4;
 
-import "../openzeppelin/ERC165.sol";
+import "../tools/TetuERC165.sol";
 import "../interfaces/IController.sol";
 import "../interfaces/IERC20.sol";
 import "../interfaces/ITetuVaultV2.sol";
@@ -13,7 +13,7 @@ import "../lib/InterfaceIds.sol";
 
 /// @title Factory for vaults.
 /// @author belbix
-contract VaultFactory is ERC165 {
+contract VaultFactory is TetuERC165 {
 
   // *************************************************************
   //                        VARIABLES

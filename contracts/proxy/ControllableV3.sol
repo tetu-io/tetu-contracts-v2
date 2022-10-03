@@ -3,7 +3,7 @@
 pragma solidity 0.8.4;
 
 import "../openzeppelin/Initializable.sol";
-import "../openzeppelin/ERC165.sol";
+import "../tools/TetuERC165.sol";
 import "../interfaces/IControllable.sol";
 import "../interfaces/IController.sol";
 import "../lib/SlotsLib.sol";
@@ -13,7 +13,7 @@ import "../lib/InterfaceIds.sol";
 /// @dev Can be used with upgradeable pattern.
 ///      Require call __Controllable_init() in any case.
 /// @author belbix
-abstract contract ControllableV3 is ERC165, Initializable, IControllable {
+abstract contract ControllableV3 is TetuERC165, Initializable, IControllable {
   using SlotsLib for bytes32;
 
   /// @notice Version of the contract
