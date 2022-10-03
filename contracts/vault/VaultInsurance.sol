@@ -25,7 +25,8 @@ contract VaultInsurance is TetuERC165, IVaultInsurance  {
     require(vault == address(0) && asset == address(0), "INITED");
     _requireInterface(_vault, InterfaceIds.I_TETU_VAULT_V2);
     vault = _vault;
-    asset = _asset; // TODO check for 0?
+    _requireERC20(_asset);
+    asset = _asset;
   }
 
   /// @dev Transfer tokens to vault in case of covering need.
