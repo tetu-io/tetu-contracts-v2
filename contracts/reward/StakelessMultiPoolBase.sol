@@ -6,13 +6,15 @@ import "../openzeppelin/Math.sol";
 import "../openzeppelin/SafeERC20.sol";
 import "../openzeppelin/ReentrancyGuard.sol";
 import "../openzeppelin/Initializable.sol";
+import "../openzeppelin/ERC165.sol";
 import "../interfaces/IMultiPool.sol";
 import "../interfaces/IERC20.sol";
 import "../lib/CheckpointLib.sol";
+import "../lib/InterfaceIds.sol";
 
 /// @title Abstract stakeless pool
 /// @author belbix
-abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool, Initializable {
+abstract contract StakelessMultiPoolBase is ERC165, ReentrancyGuard, IMultiPool, Initializable {
   using SafeERC20 for IERC20;
   using CheckpointLib for mapping(uint => CheckpointLib.Checkpoint);
 
@@ -97,6 +99,7 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool, Initial
   /// @dev Operator will able to add/remove reward tokens
   function __MultiPool_init(address _operator, address _defaultRewardToken) internal onlyInitializing {
     operator = _operator;
+    _requireERC20(_defaultRewardToken);
     defaultRewardToken = _defaultRewardToken;
   }
 
@@ -152,6 +155,11 @@ abstract contract StakelessMultiPoolBase is ReentrancyGuard, IMultiPool, Initial
   /// @dev Approximate of earned rewards ready to claim
   function earned(address stakeToken, address rewardToken, address account) external view override returns (uint) {
     return _earned(stakeToken, rewardToken, account);
+  }
+
+  /// @dev See {IERC165-supportsInterface}.
+  function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+    return interfaceId == InterfaceIds.I_MULTI_POOL || super.supportsInterface(interfaceId);
   }
 
   // *************************************************************

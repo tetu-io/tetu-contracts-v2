@@ -70,6 +70,7 @@ contract ForwarderV3 is ReentrancyGuard, ControllableV3, IForwarder {
   /// @dev Proxy initialization. Call it after contract deploy.
   function init(address controller_, address _tetu) external initializer {
     __Controllable_init(controller_);
+    _requireERC20(_tetu);
     tetu = _tetu;
     // 10k TETU by default
     tetuThreshold = 10_000 * 1e18;

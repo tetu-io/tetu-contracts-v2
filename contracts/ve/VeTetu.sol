@@ -155,6 +155,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   /// @param token_ Underlying ERC20 token
   /// @param controller_ Central contract of the protocol
   function init(address token_, address controller_) external initializer {
+    _requireERC20(token_);
     __Controllable_init(controller_);
 
     // initial token will have 100% power
@@ -187,6 +188,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   }
 
   function addToken(address token, uint weight) external {
+    _requireERC20(token);
     require(isGovernance(msg.sender), "Not governance");
     _addToken(token, weight);
   }

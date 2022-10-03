@@ -47,6 +47,7 @@ contract MultiBribe is StakelessMultiPoolBase, ControllableV3, IBribe {
   ) external initializer {
     __Controllable_init(controller_);
     __MultiPool_init(_operator, _defaultReward);
+    _requireInterface(_ve, InterfaceIds.I_VE_TETU);
     ve = _ve;
   }
 
@@ -156,7 +157,7 @@ contract MultiBribe is StakelessMultiPoolBase, ControllableV3, IBribe {
   // *************************************************************
 
   /// @dev See {IERC165-supportsInterface}.
-  function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+  function supportsInterface(bytes4 interfaceId) public view virtual override(ControllableV3, StakelessMultiPoolBase) returns (bool) {
     return interfaceId == InterfaceIds.I_BRIBE || super.supportsInterface(interfaceId);
   }
 

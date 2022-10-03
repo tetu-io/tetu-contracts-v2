@@ -102,6 +102,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   /// @dev Initialize contract after setup it as proxy implementation
   function init(address controller_, address _asset, address _vault) external initializer override {
     __Controllable_init(controller_);
+    _requireERC20(_asset);
     asset = _asset;
     _requireInterface(_vault, InterfaceIds.I_TETU_VAULT_V2);
     vault = _vault;

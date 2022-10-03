@@ -100,9 +100,10 @@ contract VeDistributor is ControllableV3, IVeDistributor {
     lastTokenTime = _t;
     timeCursor = _t;
 
-    rewardToken = _rewardToken;
-
+    _requireERC20(_rewardToken);
     _requireInterface(_ve, InterfaceIds.I_VE_TETU);
+
+    rewardToken = _rewardToken;
     ve = IVeTetu(_ve);
 
     IERC20(_rewardToken).safeApprove(_ve, type(uint).max);

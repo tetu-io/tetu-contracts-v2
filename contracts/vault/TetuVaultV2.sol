@@ -98,6 +98,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
     require(_gauge != address(0), "!GAUGE");
     require(IControllable(_gauge).isController(controller_), "!GAUGE_CONTROLLER");
 
+    _requireERC20(address(_asset));
     __ERC4626_init(_asset, _name, _symbol);
     __Controllable_init(controller_);
 

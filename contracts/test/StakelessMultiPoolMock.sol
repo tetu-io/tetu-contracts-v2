@@ -60,4 +60,9 @@ contract StakelessMultiPoolMock is StakelessMultiPoolBase, ControllableV3 {
     return stakingTokens[token];
   }
 
+  /// @dev See {IERC165-supportsInterface}.
+  function supportsInterface(bytes4 interfaceId) public view virtual override(ControllableV3, StakelessMultiPoolBase) returns (bool) {
+    return interfaceId == InterfaceIds.I_MULTI_POOL || super.supportsInterface(interfaceId);
+  }
+
 }

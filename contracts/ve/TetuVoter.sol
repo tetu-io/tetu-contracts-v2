@@ -97,13 +97,17 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
     address _bribe
   ) external initializer {
     __Controllable_init(controller);
+
     _requireInterface(_ve, InterfaceIds.I_VE_TETU);
+    _requireERC20(_rewardToken);
     _requireInterface(_gauge, InterfaceIds.I_GAUGE);
     _requireInterface(_bribe, InterfaceIds.I_BRIBE);
+
     ve = _ve;
     token = _rewardToken;
     gauge = _gauge;
     bribe = _bribe;
+
     // if the gauge will be changed need to revoke approval and set a new
     IERC20(_rewardToken).safeApprove(gauge, type(uint).max);
   }
