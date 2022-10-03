@@ -7,7 +7,6 @@ import "../interfaces/IStrategyV2.sol";
 import "../interfaces/ISplitter.sol";
 import "../interfaces/IForwarder.sol";
 import "../proxy/ControllableV3.sol";
-import "../lib/InterfaceIds.sol";
 
 /// @title Abstract contract for base strategy functionality
 /// @author belbix

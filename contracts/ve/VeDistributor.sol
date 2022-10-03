@@ -8,7 +8,6 @@ import "../interfaces/IVeDistributor.sol";
 import "../openzeppelin/SafeERC20.sol";
 import "../openzeppelin/Math.sol";
 import "../proxy/ControllableV3.sol";
-import "../lib/InterfaceIds.sol";
 
 /// @title Contract for distributing rewards to ve holders.
 ///        Rewards will be staked to the veNFT without extending lock period.

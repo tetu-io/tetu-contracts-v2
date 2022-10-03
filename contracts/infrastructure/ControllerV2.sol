@@ -6,7 +6,6 @@ import "../openzeppelin/SafeERC20.sol";
 import "../openzeppelin/EnumerableMap.sol";
 import "../interfaces/IProxyControlled.sol";
 import "../proxy/ControllableV3.sol";
-import "../lib/InterfaceIds.sol";
 
 /// @title A central contract of the TETU platform.
 ///        Holds all important contract addresses.

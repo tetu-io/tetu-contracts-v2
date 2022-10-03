@@ -8,7 +8,6 @@ import "../interfaces/IPlatformVoter.sol";
 import "../interfaces/IVeTetu.sol";
 import "../interfaces/IStrategyV2.sol";
 import "../proxy/ControllableV3.sol";
-import "../lib/InterfaceIds.sol";
 
 /// @title Ve holders can vote for platform attributes values.
 /// @author belbix

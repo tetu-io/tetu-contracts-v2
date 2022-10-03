@@ -9,7 +9,6 @@ import "../interfaces/IVoter.sol";
 import "../interfaces/IVeDistributor.sol";
 import "../interfaces/IForwarder.sol";
 import "../proxy/ControllableV3.sol";
-import "../lib/InterfaceIds.sol";
 
 /// @title This contract should contains a buffer of fees from strategies.
 ///        Periodically sell rewards and distribute to their destinations.

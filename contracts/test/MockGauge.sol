@@ -3,7 +3,6 @@
 pragma solidity 0.8.4;
 
 import "../proxy/ControllableV3.sol";
-import "../interfaces/IGauge.sol";
 
 contract MockGauge is ControllableV3 {
 

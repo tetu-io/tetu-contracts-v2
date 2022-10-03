@@ -6,6 +6,7 @@ import "../openzeppelin/ERC165.sol";
 import "../interfaces/IProxyControlled.sol";
 import "../interfaces/IController.sol";
 import "../lib/InterfaceIds.sol";
+
 contract ControllerMinimal is ERC165, IController {
 
   address public override governance;

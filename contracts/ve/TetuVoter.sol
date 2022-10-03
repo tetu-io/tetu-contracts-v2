@@ -12,7 +12,6 @@ import "../interfaces/IGauge.sol";
 import "../interfaces/IBribe.sol";
 import "../interfaces/IMultiPool.sol";
 import "../proxy/ControllableV3.sol";
-import "../lib/InterfaceIds.sol";
 
 /// @title Voter for veTETU.
 ///        Based on Solidly contract.
