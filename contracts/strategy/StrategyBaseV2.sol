@@ -7,6 +7,7 @@ import "../interfaces/IStrategyV2.sol";
 import "../interfaces/ISplitter.sol";
 import "../interfaces/IForwarder.sol";
 import "../proxy/ControllableV3.sol";
+import "../lib/InterfaceIds.sol";
 
 /// @title Abstract contract for base strategy functionality
 /// @author belbix
@@ -60,7 +61,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
     address controller_,
     address _splitter
   ) public onlyInitializing {
-    _requireInterface(_splitter, type(ISplitter).interfaceId);
+    _requireInterface(_splitter, InterfaceIds.I_SPLITTER);
     __Controllable_init(controller_);
 
     require(IControllable(_splitter).isController(controller_), "SB: Wrong controller");
@@ -94,7 +95,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
 
   /// @dev See {IERC165-supportsInterface}.
   function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-    return interfaceId == type(IStrategyV2).interfaceId || super.supportsInterface(interfaceId);
+    return interfaceId == InterfaceIds.I_STRATEGY_V2 || super.supportsInterface(interfaceId);
   }
 
   // *************************************************************

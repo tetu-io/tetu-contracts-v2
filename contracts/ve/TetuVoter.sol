@@ -12,6 +12,7 @@ import "../interfaces/IGauge.sol";
 import "../interfaces/IBribe.sol";
 import "../interfaces/IMultiPool.sol";
 import "../proxy/ControllableV3.sol";
+import "../lib/InterfaceIds.sol";
 
 /// @title Voter for veTETU.
 ///        Based on Solidly contract.
@@ -97,9 +98,9 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
     address _bribe
   ) external initializer {
     __Controllable_init(controller);
-    _requireInterface(_ve, type(IVeTetu).interfaceId);
-    _requireInterface(_gauge, type(IGauge).interfaceId);
-    _requireInterface(_bribe, type(IBribe).interfaceId);
+    _requireInterface(_ve, InterfaceIds.I_VE_TETU);
+    _requireInterface(_gauge, InterfaceIds.I_GAUGE);
+    _requireInterface(_bribe, InterfaceIds.I_BRIBE);
     ve = _ve;
     token = _rewardToken;
     gauge = _gauge;
@@ -139,7 +140,7 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
 
   /// @dev See {IERC165-supportsInterface}.
   function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-    return interfaceId == type(IVoter).interfaceId || super.supportsInterface(interfaceId);
+    return interfaceId == InterfaceIds.I_VOTER || super.supportsInterface(interfaceId);
   }
 
   // *************************************************************

@@ -61,7 +61,7 @@ contract MockSplitter is ISplitter, ControllableV3 {
 
   /// @dev See {IERC165-supportsInterface}.
   function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-    return interfaceId == type(ISplitter).interfaceId || super.supportsInterface(interfaceId);
+    return interfaceId == InterfaceIds.I_SPLITTER || super.supportsInterface(interfaceId);
   }
 
 }

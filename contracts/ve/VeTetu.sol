@@ -225,7 +225,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   /// @param _interfaceID Id of the interface
   function supportsInterface(bytes4 _interfaceID) public view override(ControllableV3, IERC165) returns (bool) {
     return _supportedInterfaces[_interfaceID]
-      || _interfaceID == type(IVeTetu).interfaceId
+      || _interfaceID == InterfaceIds.I_VE_TETU
       || super.supportsInterface(_interfaceID);
   }
 

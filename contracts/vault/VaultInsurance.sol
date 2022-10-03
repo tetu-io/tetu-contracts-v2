@@ -7,6 +7,7 @@ import "../openzeppelin/ERC165.sol";
 import "../interfaces/IERC20.sol";
 import "../interfaces/IVaultInsurance.sol";
 import "../interfaces/ITetuVaultV2.sol";
+import "../lib/InterfaceIds.sol";
 
 /// @title Simple dedicated contract for store vault fees
 /// @author belbix
@@ -22,7 +23,7 @@ contract VaultInsurance is ERC165, IVaultInsurance  {
   ///      Should be called from factory during creation process.
   function init(address _vault, address _asset) external override {
     require(vault == address(0) && asset == address(0), "INITED");
-    _requireInterface(_vault, type(ITetuVaultV2).interfaceId);
+    _requireInterface(_vault, InterfaceIds.I_TETU_VAULT_V2);
     vault = _vault;
     asset = _asset; // TODO check for 0?
   }
@@ -35,7 +36,7 @@ contract VaultInsurance is ERC165, IVaultInsurance  {
 
   /// @dev See {IERC165-supportsInterface}.
   function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-    return interfaceId == type(IVaultInsurance).interfaceId || super.supportsInterface(interfaceId);
+    return interfaceId == InterfaceIds.I_VAULT_INSURANCE || super.supportsInterface(interfaceId);
   }
 
 }

@@ -9,6 +9,7 @@ import "../interfaces/IVoter.sol";
 import "../interfaces/IVeDistributor.sol";
 import "../interfaces/IForwarder.sol";
 import "../proxy/ControllableV3.sol";
+import "../lib/InterfaceIds.sol";
 
 /// @title This contract should contains a buffer of fees from strategies.
 ///        Periodically sell rewards and distribute to their destinations.
@@ -208,7 +209,7 @@ contract ForwarderV3 is ReentrancyGuard, ControllableV3, IForwarder {
 
   /// @dev See {IERC165-supportsInterface}.
   function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-    return interfaceId == type(IForwarder).interfaceId || super.supportsInterface(interfaceId);
+    return interfaceId == InterfaceIds.I_FORWARDER || super.supportsInterface(interfaceId);
   }
 
 }

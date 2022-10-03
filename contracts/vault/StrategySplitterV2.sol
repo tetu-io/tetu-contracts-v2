@@ -103,7 +103,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   function init(address controller_, address _asset, address _vault) external initializer override {
     __Controllable_init(controller_);
     asset = _asset;
-    _requireInterface(_vault, type(ITetuVaultV2).interfaceId);
+    _requireInterface(_vault, InterfaceIds.I_TETU_VAULT_V2);
     vault = _vault;
   }
 
@@ -183,7 +183,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
   /// @dev See {IERC165-supportsInterface}.
   function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-    return interfaceId == type(ISplitter).interfaceId || super.supportsInterface(interfaceId);
+    return interfaceId == InterfaceIds.I_SPLITTER || super.supportsInterface(interfaceId);
   }
 
   // *********************************************

@@ -6,6 +6,7 @@ import "../openzeppelin/SafeERC20.sol";
 import "../openzeppelin/EnumerableMap.sol";
 import "../interfaces/IProxyControlled.sol";
 import "../proxy/ControllableV3.sol";
+import "../lib/InterfaceIds.sol";
 
 /// @title A central contract of the TETU platform.
 ///        Holds all important contract addresses.
@@ -185,7 +186,7 @@ contract ControllerV2 is ControllableV3, IController {
 
   /// @dev See {IERC165-supportsInterface}.
   function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-    return interfaceId == type(IController).interfaceId || super.supportsInterface(interfaceId);
+    return interfaceId == InterfaceIds.I_CONTROLLER || super.supportsInterface(interfaceId);
   }
 
   // *************************************************************

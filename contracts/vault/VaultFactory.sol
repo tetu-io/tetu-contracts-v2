@@ -9,6 +9,7 @@ import "../interfaces/ITetuVaultV2.sol";
 import "../interfaces/ISplitter.sol";
 import "../proxy/ProxyControlled.sol";
 import "./VaultInsurance.sol";
+import "../lib/InterfaceIds.sol";
 
 /// @title Factory for vaults.
 /// @author belbix
@@ -58,10 +59,10 @@ contract VaultFactory is ERC165 {
     address _vaultInsuranceImpl,
     address _splitterImpl
   ) {
-    _requireInterface(_controller, type(IController).interfaceId);
-    _requireInterface(_vaultImpl, type(ITetuVaultV2).interfaceId);
-    _requireInterface(_vaultInsuranceImpl, type(IVaultInsurance).interfaceId);
-    _requireInterface(_splitterImpl, type(ISplitter).interfaceId);
+    _requireInterface(_controller, InterfaceIds.I_CONTROLLER);
+    _requireInterface(_vaultImpl, InterfaceIds.I_TETU_VAULT_V2);
+    _requireInterface(_vaultInsuranceImpl, InterfaceIds.I_VAULT_INSURANCE);
+    _requireInterface(_splitterImpl, InterfaceIds.I_SPLITTER);
 
     controller = _controller;
     vaultImpl = _vaultImpl;
@@ -95,21 +96,21 @@ contract VaultFactory is ERC165 {
 
   /// @dev Set TetuVaultV2 contract address
   function setVaultImpl(address value) external onlyGov {
-    _requireInterface(value, type(ITetuVaultV2).interfaceId);
+    _requireInterface(value, InterfaceIds.I_TETU_VAULT_V2);
     vaultImpl = value;
     emit VaultImplChanged(value);
   }
 
   /// @dev Set VaultInsurance contract address
   function setVaultInsuranceImpl(address value) external onlyGov {
-    _requireInterface(value, type(IVaultInsurance).interfaceId);
+    _requireInterface(value, InterfaceIds.I_VAULT_INSURANCE);
     vaultInsuranceImpl = value;
     emit VaultInsuranceImplChanged(value);
   }
 
   /// @dev Set StrategySplitterV2 contract address
   function setSplitterImpl(address value) external onlyGov {
-    _requireInterface(value, type(ISplitter).interfaceId);
+    _requireInterface(value, InterfaceIds.I_SPLITTER);
     splitterImpl = value;
     emit SplitterImplChanged(value);
   }

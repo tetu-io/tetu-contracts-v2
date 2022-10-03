@@ -7,6 +7,7 @@ import "../openzeppelin/ERC165.sol";
 import "../interfaces/IControllable.sol";
 import "../interfaces/IController.sol";
 import "../lib/SlotsLib.sol";
+import "../lib/InterfaceIds.sol";
 
 /// @title Implement basic functionality for any contract that require strict control
 /// @dev Can be used with upgradeable pattern.
@@ -34,7 +35,7 @@ abstract contract ControllableV3 is ERC165, Initializable, IControllable {
   /// @param controller_ Controller address
   function __Controllable_init(address controller_) internal onlyInitializing {
     require(controller_ != address(0), "Zero controller");
-    _requireInterface(controller_, type(IController).interfaceId);
+    _requireInterface(controller_, InterfaceIds.I_CONTROLLER);
     require(IController(controller_).governance() != address(0), "Zero governance");
     _CONTROLLER_SLOT.set(controller_);
     _CREATED_SLOT.set(block.timestamp);
@@ -64,7 +65,7 @@ abstract contract ControllableV3 is ERC165, Initializable, IControllable {
 
   /// @dev See {IERC165-supportsInterface}.
   function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-    return interfaceId == type(IControllable).interfaceId || super.supportsInterface(interfaceId);
+    return interfaceId == InterfaceIds.I_CONTROLLABLE || super.supportsInterface(interfaceId);
   }
 
   // ************* SETTERS/GETTERS *******************

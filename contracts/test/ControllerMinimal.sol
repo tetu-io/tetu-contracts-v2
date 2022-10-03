@@ -5,7 +5,7 @@ pragma solidity 0.8.4;
 import "../openzeppelin/ERC165.sol";
 import "../interfaces/IProxyControlled.sol";
 import "../interfaces/IController.sol";
-
+import "../lib/InterfaceIds.sol";
 contract ControllerMinimal is ERC165, IController {
 
   address public override governance;
@@ -81,7 +81,7 @@ contract ControllerMinimal is ERC165, IController {
 
   /// @dev See {IERC165-supportsInterface}.
   function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-    return interfaceId == type(IController).interfaceId || super.supportsInterface(interfaceId);
+    return interfaceId == InterfaceIds.I_CONTROLLER || super.supportsInterface(interfaceId);
   }
 
 }

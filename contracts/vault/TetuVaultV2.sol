@@ -101,7 +101,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
     __ERC4626_init(_asset, _name, _symbol);
     __Controllable_init(controller_);
 
-    _requireInterface(_gauge, type(IGauge).interfaceId);
+    _requireInterface(_gauge, InterfaceIds.I_GAUGE);
     gauge = IGauge(_gauge);
     buffer = _buffer;
 
@@ -124,7 +124,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
 
   function initInsurance(IVaultInsurance _insurance) external override {
     require(address(insurance) == address(0), "INITED");
-    _requireInterface(address(_insurance), type(IVaultInsurance).interfaceId);
+    _requireInterface(address(_insurance), InterfaceIds.I_VAULT_INSURANCE);
 
     require(_insurance.vault() == address(this), "!VAULT");
     require(_insurance.asset() == address(asset), "!ASSET");
@@ -185,7 +185,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   function setSplitter(address _splitter) external override {
     IERC20 _asset = asset;
     require(address(splitter) == address(0), "DENIED");
-    _requireInterface(_splitter, type(ISplitter).interfaceId);
+    _requireInterface(_splitter, InterfaceIds.I_SPLITTER);
     require(ISplitter(_splitter).asset() == address(_asset), "WRONG_UNDERLYING");
     require(ISplitter(_splitter).vault() == address(this), "WRONG_VAULT");
     require(IControllable(_splitter).isController(controller()), "WRONG_CONTROLLER");
@@ -219,7 +219,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
 
   /// @dev See {IERC165-supportsInterface}.
   function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-    return interfaceId == type(ITetuVaultV2).interfaceId || super.supportsInterface(interfaceId);
+    return interfaceId == InterfaceIds.I_TETU_VAULT_V2 || super.supportsInterface(interfaceId);
   }
 
   // *************************************************************

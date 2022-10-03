@@ -8,6 +8,7 @@ import "../interfaces/IVeDistributor.sol";
 import "../openzeppelin/SafeERC20.sol";
 import "../openzeppelin/Math.sol";
 import "../proxy/ControllableV3.sol";
+import "../lib/InterfaceIds.sol";
 
 /// @title Contract for distributing rewards to ve holders.
 ///        Rewards will be staked to the veNFT without extending lock period.
@@ -102,7 +103,7 @@ contract VeDistributor is ControllableV3, IVeDistributor {
 
     rewardToken = _rewardToken;
 
-    _requireInterface(_ve, type(IVeTetu).interfaceId);
+    _requireInterface(_ve, InterfaceIds.I_VE_TETU);
     ve = IVeTetu(_ve);
 
     IERC20(_rewardToken).safeApprove(_ve, type(uint).max);
@@ -409,7 +410,7 @@ contract VeDistributor is ControllableV3, IVeDistributor {
 
   /// @dev See {IERC165-supportsInterface}.
   function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-    return interfaceId == type(IVeDistributor).interfaceId || super.supportsInterface(interfaceId);
+    return interfaceId == InterfaceIds.I_VE_DISTRIBUTOR || super.supportsInterface(interfaceId);
   }
 
 }
