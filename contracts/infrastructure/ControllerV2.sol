@@ -215,22 +215,31 @@ contract ControllerV2 is ControllableV3, IController {
     if (_type == AddressType.GOVERNANCE) {
       oldAddress = governance;
       governance = newAddress;
+
     } else if (_type == AddressType.TETU_VOTER) {
       oldAddress = voter;
       voter = newAddress;
+
     } else if (_type == AddressType.LIQUIDATOR) {
       oldAddress = liquidator;
       liquidator = newAddress;
+
     } else if (_type == AddressType.FORWARDER) {
+      _requireInterface(newAddress, InterfaceIds.I_FORWARDER);
       oldAddress = forwarder;
       forwarder = newAddress;
+
     } else if (_type == AddressType.INVEST_FUND) {
       oldAddress = investFund;
       investFund = newAddress;
+
     } else if (_type == AddressType.VE_DIST) {
+      _requireInterface(newAddress, InterfaceIds.I_VE_DISTRIBUTOR);
       oldAddress = veDistributor;
       veDistributor = newAddress;
+
     } else if (_type == AddressType.PLATFORM_VOTER) {
+      _requireInterface(newAddress, InterfaceIds.I_PLATFORM_VOTER);
       oldAddress = platformVoter;
       platformVoter = newAddress;
     } else {

@@ -2,7 +2,7 @@ import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {ethers} from "hardhat";
 import chai from "chai";
 import {formatUnits, parseUnits} from "ethers/lib/utils";
-import {MockToken, MultiBribe, TetuVoter, VeTetu} from "../../typechain";
+import {InterfaceIds, MockToken, MultiBribe, TetuVoter, VeTetu} from "../../typechain";
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {Misc} from "../../scripts/utils/Misc";
@@ -11,7 +11,6 @@ import {BigNumber} from "ethers";
 
 const {expect} = chai;
 
-const FULL_AMOUNT = parseUnits('100');
 const LOCK_PERIOD = 60 * 60 * 24 * 365;
 
 describe("multi bribe tests", function () {
@@ -112,6 +111,12 @@ describe("multi bribe tests", function () {
 
   it("wrong convert test", async function () {
     await expect(bribe.tokenIdToAddress(Misc.MAX_UINT)).revertedWith('Wrong convert')
+  });
+
+  it("supports interface", async function () {
+    expect(await bribe.supportsInterface('0x00000000')).eq(false);
+    const interfaceIds = await DeployerUtils.deployContract(owner, 'InterfaceIds') as InterfaceIds;
+    expect(await bribe.supportsInterface(await interfaceIds.I_MULTI_POOL())).eq(true);
   });
 
   // ************* STAKING TOKEN

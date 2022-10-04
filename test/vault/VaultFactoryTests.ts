@@ -69,7 +69,7 @@ describe("Vault factory tests", function () {
       mockGauge.address,
       10
     );
-    expect((await tx.wait()).gasUsed).below(3527299);
+    expect((await tx.wait()).gasUsed).below(4384705); // prev value 3527299
     expect(await vaultFactory.deployedVaultsLength()).eq(1);
 
     const vaultAdr = await vaultFactory.deployedVaults(0);

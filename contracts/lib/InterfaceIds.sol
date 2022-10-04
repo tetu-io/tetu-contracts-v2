@@ -11,6 +11,7 @@ import "../interfaces/IMultiPool.sol";
 import "../interfaces/IForwarder.sol";
 import "../interfaces/IStrategyV2.sol";
 import "../interfaces/IController.sol";
+import "../interfaces/ITetuERC165.sol";
 import "../interfaces/ITetuVaultV2.sol";
 import "../interfaces/IControllable.sol";
 import "../interfaces/IPlatformVoter.sol";
@@ -23,7 +24,7 @@ library InterfaceIds {
 
   /// @notice Version of the contract
   /// @dev Should be incremented when contract changed
-  string public constant INTERFACES_LIB_VERSION = "1.0.0";
+  string public constant INTERFACE_IDS_LIB_VERSION = "1.0.0";
 
   /// As type({Interface}).interfaceId can be changed
   /// when some functions changed at the interface,
@@ -37,6 +38,7 @@ library InterfaceIds {
   bytes4 public constant I_FORWARDER = bytes4(keccak256('IForwarder'));
   bytes4 public constant I_MULTI_POOL = bytes4(keccak256('IMultiPool'));
   bytes4 public constant I_CONTROLLER = bytes4(keccak256('IController'));
+  bytes4 public constant I_TETU_ERC165 = bytes4(keccak256('ITetuERC165'));
   bytes4 public constant I_STRATEGY_V2 = bytes4(keccak256('IStrategyV2'));
   bytes4 public constant I_CONTROLLABLE = bytes4(keccak256('IControllable'));
   bytes4 public constant I_TETU_VAULT_V2 = bytes4(keccak256('ITetuVaultV2'));

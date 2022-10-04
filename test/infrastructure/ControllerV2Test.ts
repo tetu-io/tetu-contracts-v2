@@ -4,7 +4,7 @@ import chai from "chai";
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {Misc} from "../../scripts/utils/Misc";
-import {ControllerV2, ProxyControlled__factory} from "../../typechain";
+import {ControllerV2, ForwarderV3, PlatformVoter, ProxyControlled__factory, VeDistributor} from "../../typechain";
 
 
 const {expect} = chai;
@@ -79,14 +79,16 @@ describe("controller v2 tests", function () {
   });
 
   it("change forwarder test", async function () {
-    await controller.announceAddressChange(5, signer2.address);
+    const forwarder = await DeployerUtils.deployContract(signer, 'ForwarderV3') as ForwarderV3;
+    await controller.announceAddressChange(5, forwarder.address);
     await controller.changeAddress(5);
-    expect(await controller.forwarder()).eq(signer2.address);
+    expect(await controller.forwarder()).eq(forwarder.address);
 
-    await controller.announceAddressChange(5, signer.address);
+    const forwarder2 = await DeployerUtils.deployContract(signer, 'ForwarderV3') as ForwarderV3;
+    await controller.announceAddressChange(5, forwarder2.address);
     await TimeUtils.advanceBlocksOnTs(LOCK);
     await controller.changeAddress(5);
-    expect(await controller.forwarder()).eq(signer.address);
+    expect(await controller.forwarder()).eq(forwarder2.address);
   });
 
   it("change investFund test", async function () {
@@ -103,26 +105,30 @@ describe("controller v2 tests", function () {
 
   it("change veDistributor test", async function () {
     const type = 7;
-    await controller.announceAddressChange(type, signer2.address);
+    const veDistributor = await DeployerUtils.deployContract(signer, 'VeDistributor') as VeDistributor;
+    await controller.announceAddressChange(type, veDistributor.address);
     await controller.changeAddress(type);
-    expect(await controller.veDistributor()).eq(signer2.address);
+    expect(await controller.veDistributor()).eq(veDistributor.address);
 
-    await controller.announceAddressChange(type, signer.address);
+    const veDistributor2 = await DeployerUtils.deployContract(signer, 'VeDistributor') as VeDistributor;
+    await controller.announceAddressChange(type, veDistributor2.address);
     await TimeUtils.advanceBlocksOnTs(LOCK);
     await controller.changeAddress(type);
-    expect(await controller.veDistributor()).eq(signer.address);
+    expect(await controller.veDistributor()).eq(veDistributor2.address);
   });
 
   it("change platformVoter test", async function () {
     const type = 3;
-    await controller.announceAddressChange(type, signer2.address);
+    const platformVoter = await DeployerUtils.deployContract(signer, 'PlatformVoter') as PlatformVoter;
+    await controller.announceAddressChange(type, platformVoter.address);
     await controller.changeAddress(type);
-    expect(await controller.platformVoter()).eq(signer2.address);
+    expect(await controller.platformVoter()).eq(platformVoter.address);
 
-    await controller.announceAddressChange(type, signer.address);
+    const platformVoter2 = await DeployerUtils.deployContract(signer, 'PlatformVoter') as PlatformVoter;
+    await controller.announceAddressChange(type, platformVoter2.address);
     await TimeUtils.advanceBlocksOnTs(LOCK);
     await controller.changeAddress(type);
-    expect(await controller.platformVoter()).eq(signer.address);
+    expect(await controller.platformVoter()).eq(platformVoter2.address);
   });
 
 

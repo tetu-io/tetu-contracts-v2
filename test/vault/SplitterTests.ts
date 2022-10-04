@@ -5,7 +5,7 @@ import {ethers} from "hardhat";
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {
-  ControllerMinimal,
+  ControllerMinimal, InterfaceIds,
   MockGauge,
   MockStrategy,
   MockStrategy__factory,
@@ -655,6 +655,11 @@ describe("Splitter and base strategy tests", function () {
       await expect(strategy.setCompoundRatio(1000000)).revertedWith("SB: Too high");
     });
 
+    it("supports interface", async function () {
+      expect(await strategy.supportsInterface('0x00000000')).eq(false);
+      const interfaceIds = await DeployerUtils.deployContract(signer, 'InterfaceIds') as InterfaceIds;
+      expect(await strategy.supportsInterface(await interfaceIds.I_STRATEGY_V2())).eq(true);
+    });
   });
 
 });
