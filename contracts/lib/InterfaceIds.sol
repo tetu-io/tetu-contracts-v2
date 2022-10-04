@@ -2,22 +2,6 @@
 
 pragma solidity 0.8.4;
 
-import "../interfaces/IVoter.sol";
-import "../interfaces/IBribe.sol";
-import "../interfaces/IGauge.sol";
-import "../interfaces/IVeTetu.sol";
-import "../interfaces/ISplitter.sol";
-import "../interfaces/IMultiPool.sol";
-import "../interfaces/IForwarder.sol";
-import "../interfaces/IStrategyV2.sol";
-import "../interfaces/IController.sol";
-import "../interfaces/ITetuERC165.sol";
-import "../interfaces/ITetuVaultV2.sol";
-import "../interfaces/IControllable.sol";
-import "../interfaces/IPlatformVoter.sol";
-import "../interfaces/IVeDistributor.sol";
-import "../interfaces/IVaultInsurance.sol";
-
 /// @title Library for interface IDs
 /// @author bogdoslav
 library InterfaceIds {
@@ -26,7 +10,10 @@ library InterfaceIds {
   /// @dev Should be incremented when contract changed
   string public constant INTERFACE_IDS_LIB_VERSION = "1.0.0";
 
-  /// As type({Interface}).interfaceId can be changed
+  /// default notation:
+  /// bytes4 public constant I_VOTER = type(IVoter).interfaceId;
+
+  /// As type({Interface}).interfaceId can be changed,
   /// when some functions changed at the interface,
   /// so used hardcoded interface identifiers
 
