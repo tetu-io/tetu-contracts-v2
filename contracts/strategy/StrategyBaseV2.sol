@@ -60,6 +60,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
     address controller_,
     address _splitter
   ) public onlyInitializing {
+    _requireInterface(_splitter, InterfaceIds.I_SPLITTER);
     __Controllable_init(controller_);
 
     require(IControllable(_splitter).isController(controller_), "SB: Wrong controller");
@@ -89,6 +90,11 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   /// @dev Total amount of underlying assets under control of this strategy.
   function totalAssets() public view override returns (uint) {
     return IERC20(asset).balanceOf(address(this)) + investedAssets();
+  }
+
+  /// @dev See {IERC165-supportsInterface}.
+  function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+    return interfaceId == InterfaceIds.I_STRATEGY_V2 || super.supportsInterface(interfaceId);
   }
 
   // *************************************************************

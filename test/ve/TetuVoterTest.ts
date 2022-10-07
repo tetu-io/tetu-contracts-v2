@@ -3,6 +3,7 @@ import {ethers} from "hardhat";
 import chai from "chai";
 import {parseUnits} from "ethers/lib/utils";
 import {
+  InterfaceIds,
   MockPawnshop,
   MockStakingToken,
   MockToken,
@@ -369,5 +370,11 @@ describe("Tetu voter tests", function () {
 
     expect(await voter.claimable(vault2.address)).above(parseUnits('24.4', 18));
     expect(await voter.supplyIndex(vault2.address)).above(parseUnits('50', 18));
+  });
+
+  it("supports interface", async function () {
+    expect(await voter.supportsInterface('0x00000000')).eq(false);
+    const interfaceIds = await DeployerUtils.deployContract(owner, 'InterfaceIds') as InterfaceIds;
+    expect(await voter.supportsInterface(await interfaceIds.I_VOTER())).eq(true);
   });
 });

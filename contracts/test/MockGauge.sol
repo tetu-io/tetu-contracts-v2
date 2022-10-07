@@ -18,4 +18,9 @@ contract MockGauge is ControllableV3 {
     // noop
   }
 
+  /// @dev See {IERC165-supportsInterface}.
+  function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+    return interfaceId == InterfaceIds.I_GAUGE || super.supportsInterface(interfaceId);
+  }
+
 }

@@ -155,6 +155,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   /// @param token_ Underlying ERC20 token
   /// @param controller_ Central contract of the protocol
   function init(address token_, address controller_) external initializer {
+    _requireERC20(token_);
     __Controllable_init(controller_);
 
     // initial token will have 100% power
@@ -187,6 +188,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   }
 
   function addToken(address token, uint weight) external {
+    _requireERC20(token);
     require(isGovernance(msg.sender), "Not governance");
     _addToken(token, weight);
   }
@@ -223,8 +225,10 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
 
   /// @dev Interface identification is specified in ERC-165.
   /// @param _interfaceID Id of the interface
-  function supportsInterface(bytes4 _interfaceID) external view override returns (bool) {
-    return _supportedInterfaces[_interfaceID];
+  function supportsInterface(bytes4 _interfaceID) public view override(ControllableV3, IERC165) returns (bool) {
+    return _supportedInterfaces[_interfaceID]
+      || _interfaceID == InterfaceIds.I_VE_TETU
+      || super.supportsInterface(_interfaceID);
   }
 
   /// @notice Get the most recently recorded rate of voting power decrease for `_tokenId`

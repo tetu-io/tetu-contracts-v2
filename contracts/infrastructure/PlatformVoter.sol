@@ -77,6 +77,7 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
   /// @dev Proxy initialization. Call it after contract deploy.
   function init(address controller_, address _ve) external initializer {
     __Controllable_init(controller_);
+    _requireInterface(_ve, InterfaceIds.I_VE_TETU);
     ve = _ve;
   }
 
@@ -92,6 +93,11 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
   /// @dev Length of votes array for given id
   function veVotesLength(uint veId) external view returns (uint) {
     return votes[veId].length;
+  }
+
+  /// @dev See {IERC165-supportsInterface}.
+  function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+    return interfaceId == InterfaceIds.I_PLATFORM_VOTER || super.supportsInterface(interfaceId);
   }
 
   // *************************************************************

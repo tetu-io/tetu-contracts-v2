@@ -55,6 +55,7 @@ contract MultiGauge is StakelessMultiPoolBase, ControllableV3, IGauge {
   ) external initializer {
     __Controllable_init(controller_);
     __MultiPool_init(_operator, _defaultRewardToken);
+    _requireInterface(_ve, InterfaceIds.I_VE_TETU);
     ve = _ve;
   }
 
@@ -234,6 +235,15 @@ contract MultiGauge is StakelessMultiPoolBase, ControllableV3, IGauge {
 
   function notifyRewardAmount(address stakingToken, address token, uint amount) external override {
     _notifyRewardAmount(stakingToken, token, amount);
+  }
+
+  // *************************************************************
+  //                        VIEWS
+  // *************************************************************
+
+  /// @dev See {IERC165-supportsInterface}.
+  function supportsInterface(bytes4 interfaceId) public view virtual override(ControllableV3, StakelessMultiPoolBase) returns (bool) {
+    return interfaceId == InterfaceIds.I_GAUGE || super.supportsInterface(interfaceId);
   }
 
 }

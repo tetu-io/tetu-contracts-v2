@@ -102,7 +102,9 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   /// @dev Initialize contract after setup it as proxy implementation
   function init(address controller_, address _asset, address _vault) external initializer override {
     __Controllable_init(controller_);
+    _requireERC20(_asset);
     asset = _asset;
+    _requireInterface(_vault, InterfaceIds.I_TETU_VAULT_V2);
     vault = _vault;
   }
 
@@ -178,6 +180,11 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     for (uint i; i < length; ++i) {
       (_strategies[i], locks[i]) = _scheduledStrategies.at(i);
     }
+  }
+
+  /// @dev See {IERC165-supportsInterface}.
+  function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+    return interfaceId == InterfaceIds.I_SPLITTER || super.supportsInterface(interfaceId);
   }
 
   // *********************************************
