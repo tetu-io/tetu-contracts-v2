@@ -10,7 +10,7 @@ abstract contract DepositorBase {
   string public constant DEPOSITOR_BASE_VERSION = "1.0.0";
 
   /// @dev Returns pool assets
-  function _depositorPoolTokens() public virtual view returns (address[] memory assets);
+  function _depositorPoolAssets() public virtual view returns (address[] memory assets);
   /*
   /// @dev Returns pool assets
   function _depositorPoolWeights() public virtual view returns (uint8[] memory weights);

@@ -35,8 +35,6 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
   /// @dev Amount of underlying assets invested to the pool.
   uint private _investedAssets;
 
-  address public pool; // TODO move to IInvestor
-
   // *************************************************************
   //                        INIT
   // *************************************************************
@@ -84,25 +82,45 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
   function _depositToPool(uint amount) override internal virtual {
     if (amount == 0) return;
 
-    address[] memory tokens = _depositorPoolTokens();
+    address[] memory tokens = _depositorPoolAssets();
     uint len = tokens.length;
     uint[] memory tokenAmounts = new uint[](len);
-    uint amountForToken = amount / len; // TODO implement weights
+    uint amountForToken = amount / len;
 
     for (uint i = 0; i < len; ++i) {
-      tokenAmounts[i] = _openPosition(asset, amountForToken, tokens[i], ITetuConverter.ConversionMode.AUTO_0);
-      _approveIfNeeded(tokens[i], amountForToken, pool);
+      // TODO replace to _openHedgedPosition(...)
+      tokenAmounts[i] = _openPosition(
+        asset, amountForToken, tokens[i], ITetuConverter.ConversionMode.AUTO_0);
+       //_approveIfNeeded(tokens[i], amountForToken, pool); // TODO ...
     }
 
-    _depositorEnter(tokenAmounts); // TODO
+    _depositorEnter(tokenAmounts);
+    _investedAssets += amount;
   }
 
   /// @dev Withdraw given amount from the pool.
   function _withdrawFromPool(uint amount) override internal virtual {
-    // TODO
-    // for (tokens) estimate repay
-    // _withdrawTokens(tokenAmounts)
-    // for (tokens) repay
+    if (amount == 0) return;
+
+    uint liquidityAmount = amount; // !!! TODO Convert amount to liquidity amount
+    _depositorExit(liquidityAmount);
+
+    address[] memory tokens = _depositorPoolAssets();
+    uint len = tokens.length;
+    uint assetAmountRequired = amount / len;
+    uint amountReceived = 0;
+
+    for (uint i = 0; i < len; ++i) {
+      // TODO replace to _closeHedgedPosition(...)
+      address borrowedToken = tokens[i];
+      uint borrowedAmountToRepay = _estimateRepay(
+        asset, assetAmountRequired, borrowedToken);
+
+      amountReceived += _closePosition(
+        asset, borrowedToken, borrowedAmountToRepay);
+    }
+    // !!! TODO check amount vs amountReceived, amountReceived must be >= amount
+
   }
 
   /// @dev Withdraw all from the pool.
@@ -141,7 +159,7 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
     address collateralAsset_,
     address borrowAsset_,
     uint amountToReturn_
-  ) override external returns (uint amountBorrowAssetReturned) {
+  ) override external view returns (uint amountBorrowAssetReturned) {
     _onlyTetuConverter();
     // TODO
     amountBorrowAssetReturned = 0;
@@ -151,7 +169,7 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
     address collateralAsset_,
     address borrowAsset_,
     uint amountBorrowAssetSentToBorrower_
-  ) override external {
+  ) override external view {
     _onlyTetuConverter();
     // TODO
   }
@@ -181,18 +199,30 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
     ) = tetuConverter.findConversionStrategy(
       collateralAsset, collateralAmount, borrowAsset, _LOAN_PERIOD_IN_BLOCKS, conversionMode
     );
-
+    _approveIfNeeded(collateralAsset, collateralAmount, address(tetuConverter));
     borrowedAmount = tetuConverter.borrow(
       converter, collateralAsset, collateralAmount, borrowAsset, maxTargetAmount, address(this)
     );
   }
 
+  function _estimateRepay(
+    address collateralAsset_,
+    uint collateralAmountRequired_,
+    address borrowAsset_
+  ) internal view returns (
+    uint borrowAssetAmount
+  ){
+    return tetuConverter.estimateRepay(collateralAsset_, collateralAmountRequired_, borrowAsset_);
+  }
+
   function _closePosition(address collateralAsset, address borrowAsset, uint amountToRepay)
   internal returns (uint returnedAssetAmount) {
     // TODO repay / close position
+    _approveIfNeeded(borrowAsset, amountToRepay, address(tetuConverter));
     returnedAssetAmount = tetuConverter.repay(
       collateralAsset, borrowAsset, amountToRepay, address(this)
     );
+
   }
 
 
