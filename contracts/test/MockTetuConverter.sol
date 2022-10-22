@@ -5,12 +5,14 @@ import "../interfaces/ITetuConverter.sol";
 import "../interfaces/ITetuConverterCallback.sol";
 import "../interfaces/IERC20.sol";
 import "../openzeppelin/SafeERC20.sol";
+import "../lib/FixedPointMathLib.sol";
 import "./IMockToken.sol";
 
 /// @title Mock contract for Tetu Converter.
 /// @author bogdoslav
 contract MockTetuConverter is ITetuConverter {
   using SafeERC20 for IERC20;
+  using FixedPointMathLib for uint;
 
   /// @dev Version of this contract. Adjust manually on each code modification.
   string public constant TETU_CONVERTER_MOCK_VERSION = "1.0.0";
@@ -77,7 +79,7 @@ contract MockTetuConverter is ITetuConverter {
     int aprForPeriod36
   ) {
     // just use SWAP mode for all AUTO requests for now
-    if (conversionMode == ConversionMode.AUTO_0) conversionMode = ConversionMode.SWAP_1;
+    if (conversionMode == ConversionMode.AUTO_0) conversionMode = ConversionMode.BORROW_2;
     // put conversion mode to converter just to detect it at borrow()
     converter = address(uint160(conversionMode));
     maxTargetAmount = calcMaxTargetAmount(uint(conversionMode), sourceAmount_);
@@ -97,7 +99,7 @@ contract MockTetuConverter is ITetuConverter {
     address collateralAsset_,
     uint collateralAmount_,
     address borrowAsset_,
-    uint amountToBorrow_, // TODO to DV: not sure what we needs it
+    uint amountToBorrow_,
     address receiver_
   ) override external returns (
     uint borrowedAmountTransferred
@@ -112,7 +114,7 @@ contract MockTetuConverter is ITetuConverter {
       borrowedAmountTransferred = maxTargetAmount;
 
     } else if (uint160(converter_) == uint160(ConversionMode.BORROW_2)) {
-      require(amountToBorrow_ <= maxTargetAmount, 'MTC: amountToBorrow to big');
+      require(amountToBorrow_ <= maxTargetAmount, 'MTC: amountToBorrow too big');
       borrowedAmountTransferred = amountToBorrow_;
       collaterals[msg.sender][collateralAsset_][borrowAsset_] += collateralAmount_;
       debts[msg.sender][collateralAsset_][borrowAsset_] += borrowedAmountTransferred;
@@ -134,18 +136,40 @@ contract MockTetuConverter is ITetuConverter {
     uint amountToRepay_,
     address collateralReceiver_
   ) override external returns (
-    uint collateralAmountTransferred
+    uint collateralAmountTransferred,
+    uint returnedBorrowAmountOut
   ) {
     collateralAmountTransferred = 0;
-    // TODO
+    uint debt = debts[msg.sender][collateralAsset_][borrowAsset_];
+
+    if (amountToRepay_ >= debt) { // close full debt
+      delete debts[msg.sender][collateralAsset_][borrowAsset_];
+      collateralAmountTransferred = collaterals[msg.sender][collateralAsset_][borrowAsset_];
+      delete collaterals[msg.sender][collateralAsset_][borrowAsset_];
+      // swap excess
+      uint excess = amountToRepay_ - debt;
+      if (excess > 0) {
+        collateralAmountTransferred += calcMaxTargetAmount(ConversionMode.SWAP_1, excess);
+      }
+
+    } else { // partial repay
+      debts[msg.sender][collateralAsset_][borrowAsset_] -= amountToRepay_;
+      collateralAmountTransferred += calcMaxTargetAmount(ConversionMode.BORROW_2, amountToRepay_);
+      collaterals[msg.sender][collateralAsset_][borrowAsset_] -= collateralAmountTransferred;
+    }
+
+    IMockToken(borrowAsset_).burn(address(this), amountToRepay_);
+    IMockToken(collateralAsset_).mint(collateralReceiver_, collateralAmountTransferred);
+    returnedBorrowAmountOut = 0; // stub
   }
 
   /// @notice Total amount of borrow tokens that should be repaid to close the borrow completely.
   function getDebtAmount(
     address collateralAsset_,
     address borrowAsset_
-  ) override external view returns (uint) {
-    return debts[msg.sender][collateralAsset_][borrowAsset_];
+  ) override external view returns (uint totalDebtAmountOut, uint totalCollateralAmountOut) {
+    totalDebtAmountOut = debts[msg.sender][collateralAsset_][borrowAsset_];
+    totalCollateralAmountOut = collaterals[msg.sender][collateralAsset_][borrowAsset_];
   }
 
   /// @notice User needs to redeem some collateral amount. Calculate an amount of borrow token that should be repaid
@@ -154,9 +178,12 @@ contract MockTetuConverter is ITetuConverter {
     uint collateralAmountRequired_,
     address borrowAsset_
   ) override external view returns (
-    uint borrowAssetAmount
+    uint borrowAssetAmount,
+    uint unobtainableCollateralAssetAmount
   ) {
-    borrowAssetAmount = collateralAmountRequired_;  // TODO apply apr
+    borrowAssetAmount = collateralAmountRequired_.mulDivUp(borrowRate2, 100); // TODO apply apr
+    unobtainableCollateralAssetAmount = 0; // stub for now
+
   }
 
   /// @notice Transfer all reward tokens to {receiver_}
@@ -192,10 +219,14 @@ contract MockTetuConverter is ITetuConverter {
     address borrowAsset_,
     uint amountToReturn_
   ) external returns (uint amountBorrowAssetReturned) {
-    // TODO
-    return ITetuConverterCallback(borrower).requireBorrowedAmountBack(
+    uint amountBefore = IERC20(borrowAsset_).balanceOf(address(this));
+    uint returned = ITetuConverterCallback(borrower).requireBorrowedAmountBack(
       collateralAsset_, borrowAsset_, amountToReturn_
     );
+    uint amountAfter = IERC20(borrowAsset_).balanceOf(address(this));
+    amountBorrowAssetReturned = amountAfter - amountBefore;
+    require(amountToReturn_ == amountBorrowAssetReturned);
+    debts[borrower][collateralAsset_][borrowAsset_] -= amountBorrowAssetReturned;
   }
 
   /// @notice TetuConverter calls this function when it makes additional borrow (using exist collateral).
@@ -209,8 +240,10 @@ contract MockTetuConverter is ITetuConverter {
     address borrowAsset_,
     uint amountBorrowAssetSentToBorrower_
   ) external {
-    // TODO
-    return ITetuConverterCallback(borrower).onTransferBorrowedAmount(
+    debts[borrower][collateralAsset_][borrowAsset_] += amountBorrowAssetSentToBorrower_;
+    IMockToken(borrowAsset_).mint(borrower, amountBorrowAssetSentToBorrower_);
+
+    ITetuConverterCallback(borrower).onTransferBorrowedAmount(
       collateralAsset_, borrowAsset_, amountBorrowAssetSentToBorrower_
     );
   }
@@ -219,28 +252,14 @@ contract MockTetuConverter is ITetuConverter {
   /// Additional functions, remove somewhere?
   //////////////////////////////////////////////////////////////////////////////
 
-  /// @notice Get active borrow positions for the given collateral/borrowToken
-  /// @return poolAdapters An instance of IPoolAdapter (with repay function)
   function findBorrows (
-    address collateralToken_,
-    address borrowedToken_
+    address /*collateralToken_*/,
+    address /*borrowedToken_*/
   ) override external view returns (
     address[] memory poolAdapters
   ) {
   }
 
-  /// @notice Repay the borrow completely and re-convert (borrow or swap) from zero
-  /// @dev Revert if re-borrow uses same PA as before
-  /// @param poolAdapter_ TODO: current implementation assumes, that the borrower directly works with pool adapter -
-  ///                     TODO: gets status, transfers borrowed amount on balance of the pool adapter and so on
-  ///                     TODO: probably we need to hide all pool-adapter-implementation details behind
-  ///                     TODO: interface of the TetuConverter in same way as it was done for borrow/repay
-  /// @param periodInBlocks_ Estimated period to keep target amount. It's required to compute APR
-  function reconvert(
-    address poolAdapter_,
-    uint periodInBlocks_,
-    address receiver_
-  ) override external {}
 
 
 }

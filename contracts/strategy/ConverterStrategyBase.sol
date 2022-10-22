@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.4;
 
+import "../interfaces/ITetuLiquidator.sol";
 import "../interfaces/ITetuConverter.sol";
 import "../interfaces/ITetuConverterCallback.sol";
 import "../interfaces/IERC20.sol";
@@ -23,17 +24,22 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
   // approx one month for average block time 2 sec
   uint private constant _LOAN_PERIOD_IN_BLOCKS = 3600 * 24 * 30 / 2; // TODO check
 
+  uint private constant LIQUIDATION_SLIPPAGE = 5_000; // 5%
+
   // *************************************************************
   //                        VARIABLES
   //                Keep names and ordering!
   //                 Add only in the bottom.
   // *************************************************************
 
+  /// @dev Amount of underlying assets invested to the pool.
+  uint private _investedAssets;
+
   /// @dev Linked Tetu Converter
   ITetuConverter public tetuConverter;
 
-  /// @dev Amount of underlying assets invested to the pool.
-  uint private _investedAssets;
+  /// @dev Linked Tetu Liquidator
+  ITetuLiquidator public tetuLiquidator;
 
   // *************************************************************
   //                        INIT
@@ -90,20 +96,24 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
     for (uint i = 0; i < len; ++i) {
       // TODO replace to _openHedgedPosition(...)
       tokenAmounts[i] = _openPosition(
-        asset, amountForToken, tokens[i], ITetuConverter.ConversionMode.AUTO_0);
-       //_approveIfNeeded(tokens[i], amountForToken, pool); // TODO ...
+        asset, amountForToken, tokens[i], ITetuConverter.ConversionMode.BORROW_2);
     }
 
-    _depositorEnter(tokenAmounts);
+    _depositorEnter(tokenAmounts); // TODO what to do with change? repay immediately?
     _investedAssets += amount;
   }
 
   /// @dev Withdraw given amount from the pool.
-  function _withdrawFromPool(uint amount) override internal virtual {
+  function _withdrawFromPoolUniversal(uint amount, bool emergency) internal {
     if (amount == 0) return;
 
-    uint liquidityAmount = amount; // !!! TODO Convert amount to liquidity amount
-    _depositorExit(liquidityAmount);
+    uint[] memory amountsOut;
+    if (emergency) {
+      amountsOut =_depositorEmergencyExit();
+    } else {
+      uint liquidityAmount = amount; // !!! TODO Convert amount to liquidity amount
+      amountsOut =_depositorExit(liquidityAmount);
+    }
 
     address[] memory tokens = _depositorPoolAssets();
     uint len = tokens.length;
@@ -113,30 +123,62 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
     for (uint i = 0; i < len; ++i) {
       // TODO replace to _closeHedgedPosition(...)
       address borrowedToken = tokens[i];
-      uint borrowedAmountToRepay = _estimateRepay(
-        asset, assetAmountRequired, borrowedToken);
 
       amountReceived += _closePosition(
-        asset, borrowedToken, borrowedAmountToRepay);
+        asset, borrowedToken, amountsOut[i]);
     }
     // !!! TODO check amount vs amountReceived, amountReceived must be >= amount
 
   }
 
+  /// @dev Withdraw given amount from the pool.
+  function _withdrawFromPool(uint amount) override internal virtual {
+    _withdrawFromPoolUniversal(amount, false);
+  }
+
   /// @dev Withdraw all from the pool.
   function _withdrawAllFromPool() override internal virtual {
-    // TODO
+    _withdrawFromPoolUniversal(_investedAssets, false);
   }
 
   /// @dev If pool support emergency withdraw need to call it for emergencyExit()
   function _emergencyExitFromPool() override internal virtual {
-    // TODO
+    _withdrawFromPoolUniversal(_investedAssets, true);
+  }
+
+
+  function _recycle(address[] memory tokens, uint[] memory amounts) internal {
+    require(tokens.length == amounts.length, "SB: Arrays mismatch");
+    uint len = tokens.length;
+
+    for (uint i = 0; i < len; ++i) {
+      address token = tokens[i];
+      uint amount = amounts[i];
+
+      if (amount > 0) {
+        uint amountToCompound = amount * compoundRatio / COMPOUND_DENOMINATOR;
+        if (amountToCompound > 0) {
+          tetuLiquidator.liquidate(token, asset, amountToCompound, LIQUIDATION_SLIPPAGE);
+        }
+
+        uint amountToForward = amount - amountToCompound;
+        if (amountToForward > 0) {
+          _sendToForwarder(token, amount);
+        }
+      }
+    }
   }
 
   /// @dev Claim all possible rewards.
   function _claim() override internal virtual {
-    (address[] memory tokens, uint[] memory amounts) = _depositorClaimRewards();
-    // TODO send to forwarder
+    address[] memory tokens;
+    uint[] memory amounts;
+
+    (tokens, amounts) = _depositorClaimRewards();
+    _recycle(tokens, amounts);
+
+    (tokens, amounts) = tetuConverter.claimRewards(address(this));
+    _recycle(tokens, amounts);
   }
 
   /// @dev Is strategy ready to hard work
@@ -147,8 +189,14 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
 
   /// @dev Do hard work
   function doHardWork()
-  override external pure returns (uint earned, uint lost) {
-    return (0, 0); // TODO
+  override external returns (uint earned, uint lost) {
+    _claim();
+    earned = IERC20(asset).balanceOf(address(this));
+    if (earned > 0) {
+      _depositToPool(earned);
+    }
+
+    lost = 0; // TODO
   }
 
   // *************************************************************
@@ -172,6 +220,7 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
   ) override external view {
     _onlyTetuConverter();
     // TODO
+
   }
 
 

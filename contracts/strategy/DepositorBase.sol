@@ -22,6 +22,7 @@ abstract contract DepositorBase {
   function _depositorTotalSupply() public virtual view returns (uint);
 
   /// @dev Deposit given amount to the pool.
+  /// @notice Depositor must care about tokens approval by itself.
   function _depositorEnter(uint[] memory amountsDesired_) internal virtual
   returns (uint[] memory amountsConsumed, uint liquidityOut);
 

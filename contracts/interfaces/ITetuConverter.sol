@@ -39,7 +39,7 @@ interface ITetuConverter {
   /// @param collateralAmount_ Amount of {collateralAsset_}. This amount must be approved for TetuConverter.
   /// @param amountToBorrow_ Amount of {borrowAsset_} to be borrowed and sent to {receiver_}
   /// @param receiver_ A receiver of borrowed amount
-  /// @return borrowedAmountTransferred Exact borrowed amount transferred to {receiver_}
+  /// @return borrowedAmountOut Exact borrowed amount transferred to {receiver_}
   function borrow(
     address converter_,
     address collateralAsset_,
@@ -48,36 +48,63 @@ interface ITetuConverter {
     uint amountToBorrow_,
     address receiver_
   ) external returns (
-    uint borrowedAmountTransferred
+    uint borrowedAmountOut
   );
 
   /// @notice Full or partial repay of the borrow
-  /// @dev We use converter address, not pool adapter, to make set of params in borrow/repay similar
-  /// @param amountToRepay_ Amount of borrowed asset to repay. Pass type(uint).max to make full repayment.
-  /// @param collateralReceiver_ A receiver of the collateral that will be withdrawn after the repay
-  /// @return collateralAmountTransferred Exact collateral amount transferred to {collateralReceiver_}
+  /// @dev A user should transfer {amountToRepay_} to TetuConverter before calling repay()
+  /// @param amountToRepay_ Amount of borrowed asset to repay.
+  ///                       You can know exact total amount of debt using {getStatusCurrent}.
+  ///                       if the amount exceed total amount of the debt:
+  ///                       - the debt will be fully repaid
+  ///                       - remain amount will be swapped from {borrowAsset_} to {collateralAsset_}
+  /// @param receiver_ A receiver of the collateral that will be withdrawn after the repay
+  ///                  The remained amount of borrow asset will be returned to the {receiver_} too
+  /// @return collateralAmountOut Exact collateral amount transferred to {collateralReceiver_}
+  /// @return returnedBorrowAmountOut A part of amount-to-repay that wasn't converted to collateral asset
+  ///                                 because of any reasons (i.e. there is no available conversion strategy)
+  ///                                 This amount is returned back to the collateralReceiver_
   function repay(
     address collateralAsset_,
     address borrowAsset_,
     uint amountToRepay_,
-    address collateralReceiver_
+    address receiver_
   ) external returns (
-    uint collateralAmountTransferred
+    uint collateralAmountOut,
+    uint returnedBorrowAmountOut
   );
 
+  /// @notice Update status in all opened positions
+  ///         and calculate exact total amount of borrowed and collateral assets
+  function getStatusCurrent(
+    address collateralAsset_,
+    address borrowAsset_
+  ) external returns (uint totalDebtAmountOut, uint totalCollateralAmountOut);
+
   /// @notice Total amount of borrow tokens that should be repaid to close the borrow completely.
+  /// @dev Actual debt amount can be a little LESS then the amount returned by this function.
+  ///      I.e. AAVE's pool adapter returns (amount of debt + tiny addon ~ 1 cent)
+  ///      The addon is required to workaround dust-tokens problem.
+  ///      After repaying the remaining amount is transferred back on the balance of the caller strategy.
   function getDebtAmount(
     address collateralAsset_,
     address borrowAsset_
-  ) external view returns (uint);
+  ) external view returns (uint totalDebtAmountOut, uint totalCollateralAmountOut);
 
   /// @notice User needs to redeem some collateral amount. Calculate an amount of borrow token that should be repaid
+  /// @param collateralAmountRequired_ Amount of collateral required by the user
+  /// @return borrowAssetAmount Borrowed amount that should be repaid to receive back following amount of collateral:
+  ///                           amountToReceive = collateralAmountRequired_ - unobtainableCollateralAssetAmount
+  /// @return unobtainableCollateralAssetAmount A part of collateral that cannot be obtained in any case
+  ///                                           even if all borrowed amount will be returned.
+  ///                                           If this amount is not 0, you ask to get too much collateral.
   function estimateRepay(
     address collateralAsset_,
     uint collateralAmountRequired_,
     address borrowAsset_
   ) external view returns (
-    uint borrowAssetAmount
+    uint borrowAssetAmount,
+    uint unobtainableCollateralAssetAmount
   );
 
   /// @notice Transfer all reward tokens to {receiver_}
@@ -102,17 +129,4 @@ interface ITetuConverter {
   ) external view returns (
     address[] memory poolAdapters
   );
-
-  /// @notice Repay the borrow completely and re-convert (borrow or swap) from zero
-  /// @dev Revert if re-borrow uses same PA as before
-  /// @param poolAdapter_ TODO: current implementation assumes, that the borrower directly works with pool adapter -
-  ///                     TODO: gets status, transfers borrowed amount on balance of the pool adapter and so on
-  ///                     TODO: probably we need to hide all pool-adapter-implementation details behind
-  ///                     TODO: interface of the TetuConverter in same way as it was done for borrow/repay
-  /// @param periodInBlocks_ Estimated period to keep target amount. It's required to compute APR
-  function reconvert(
-    address poolAdapter_,
-    uint periodInBlocks_,
-    address receiver_
-  ) external;
 }
