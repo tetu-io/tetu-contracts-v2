@@ -93,13 +93,20 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
     uint[] memory tokenAmounts = new uint[](len);
     uint amountForToken = amount / len;
 
+    // TODO consider change (token balances) from previous deposit
+    // TODO calc
     for (uint i = 0; i < len; ++i) {
-      // TODO replace to _openHedgedPosition(...)
-      tokenAmounts[i] = _openPosition(
-        asset, amountForToken, tokens[i], ITetuConverter.ConversionMode.BORROW_2);
+      address token = tokens[i];
+      if (token == asset) {
+        tokenAmounts[i] = amountForToken;
+      } else {
+        uint leftover = IERC20(token).balanceOf(address(this));
+        _openPosition(asset, amountForToken, token, ITetuConverter.ConversionMode.BORROW_2);
+        tokenAmounts[i] = IERC20(token).balanceOf(address(this));
+      }
     }
 
-    _depositorEnter(tokenAmounts); // TODO what to do with change? repay immediately?
+    _depositorEnter(tokenAmounts); // change leaved to next deposit
     _investedAssets += amount;
   }
 
@@ -121,13 +128,11 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
     uint amountReceived = 0;
 
     for (uint i = 0; i < len; ++i) {
-      // TODO replace to _closeHedgedPosition(...)
       address borrowedToken = tokens[i];
 
-      amountReceived += _closePosition(
-        asset, borrowedToken, amountsOut[i]);
+      amountReceived += _closePosition(asset, borrowedToken, amountsOut[i]);
     }
-    // !!! TODO check amount vs amountReceived, amountReceived must be >= amount
+    // !!! TODO amount vs amountReceived, amountReceived must be >= amount
 
   }
 
@@ -248,7 +253,7 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
     ) = tetuConverter.findConversionStrategy(
       collateralAsset, collateralAmount, borrowAsset, _LOAN_PERIOD_IN_BLOCKS, conversionMode
     );
-    _approveIfNeeded(collateralAsset, collateralAmount, address(tetuConverter));
+    IERC20(collateralAsset).safeTransfer(address(tetuConverter), collateralAmount);
     borrowedAmount = tetuConverter.borrow(
       converter, collateralAsset, collateralAmount, borrowAsset, maxTargetAmount, address(this)
     );
@@ -259,18 +264,20 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
     uint collateralAmountRequired_,
     address borrowAsset_
   ) internal view returns (
-    uint borrowAssetAmount
+    uint borrowAssetAmount,
+    uint unobtainableCollateralAssetAmount
   ){
     return tetuConverter.estimateRepay(collateralAsset_, collateralAmountRequired_, borrowAsset_);
   }
 
   function _closePosition(address collateralAsset, address borrowAsset, uint amountToRepay)
   internal returns (uint returnedAssetAmount) {
-    // TODO repay / close position
-    _approveIfNeeded(borrowAsset, amountToRepay, address(tetuConverter));
-    returnedAssetAmount = tetuConverter.repay(
+    IERC20(borrowAsset).safeTransfer(address(tetuConverter), amountToRepay);
+    uint unobtainableCollateralAssetAmount;
+    (returnedAssetAmount, unobtainableCollateralAssetAmount) = tetuConverter.repay(
       collateralAsset, borrowAsset, amountToRepay, address(this)
     );
+    require(unobtainableCollateralAssetAmount == 0, 'CSB: Can not convert back');
 
   }
 

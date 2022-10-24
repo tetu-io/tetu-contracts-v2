@@ -20,8 +20,8 @@ contract MockTetuConverter is ITetuConverter {
   int public currentAprForPeriod36 = 0;
   uint public borrowRate2 = 50;
 
-  address[] private _rewardTokens;
-  uint[] private _rewardAmounts;
+  address[] public rewardTokens;
+  uint[] public rewardAmounts;
 
   // msg.sender, collateral, borrow token
   mapping (address => mapping (address => mapping (address => uint))) public collaterals;
@@ -31,8 +31,8 @@ contract MockTetuConverter is ITetuConverter {
     require(rewardTokens_.length == rewardAmounts_.length);
 
     for (uint i = 0; i < rewardTokens_.length; ++i) {
-      _rewardTokens.push(rewardTokens_[i]);
-      _rewardAmounts.push(rewardAmounts_[i]);
+      rewardTokens.push(rewardTokens_[i]);
+      rewardAmounts.push(rewardAmounts_[i]);
     }
   }
 
@@ -78,7 +78,7 @@ contract MockTetuConverter is ITetuConverter {
     uint maxTargetAmount,
     int aprForPeriod36
   ) {
-    // just use SWAP mode for all AUTO requests for now
+    // just use BORROW mode for all AUTO requests for now
     if (conversionMode == ConversionMode.AUTO_0) conversionMode = ConversionMode.BORROW_2;
     // put conversion mode to converter just to detect it at borrow()
     converter = address(uint160(conversionMode));
@@ -105,7 +105,6 @@ contract MockTetuConverter is ITetuConverter {
     uint borrowedAmountTransferred
   ) {
     // transfer (that checks allowance)
-    IERC20(collateralAsset_).safeTransferFrom(msg.sender, address(this), collateralAmount_);
     IMockToken(collateralAsset_).burn(address(this), collateralAmount_);
 
     uint maxTargetAmount = calcMaxTargetAmount(uint160(converter_), collateralAmount_);
@@ -149,12 +148,12 @@ contract MockTetuConverter is ITetuConverter {
       // swap excess
       uint excess = amountToRepay_ - debt;
       if (excess > 0) {
-        collateralAmountTransferred += calcMaxTargetAmount(ConversionMode.SWAP_1, excess);
+        collateralAmountTransferred += calcMaxTargetAmount(uint(ConversionMode.SWAP_1), excess);
       }
 
     } else { // partial repay
       debts[msg.sender][collateralAsset_][borrowAsset_] -= amountToRepay_;
-      collateralAmountTransferred += calcMaxTargetAmount(ConversionMode.BORROW_2, amountToRepay_);
+      collateralAmountTransferred += calcMaxTargetAmount(uint(ConversionMode.BORROW_2), amountToRepay_);
       collaterals[msg.sender][collateralAsset_][borrowAsset_] -= collateralAmountTransferred;
     }
 
@@ -193,13 +192,13 @@ contract MockTetuConverter is ITetuConverter {
     address[] memory rewardTokens,
     uint[] memory amounts
   ) {
-    uint len = _rewardTokens.length;
+    uint len = rewardTokens.length;
     for (uint i = 0; i < len; ++i) {
-      IMockToken token = IMockToken(_rewardTokens[i]);
-      uint amount = _rewardAmounts[i];
-      token.mint(address(this), amount);
+      IMockToken token = IMockToken(rewardTokens[i]);
+      uint amount = rewardAmounts[i];
+      token.mint(receiver_, amount);
     }
-    return (_rewardTokens, _rewardAmounts);
+    return (rewardTokens, rewardAmounts);
   }
 
   ////////////////////////
@@ -248,16 +247,29 @@ contract MockTetuConverter is ITetuConverter {
     );
   }
 
+  /// @notice Update status in all opened positions
+  ///         and calculate exact total amount of borrowed and collateral assets
+  function getStatusCurrent(
+    address collateralAsset_,
+    address borrowAsset_
+  ) override external returns (uint totalDebtAmountOut, uint totalCollateralAmountOut) {
+    totalDebtAmountOut = 0; // stub
+    totalCollateralAmountOut = 0;  // stub
+  }
+
+
   //////////////////////////////////////////////////////////////////////////////
   /// Additional functions, remove somewhere?
   //////////////////////////////////////////////////////////////////////////////
 
   function findBorrows (
-    address /*collateralToken_*/,
-    address /*borrowedToken_*/
+    address collateralToken_,
+    address borrowedToken_
   ) override external view returns (
     address[] memory poolAdapters
   ) {
+    poolAdapters = new address[](1);
+    poolAdapters[0] = address(uint160(ConversionMode.BORROW_2));
   }
 
 
