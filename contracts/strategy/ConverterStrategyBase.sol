@@ -10,6 +10,7 @@ import "./StrategyBaseV2.sol";
 import "./DepositorBase.sol";
 
 /// @title Abstract contract for base Converter strategy functionality
+/// @notice All depositor assets must be correlated (ie USDC/USDT/DAI)
 /// @author bogdoslav
 abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,  ITetuConverterCallback, StrategyBaseV2 { // TODO
   using SafeERC20 for IERC20;
@@ -63,7 +64,7 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
 
   /// @dev Restrict access only for splitter
   function _onlyTetuConverter() internal view {
-    require(msg.sender == address(tetuConverter), "CSB: Denied");
+    require(msg.sender == address(tetuConverter), "CSB: Only TetuConverter");
   }
 
   // *************************************************************
@@ -79,7 +80,7 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
   //                       OVERRIDES StrategyBase
   // *************************************************************
 
-  /// @dev Amount of underlying assets invested to the pool.
+  /// @dev Amount of underlying assets converted to pool assets and invested to the pool.
   function investedAssets() override public view virtual returns (uint) {
     return _investedAssets;
   }
@@ -88,51 +89,54 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
   function _depositToPool(uint amount) override internal virtual {
     if (amount == 0) return;
 
+    address _asset = asset;
+    uint assetBalanceBefore = _balance(_asset);
+
     address[] memory tokens = _depositorPoolAssets();
     uint len = tokens.length;
     uint[] memory tokenAmounts = new uint[](len);
-    uint amountForToken = amount / len;
+    uint assetAmountForToken = amount / len;
 
-    // TODO consider change (token balances) from previous deposit
-    // TODO calc
     for (uint i = 0; i < len; ++i) {
       address token = tokens[i];
-      if (token == asset) {
-        tokenAmounts[i] = amountForToken;
+      if (token == _asset) {
+        tokenAmounts[i] = assetAmountForToken;
       } else {
-        uint leftover = IERC20(token).balanceOf(address(this));
-        _openPosition(asset, amountForToken, token, ITetuConverter.ConversionMode.BORROW_2);
-        tokenAmounts[i] = IERC20(token).balanceOf(address(this));
+        _openPosition(_asset, assetAmountForToken, token, ITetuConverter.ConversionMode.AUTO_0);
+        tokenAmounts[i] = _balance(token);
       }
     }
 
-    _depositorEnter(tokenAmounts); // change leaved to next deposit
-    _investedAssets += amount;
+    _depositorEnter(tokenAmounts);
+    _investedAssets += (assetBalanceBefore - _balance(_asset));
   }
 
   /// @dev Withdraw given amount from the pool.
   function _withdrawFromPoolUniversal(uint amount, bool emergency) internal {
     if (amount == 0) return;
+    address _asset = asset;
+    uint assetBalanceBefore = _balance(_asset);
 
-    uint[] memory amountsOut;
     if (emergency) {
-      amountsOut =_depositorEmergencyExit();
+      _depositorEmergencyExit();
     } else {
-      uint liquidityAmount = amount; // !!! TODO Convert amount to liquidity amount
-      amountsOut =_depositorExit(liquidityAmount);
+      uint liquidityAmount = amount * _depositorLiquidity() / _investedAssets;
+      _depositorExit(liquidityAmount);
     }
 
     address[] memory tokens = _depositorPoolAssets();
     uint len = tokens.length;
-    uint assetAmountRequired = amount / len;
-    uint amountReceived = 0;
 
     for (uint i = 0; i < len; ++i) {
       address borrowedToken = tokens[i];
-
-      amountReceived += _closePosition(asset, borrowedToken, amountsOut[i]);
+      if (_asset != borrowedToken) {
+        _closePosition(_asset, borrowedToken, _balance(borrowedToken));
+      }
     }
-    // !!! TODO amount vs amountReceived, amountReceived must be >= amount
+
+    uint amountReceived = _balance(_asset) - assetBalanceBefore;
+
+  _investedAssets -= amountReceived;
 
   }
 
@@ -232,6 +236,10 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
   // *************************************************************
   //                        HELPERS
   // *************************************************************
+
+  function _balance(address token) internal view returns (uint) {
+    return IERC20(token).balanceOf(address(this));
+  }
 
   function _approveIfNeeded(address token, uint amount, address spender) internal {
     if (IERC20(token).allowance(address(this), spender) < amount) {
