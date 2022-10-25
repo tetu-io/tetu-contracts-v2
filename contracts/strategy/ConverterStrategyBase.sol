@@ -42,6 +42,11 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
   /// @dev Linked Tetu Liquidator
   ITetuLiquidator public tetuLiquidator;
 
+  bool private override _isReadyToHardWork;
+
+  uint public losses;
+  uint public profits;
+
   // *************************************************************
   //                        INIT
   // *************************************************************
@@ -55,6 +60,7 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
     __StrategyBase_init(controller_, splitter_);
     _requireInterface(converter_, InterfaceIds.I_TETU_CONVERTER);
     tetuConverter = ITetuConverter(converter_);
+    _isReadyToHardWork = true;
 
   }
 
@@ -87,6 +93,7 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
 
   /// @dev Deposit given amount to the pool.
   function _depositToPool(uint amount) override internal virtual {
+    _doHardWork(false);
     if (amount == 0) return;
 
     address _asset = asset;
@@ -102,8 +109,15 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
       if (token == _asset) {
         tokenAmounts[i] = assetAmountForToken;
       } else {
-        _openPosition(_asset, assetAmountForToken, token, ITetuConverter.ConversionMode.AUTO_0);
-        tokenAmounts[i] = _balance(token);
+        uint tokenBalance = _balance(token);
+
+        if (tokenBalance >= assetAmountForToken) { // we already have enough tokens
+          tokenAmounts[i] = tokenBalance;
+
+        } else { // we do not have enough tokens - borrow
+         _openPosition(_asset, assetAmountForToken - tokenBalance, token, ITetuConverter.ConversionMode.AUTO_0);
+          tokenAmounts[i] = _balance(token);
+        }
       }
     }
 
@@ -114,6 +128,9 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
   /// @dev Withdraw given amount from the pool.
   function _withdrawFromPoolUniversal(uint amount, bool emergency) internal {
     if (amount == 0) return;
+
+    if (!emergency) _doHardWork(false);
+
     address _asset = asset;
     uint assetBalanceBefore = _balance(_asset);
 
@@ -135,8 +152,7 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
     }
 
     uint amountReceived = _balance(_asset) - assetBalanceBefore;
-
-  _investedAssets -= amountReceived;
+    _investedAssets -= amountReceived;
 
   }
 
@@ -193,19 +209,32 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
   /// @dev Is strategy ready to hard work
   function isReadyToHardWork()
   override external pure returns (bool) {
-    return true; // TODO
+    return _isReadyToHardWork;
   }
 
   /// @dev Do hard work
   function doHardWork()
   override external returns (uint earned, uint lost) {
+    return _doHardWork(true);
+  }
+
+  /// @dev Do hard work
+  function _doHardWork(bool doDepositToPool)
+  internal returns (uint earned, uint lost) {
+
+    uint assetBalanceBefore = _balance(asset);
     _claim();
-    earned = IERC20(asset).balanceOf(address(this));
-    if (earned > 0) {
-      _depositToPool(earned);
+    earned = _balance(asset) - assetBalanceBefore;
+
+    if (doDepositToPool) {
+      _depositToPool(_balance(asset));
     }
 
-    lost = 0; // TODO
+    lost += losses;
+    losses = 0;
+
+    earned += profits;
+    profits = 0;
   }
 
   // *************************************************************
@@ -216,10 +245,25 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
     address collateralAsset_,
     address borrowAsset_,
     uint amountToReturn_
-  ) override external view returns (uint amountBorrowAssetReturned) {
+  ) override external returns (uint amountBorrowAssetReturned) {
     _onlyTetuConverter();
-    // TODO
+
+    losses += amountToReturn_;
+
+    uint borrowAssetBalance = _balance(borrowAsset_);
+
     amountBorrowAssetReturned = 0;
+
+    if (borrowAssetBalance >=  amountToReturn_) {
+      amountBorrowAssetReturned = amountToReturn_;
+
+    } else {
+      // ! TODO Withdraw from pool
+
+    }
+
+    IERC20(borrowAsset_).safeTransfer(address(tetuConverter), amountBorrowAssetReturned);
+
   }
 
   function onTransferBorrowedAmount (
@@ -228,8 +272,8 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
     uint amountBorrowAssetSentToBorrower_
   ) override external view {
     _onlyTetuConverter();
-    // TODO
-
+    profits += amountBorrowAssetSentToBorrower_;
+    // additional assets will be deposited on next _depositToPool()
   }
 
 
@@ -241,12 +285,12 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
     return IERC20(token).balanceOf(address(this));
   }
 
-  function _approveIfNeeded(address token, uint amount, address spender) internal {
+/*  function _approveIfNeeded(address token, uint amount, address spender) internal {
     if (IERC20(token).allowance(address(this), spender) < amount) {
       IERC20(token).safeApprove(spender, 0);
       IERC20(token).safeApprove(spender, type(uint).max);
     }
-  }
+  }*/
 
   function _openPosition(
     address collateralAsset,
@@ -257,14 +301,14 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
     (
       address converter,
       uint maxTargetAmount,
-      int aprForPeriod36
+      /*int aprForPeriod36*/
     ) = tetuConverter.findConversionStrategy(
-      collateralAsset, collateralAmount, borrowAsset, _LOAN_PERIOD_IN_BLOCKS, conversionMode
-    );
+      collateralAsset, collateralAmount, borrowAsset, _LOAN_PERIOD_IN_BLOCKS, conversionMode);
+
     IERC20(collateralAsset).safeTransfer(address(tetuConverter), collateralAmount);
+
     borrowedAmount = tetuConverter.borrow(
-      converter, collateralAsset, collateralAmount, borrowAsset, maxTargetAmount, address(this)
-    );
+      converter, collateralAsset, collateralAmount, borrowAsset, maxTargetAmount, address(this));
   }
 
   function _estimateRepay(

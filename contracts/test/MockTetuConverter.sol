@@ -61,17 +61,17 @@ contract MockTetuConverter is ITetuConverter {
 
   /// @notice Find best conversion strategy (swap or borrow) and provide "cost of money" as interest for the period
   /// @param sourceAmount_ Amount to be converted
-  /// @param periodInBlocks_ Estimated period to keep target amount. It's required to compute APR
-  /// @param conversionMode Allow to select conversion kind (swap, borrowing) automatically or manually
+  /// param periodInBlocks_ Estimated period to keep target amount. It's required to compute APR
+  /// param conversionMode Allow to select conversion kind (swap, borrowing) automatically or manually
   /// @return converter Result contract that should be used for conversion; it supports IConverter
   ///                   This address should be passed to borrow-function during conversion.
   /// @return maxTargetAmount Max available amount of target tokens that we can get after conversion
   /// @return aprForPeriod36 Interest on the use of {outMaxTargetAmount} during the given period, decimals 36
   function findConversionStrategy(
-    address sourceToken_,
+    address /*sourceToken_*/,
     uint sourceAmount_,
-    address targetToken_,
-    uint periodInBlocks_,
+    address /*targetToken_*/,
+    uint /*periodInBlocks_*/,
     ConversionMode conversionMode
   ) override external view returns (
     address converter,
@@ -120,7 +120,7 @@ contract MockTetuConverter is ITetuConverter {
 
     } else revert('MTC: Wrong conversionMode');
 
-    IMockToken(borrowAsset_).mint(msg.sender, borrowedAmountTransferred);
+    IMockToken(borrowAsset_).mint(receiver_, borrowedAmountTransferred);
 
   }
 
@@ -173,9 +173,9 @@ contract MockTetuConverter is ITetuConverter {
 
   /// @notice User needs to redeem some collateral amount. Calculate an amount of borrow token that should be repaid
   function estimateRepay(
-    address collateralAsset_,
+    address /*collateralAsset_*/,
     uint collateralAmountRequired_,
-    address borrowAsset_
+    address /*borrowAsset_*/
   ) override external view returns (
     uint borrowAssetAmount,
     uint unobtainableCollateralAssetAmount
@@ -189,8 +189,8 @@ contract MockTetuConverter is ITetuConverter {
   /// @return rewardTokens What tokens were transferred. Same reward token can appear in the array several times
   /// @return amounts Amounts of transferred rewards, the array is synced with {rewardTokens}
   function claimRewards(address receiver_) override external returns (
-    address[] memory rewardTokens,
-    uint[] memory amounts
+    address[] memory,
+    uint[] memory
   ) {
     uint len = rewardTokens.length;
     for (uint i = 0; i < len; ++i) {
@@ -219,7 +219,7 @@ contract MockTetuConverter is ITetuConverter {
     uint amountToReturn_
   ) external returns (uint amountBorrowAssetReturned) {
     uint amountBefore = IERC20(borrowAsset_).balanceOf(address(this));
-    uint returned = ITetuConverterCallback(borrower).requireBorrowedAmountBack(
+    ITetuConverterCallback(borrower).requireBorrowedAmountBack(
       collateralAsset_, borrowAsset_, amountToReturn_
     );
     uint amountAfter = IERC20(borrowAsset_).balanceOf(address(this));
@@ -250,11 +250,12 @@ contract MockTetuConverter is ITetuConverter {
   /// @notice Update status in all opened positions
   ///         and calculate exact total amount of borrowed and collateral assets
   function getStatusCurrent(
-    address collateralAsset_,
-    address borrowAsset_
-  ) override external returns (uint totalDebtAmountOut, uint totalCollateralAmountOut) {
+    address /*collateralAsset_*/,
+    address /*borrowAsset_*/
+  ) override external pure returns (uint totalDebtAmountOut, uint totalCollateralAmountOut) {
     totalDebtAmountOut = 0; // stub
     totalCollateralAmountOut = 0;  // stub
+    revert('Not implemented');
   }
 
 
@@ -263,9 +264,9 @@ contract MockTetuConverter is ITetuConverter {
   //////////////////////////////////////////////////////////////////////////////
 
   function findBorrows (
-    address collateralToken_,
-    address borrowedToken_
-  ) override external view returns (
+    address /*collateralToken_*/,
+    address /*borrowedToken_*/
+  ) override external pure returns (
     address[] memory poolAdapters
   ) {
     poolAdapters = new address[](1);
