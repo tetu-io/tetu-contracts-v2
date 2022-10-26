@@ -42,10 +42,7 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
   /// @dev Linked Tetu Liquidator
   ITetuLiquidator public tetuLiquidator;
 
-  bool private override _isReadyToHardWork;
-
-  uint public losses;
-  uint public profits;
+  bool private _isReadyToHardWork;
 
   // *************************************************************
   //                        INIT
@@ -208,7 +205,7 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
 
   /// @dev Is strategy ready to hard work
   function isReadyToHardWork()
-  override external pure returns (bool) {
+  override external view returns (bool) {
     return _isReadyToHardWork;
   }
 
@@ -230,50 +227,48 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
       _depositToPool(_balance(asset));
     }
 
-    lost += losses;
-    losses = 0;
+    lost = 0; // TODO
 
-    earned += profits;
-    profits = 0;
   }
 
   // *************************************************************
   //               OVERRIDES ITetuConverterCallback
   // *************************************************************
 
-  function requireBorrowedAmountBack (
+
+  function requireAmountBack (
     address collateralAsset_,
-    address borrowAsset_,
-    uint amountToReturn_
-  ) override external returns (uint amountBorrowAssetReturned) {
+    address /*borrowAsset_*/,
+    uint /*requiredAmountBorrowAsset_*/,
+    uint requiredAmountCollateralAsset_
+  ) external override returns (
+    uint amountOut,
+    bool isCollateral
+  ) {
     _onlyTetuConverter();
+    require(collateralAsset_ == asset, 'CSB: Wrong asset');
 
-    losses += amountToReturn_;
+    amountOut = 0;
+    uint assetBalance = _balance(collateralAsset_);
 
-    uint borrowAssetBalance = _balance(borrowAsset_);
-
-    amountBorrowAssetReturned = 0;
-
-    if (borrowAssetBalance >=  amountToReturn_) {
-      amountBorrowAssetReturned = amountToReturn_;
+    if (assetBalance >=  requiredAmountCollateralAsset_) {
+      amountOut = requiredAmountCollateralAsset_;
 
     } else {
-      // ! TODO Withdraw from pool
-
+      _withdrawFromPool(requiredAmountCollateralAsset_ - assetBalance);
+      amountOut = _balance(collateralAsset_);
     }
 
-    IERC20(borrowAsset_).safeTransfer(address(tetuConverter), amountBorrowAssetReturned);
-
+    IERC20(collateralAsset_).safeTransfer(address(tetuConverter), amountOut);
+    isCollateral = true;
   }
 
   function onTransferBorrowedAmount (
-    address collateralAsset_,
-    address borrowAsset_,
-    uint amountBorrowAssetSentToBorrower_
-  ) override external view {
-    _onlyTetuConverter();
-    profits += amountBorrowAssetSentToBorrower_;
-    // additional assets will be deposited on next _depositToPool()
+    address /*collateralAsset_*/,
+    address /*borrowAsset_*/,
+    uint /*amountBorrowAssetSentToBorrower_*/
+  ) override pure external {
+    revert('CSB: Not implemented');
   }
 
 
