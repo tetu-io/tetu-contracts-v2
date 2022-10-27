@@ -1,10 +1,7 @@
-import {ethers, web3} from "hardhat";
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
-import {BigNumber, BigNumberish, ContractFactory, utils} from "ethers";
-import {Misc} from "./Misc";
+import {ContractFactory} from "ethers";
 import logSettings from "../../log_settings";
 import {Logger} from "tslog";
-import {Libraries} from "hardhat-deploy/dist/types";
 import {parseUnits} from "ethers/lib/utils";
 import {
   ControllerMinimal, ControllerV2, ControllerV2__factory, ForwarderV3, ForwarderV3__factory,
@@ -27,7 +24,6 @@ import {
   VeTetu,
   VeTetu__factory
 } from "../../typechain";
-import {VerifyUtils} from "./VerifyUtils";
 import {RunHelper} from "./RunHelper";
 import {deployContract} from "../deploy/DeployContract";
 
@@ -53,9 +49,9 @@ export class DeployerUtils {
     return deployContract(hre, signer, name, ...args);
   }
 
-  public static async deployMockToken(signer: SignerWithAddress, name = 'MOCK', decimals = 18) {
+  public static async deployMockToken(signer: SignerWithAddress, name = 'MOCK', decimals = 18, mintAmount = '1000000') {
     const token = await DeployerUtils.deployContract(signer, 'MockToken', name + '_MOCK_TOKEN', name, decimals) as MockToken;
-    await RunHelper.runAndWait(() => token.mint(signer.address, parseUnits('1000000', decimals)));
+    await RunHelper.runAndWait(() => token.mint(signer.address, parseUnits(mintAmount, decimals)));
     return token;
   }
 

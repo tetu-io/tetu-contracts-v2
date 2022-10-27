@@ -17,7 +17,8 @@ contract MockTetuConverter is ITetuConverter {
   /// @dev Version of this contract. Adjust manually on each code modification.
   string public constant TETU_CONVERTER_MOCK_VERSION = "1.0.0";
 
-  int public currentAprForPeriod36 = 0;
+  int public swapAprForPeriod36 = 0;
+  int public borrowAprForPeriod36 = 0;
   uint public borrowRate2 = 50;
 
   address[] public rewardTokens;
@@ -38,8 +39,12 @@ contract MockTetuConverter is ITetuConverter {
 
   /// SETTERS
 
-  function setCurrentAprForPeriod36(int aprForPeriod36_) external {
-    currentAprForPeriod36 = aprForPeriod36_;
+  function setSwapAprForPeriod36(int aprForPeriod36_) external {
+    swapAprForPeriod36 = aprForPeriod36_;
+  }
+
+  function setBorrowAprForPeriod36(int aprForPeriod36_) external {
+    borrowAprForPeriod36 = aprForPeriod36_;
   }
 
   function setBorrowRate2(uint borrowRate2_) external {
@@ -51,10 +56,10 @@ contract MockTetuConverter is ITetuConverter {
   function calcMaxTargetAmount(uint conversionModeId, uint sourceAmount_)
   internal view returns (uint maxTargetAmount) {
     if (conversionModeId == uint(ConversionMode.SWAP_1)) {
-      maxTargetAmount = uint(int(sourceAmount_) - (int(sourceAmount_) * currentAprForPeriod36) / (10**36 * 2));
+      maxTargetAmount = uint(int(sourceAmount_) - (int(sourceAmount_) * swapAprForPeriod36) / (10**36 * 2));
 
     } else if (conversionModeId == uint(ConversionMode.BORROW_2)) {
-      maxTargetAmount = sourceAmount_ * borrowRate2 / 10**2 ;
+      maxTargetAmount = sourceAmount_ * borrowRate2 / 10**2;
 
     } else revert('MTC: Wrong conversionMode');
   }
@@ -71,7 +76,7 @@ contract MockTetuConverter is ITetuConverter {
     address /*sourceToken_*/,
     uint sourceAmount_,
     address /*targetToken_*/,
-    uint /*periodInBlocks_*/,
+    uint periodInBlocks_,
     ConversionMode conversionMode
   ) override external view returns (
     address converter,
@@ -83,7 +88,7 @@ contract MockTetuConverter is ITetuConverter {
     // put conversion mode to converter just to detect it at borrow()
     converter = address(uint160(conversionMode));
     maxTargetAmount = calcMaxTargetAmount(uint(conversionMode), sourceAmount_);
-    aprForPeriod36 = currentAprForPeriod36;
+    aprForPeriod36 = conversionMode == ConversionMode.SWAP_1 ? swapAprForPeriod36 : borrowAprForPeriod36;
   }
 
   /// @notice Convert {collateralAmount_} to {amountToBorrow_} using {converter_}
@@ -104,7 +109,6 @@ contract MockTetuConverter is ITetuConverter {
   ) override external returns (
     uint borrowedAmountTransferred
   ) {
-    // transfer (that checks allowance)
     IMockToken(collateralAsset_).burn(address(this), collateralAmount_);
 
     uint maxTargetAmount = calcMaxTargetAmount(uint160(converter_), collateralAmount_);
@@ -118,7 +122,7 @@ contract MockTetuConverter is ITetuConverter {
       collaterals[msg.sender][collateralAsset_][borrowAsset_] += collateralAmount_;
       debts[msg.sender][collateralAsset_][borrowAsset_] += borrowedAmountTransferred;
 
-    } else revert('MTC: Wrong conversionMode');
+    } else revert('MTC: Wrong converter');
 
     IMockToken(borrowAsset_).mint(receiver_, borrowedAmountTransferred);
 
@@ -180,7 +184,7 @@ contract MockTetuConverter is ITetuConverter {
     uint borrowAssetAmount,
     uint unobtainableCollateralAssetAmount
   ) {
-    borrowAssetAmount = collateralAmountRequired_.mulDivUp(borrowRate2, 100); // TODO apply apr
+    borrowAssetAmount = collateralAmountRequired_.mulDivUp(borrowRate2, 100);
     unobtainableCollateralAssetAmount = 0; // stub for now
 
   }
