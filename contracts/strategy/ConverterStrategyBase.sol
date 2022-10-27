@@ -12,7 +12,7 @@ import "./DepositorBase.sol";
 /// @title Abstract contract for base Converter strategy functionality
 /// @notice All depositor assets must be correlated (ie USDC/USDT/DAI)
 /// @author bogdoslav
-abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,  ITetuConverterCallback, StrategyBaseV2 { // TODO
+abstract contract ConverterStrategyBase is DepositorBase, ITetuConverterCallback, StrategyBaseV2 {
   using SafeERC20 for IERC20;
 
   // *************************************************************
@@ -53,7 +53,7 @@ abstract contract ConverterStrategyBase is /*IConverterStrategy,*/DepositorBase,
     address controller_,
     address splitter_,
     address converter_
-  ) public onlyInitializing {
+  ) internal onlyInitializing {
     __StrategyBase_init(controller_, splitter_);
     _requireInterface(converter_, InterfaceIds.I_TETU_CONVERTER);
     tetuConverter = ITetuConverter(converter_);

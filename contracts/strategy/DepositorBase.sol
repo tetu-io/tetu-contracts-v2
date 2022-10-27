@@ -17,9 +17,9 @@ abstract contract DepositorBase {
   */
   /// @dev Returns depositor's pool shares / lp token amount
   function _depositorLiquidity() public virtual view returns (uint);
-
+/*
   /// @dev Returns lp token total supply
-  function _depositorTotalSupply() public virtual view returns (uint);
+  function _depositorTotalSupply() public virtual view returns (uint);*/
 
   /// @dev Deposit given amount to the pool.
   /// @notice Depositor must care about tokens approval by itself.

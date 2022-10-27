@@ -3,10 +3,11 @@ pragma solidity 0.8.4;
 
 import "../strategy/DepositorBase.sol";
 import "./IMockToken.sol";
+import "../openzeppelin/Initializable.sol";
 
 /// @title Mock contract for base Depositor.
 /// @author bogdoslav
-contract MockDepositor is DepositorBase {
+contract MockDepositor is DepositorBase, Initializable {
 
   /// @dev Version of this contract. Adjust manually on each code modification.
   string public constant DEPOSITOR_MOCK_VERSION = "1.0.0";
@@ -17,8 +18,12 @@ contract MockDepositor is DepositorBase {
   address[] private _depositorRewardTokens;
   uint[] private _depositorRewardAmounts;
 
-  // @dev tokens must be MockTokens
-  constructor(address[] memory tokens_, address[] memory rewardTokens_, uint[] memory rewardAmounts_) {
+  // @dnotice tokens must be MockTokens
+  function __MockDepositor_init(
+    address[] memory tokens_,
+    address[] memory rewardTokens_,
+    uint[] memory rewardAmounts_
+  ) internal onlyInitializing {
     require(rewardTokens_.length == rewardAmounts_.length);
 
     for (uint i = 0; i < tokens_.length; ++i) {
@@ -42,10 +47,10 @@ contract MockDepositor is DepositorBase {
   function _depositorPoolWeights() public virtual view returns (uint8[] memory weights);
   */
 
-  /// @dev Returns lp token total supply
+/*  /// @dev Returns lp token total supply
   function _depositorTotalSupply() override public virtual view returns (uint) {
     return _depositorAmounts[0];
-  }
+  }*/
 
   /// @dev Returns depositor's pool shares / lp token amount
   function _depositorLiquidity() override public virtual view returns (uint) {

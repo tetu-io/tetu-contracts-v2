@@ -6,6 +6,7 @@ import "../interfaces/ITetuConverterCallback.sol";
 import "../interfaces/IERC20.sol";
 import "../openzeppelin/SafeERC20.sol";
 import "../lib/FixedPointMathLib.sol";
+import "../lib/InterfaceIds.sol";
 import "./IMockToken.sol";
 
 /// @title Mock contract for Tetu Converter.
@@ -35,6 +36,11 @@ contract MockTetuConverter is ITetuConverter {
       rewardTokens.push(rewardTokens_[i]);
       rewardAmounts.push(rewardAmounts_[i]);
     }
+  }
+
+  /// @dev See {IERC165-supportsInterface}.
+  function supportsInterface(bytes4 interfaceId) public view virtual returns (bool) {
+    return interfaceId == InterfaceIds.I_TETU_CONVERTER;// || super.supportsInterface(interfaceId);
   }
 
   /// SETTERS
@@ -76,7 +82,7 @@ contract MockTetuConverter is ITetuConverter {
     address /*sourceToken_*/,
     uint sourceAmount_,
     address /*targetToken_*/,
-    uint periodInBlocks_,
+    uint /*periodInBlocks_*/,
     ConversionMode conversionMode
   ) override external view returns (
     address converter,
