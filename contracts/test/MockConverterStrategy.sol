@@ -5,6 +5,8 @@ pragma solidity 0.8.4;
 import "../strategy/ConverterStrategyBase.sol";
 import "./MockDepositor.sol";
 
+/// @title Mock Converter Strategy with MockDepositor
+/// @author bogdoslav
 contract MockConverterStrategy is ConverterStrategyBase, MockDepositor {
 
   string public constant override NAME = "mock converter strategy";
@@ -17,9 +19,9 @@ contract MockConverterStrategy is ConverterStrategyBase, MockDepositor {
     address converter_,
     address[] memory depositorTokens_,
     address[] memory depositorRewardTokens_,
-    uint[] memory depositorRrewardAmounts_
+    uint[] memory depositorRewardAmounts_
   ) external initializer {
-    __MockDepositor_init(depositorTokens_, depositorRewardTokens_, depositorRrewardAmounts_);
+    __MockDepositor_init(depositorTokens_, depositorRewardTokens_, depositorRewardAmounts_);
     __ConverterStrategyBase_init(controller_, splitter_, converter_);
   }
 

@@ -9,7 +9,7 @@ import "../lib/FixedPointMathLib.sol";
 import "../lib/InterfaceIds.sol";
 import "./IMockToken.sol";
 
-/// @title Mock contract for Tetu Converter.
+/// @title Mock Tetu Converter contract.
 /// @author bogdoslav
 contract MockTetuConverter is ITetuConverter {
   using SafeERC20 for IERC20;
@@ -18,14 +18,20 @@ contract MockTetuConverter is ITetuConverter {
   /// @dev Version of this contract. Adjust manually on each code modification.
   string public constant TETU_CONVERTER_MOCK_VERSION = "1.0.0";
 
+  /// @dev half of this will be applied on swap on borrow and half on swap on repay
   int public swapAprForPeriod36 = 0;
+
+  /// @dev this apr will be added to debt on borrow
   int public borrowAprForPeriod36 = 0;
+
+  /// @dev percentage of how much tokens will be borrowed from collateral
   uint public borrowRate2 = 50;
 
+  /// @dev reward tokens and amounts to send to borrower on claimRewards()
   address[] public rewardTokens;
   uint[] public rewardAmounts;
 
-  // msg.sender, collateral, borrow token
+  /// @dev msg.sender, collateral, borrow token, amounts
   mapping (address => mapping (address => mapping (address => uint))) public collaterals;
   mapping (address => mapping (address => mapping (address => uint))) public debts;
 
@@ -209,15 +215,16 @@ contract MockTetuConverter is ITetuConverter {
   /// @notice User needs to redeem some collateral amount. Calculate an amount of borrow token that should be repaid
   function estimateRepay(
     address /*collateralAsset_*/,
-    uint collateralAmountRequired_,
+    uint /*collateralAmountRequired_*/,
     address /*borrowAsset_*/
-  ) override external view returns (
+  ) override external pure returns (
     uint borrowAssetAmount,
     uint unobtainableCollateralAssetAmount
   ) {
-    borrowAssetAmount = collateralAmountRequired_.mulDivUp(borrowRate2, 100);
+    borrowAssetAmount = 0; // stub for now
     unobtainableCollateralAssetAmount = 0; // stub for now
 
+    revert('Not implemented');
   }
 
   /// @notice Transfer all reward tokens to {receiver_}
@@ -313,8 +320,8 @@ contract MockTetuConverter is ITetuConverter {
   ) {
     poolAdapters = new address[](1);
     poolAdapters[0] = address(uint160(ConversionMode.BORROW_2));
+    revert('Not implemented');
   }
-
 
 
 }

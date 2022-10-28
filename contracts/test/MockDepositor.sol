@@ -18,7 +18,7 @@ contract MockDepositor is DepositorBase, Initializable {
   address[] private _depositorRewardTokens;
   uint[] private _depositorRewardAmounts;
 
-  // @dnotice tokens must be MockTokens
+  // @notice tokens must be MockTokens
   function __MockDepositor_init(
     address[] memory tokens_,
     address[] memory rewardTokens_,
@@ -41,16 +41,6 @@ contract MockDepositor is DepositorBase, Initializable {
   returns (address[] memory) {
     return _depositorAssets;
   }
-
-  /*
-  /// @dev Returns pool assets weights
-  function _depositorPoolWeights() public virtual view returns (uint8[] memory weights);
-  */
-
-/*  /// @dev Returns lp token total supply
-  function _depositorTotalSupply() override public virtual view returns (uint) {
-    return _depositorAmounts[0];
-  }*/
 
   /// @dev Returns depositor's pool shares / lp token amount
   function _depositorLiquidity() override public virtual view returns (uint) {
