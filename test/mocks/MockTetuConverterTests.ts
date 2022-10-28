@@ -23,6 +23,8 @@ describe("MockTetuConverter helper Tests", function () {
   const _value = '100';
   const _amount = parseUnits(_value, 18);
   const _amount6 = parseUnits(_value, 6);
+  const _aprBase = parseUnits('1', 36)
+  const _apr = _aprBase.div(100); // 1%
 
   let token: MockToken;
   let token2: MockToken;
@@ -69,14 +71,27 @@ describe("MockTetuConverter helper Tests", function () {
 
     it("SWAP_1", async () => {
       const s = await tc.findConversionStrategy(_token, _amount, _token2, 0, SWAP_1);
-
       expect(s.maxTargetAmount).eq(_amount);
     });
 
+    it("SWAP_1 APR", async () => {
+      await tc.setSwapAprForPeriod36(_apr);
+      const s = await tc.findConversionStrategy(_token, _amount, _token2, 0, SWAP_1);
+      const fee = _amount.mul(_apr).div(_aprBase).div(2); // half swap apr applied on borrow and half on repay
+      expect(s.maxTargetAmount).eq(_amount.sub(fee));
+    });
+
+
     it("SWAP_1 diff decimals", async () => {
       const s = await tc.findConversionStrategy(_token, _amount, _usdc, 0, SWAP_1);
-
       expect(s.maxTargetAmount).eq(_amount6);
+    });
+
+    it("SWAP_1 diff decimals", async () => {
+      await tc.setSwapAprForPeriod36(_apr);
+      const s = await tc.findConversionStrategy(_token, _amount, _usdc, 0, SWAP_1);
+      const fee = _amount6.mul(_apr).div(_aprBase).div(2); // half swap apr applied on borrow and half on repay
+      expect(s.maxTargetAmount).eq(_amount6.sub(fee));
     });
 
     it("BORROW_2", async () => {

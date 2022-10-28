@@ -57,7 +57,7 @@ contract MockTetuConverter is ITetuConverter {
     borrowRate2 = borrowRate2_;
   }
 
-  // Math
+  /// MATH
 
   function _calcMaxTargetAmount(uint conversionModeId, address sourceToken, uint sourceAmount, address targetToken)
   internal view returns (uint maxTargetAmount) {
@@ -150,7 +150,8 @@ contract MockTetuConverter is ITetuConverter {
       require(amountToBorrow_ <= maxTargetAmount, 'MTC: amountToBorrow too big');
       borrowedAmountTransferred = amountToBorrow_;
       collaterals[msg.sender][collateralAsset_][borrowAsset_] += collateralAmount_;
-      debts[msg.sender][collateralAsset_][borrowAsset_] += borrowedAmountTransferred;
+      debts[msg.sender][collateralAsset_][borrowAsset_] += uint(int(borrowedAmountTransferred)
+        + int(borrowedAmountTransferred) * borrowAprForPeriod36 / 10**36); // apply apr
 
     } else revert('MTC: Wrong converter');
 
@@ -172,6 +173,7 @@ contract MockTetuConverter is ITetuConverter {
     uint collateralAmountTransferred,
     uint returnedBorrowAmountOut
   ) {
+    IMockToken(borrowAsset_).burn(address(this), amountToRepay_);
     collateralAmountTransferred = 0;
     uint debt = debts[msg.sender][collateralAsset_][borrowAsset_];
 
@@ -191,7 +193,6 @@ contract MockTetuConverter is ITetuConverter {
       collaterals[msg.sender][collateralAsset_][borrowAsset_] -= collateralAmountTransferred;
     }
 
-    IMockToken(borrowAsset_).burn(address(this), amountToRepay_);
     IMockToken(collateralAsset_).mint(collateralReceiver_, collateralAmountTransferred);
     returnedBorrowAmountOut = 0; // stub
   }
