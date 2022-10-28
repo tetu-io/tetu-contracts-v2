@@ -20,12 +20,16 @@ describe("MockTetuConverter helper Tests", function () {
   const SWAP_1 = '1';
   const BORROW_2 = '2';
 
-  const _amount = parseUnits('100', 18);
+  const _value = '100';
+  const _amount = parseUnits(_value, 18);
+  const _amount6 = parseUnits(_value, 6);
 
   let token: MockToken;
   let token2: MockToken;
+  let usdc: MockToken;
   let _token: string;
   let _token2: string;
+  let _usdc: string;
   let tc: MockTetuConverter;
   let _tc: string;
 
@@ -36,8 +40,10 @@ describe("MockTetuConverter helper Tests", function () {
 
     token = await DeployerUtils.deployMockToken(signer, 'COLLATERAL');
     token2 = await DeployerUtils.deployMockToken(signer, 'BORROWED', 18, '0');
+    usdc = await DeployerUtils.deployMockToken(signer, 'USDC', 6, '0');
     _token = token.address;
     _token2 = token2.address;
+    _usdc = usdc.address;
     const rewardTokens = [_token, _token2];
     const rewardAmounts = [1000000, 2000000];
     tc = await DeployerUtils.deployContract(signer, 'MockTetuConverter',
@@ -67,18 +73,30 @@ describe("MockTetuConverter helper Tests", function () {
       expect(s.maxTargetAmount).eq(_amount);
     });
 
+    it("SWAP_1 diff decimals", async () => {
+      const s = await tc.findConversionStrategy(_token, _amount, _usdc, 0, SWAP_1);
+
+      expect(s.maxTargetAmount).eq(_amount6);
+    });
+
     it("BORROW_2", async () => {
       const s = await tc.findConversionStrategy(_token, _amount, _token2, 0, BORROW_2);
       const borrowRate2 = await tc.borrowRate2();
       expect(s.maxTargetAmount).eq(_amount.mul(borrowRate2).div(10**2));
     });
 
+    it("BORROW_2 diff decimals", async () => {
+      const s = await tc.findConversionStrategy(_token, _amount, _usdc, 0, BORROW_2);
+      const borrowRate2 = await tc.borrowRate2();
+      expect(s.maxTargetAmount).eq(_amount6.mul(borrowRate2).div(10**2));
+    });
+
     it("AUTO_0 should work as BORROW_2", async () => {
       const s = await tc.findConversionStrategy(
         _token, _amount, _token2, 0, AUTO_0);
       const borrowRate2 = await tc.borrowRate2();
-      expect(s.maxTargetAmount).eq(_amount.mul(borrowRate2).div(10**2));
       expect(s.converter).eq('0x0000000000000000000000000000000000000002');
+      expect(s.maxTargetAmount).eq(_amount.mul(borrowRate2).div(10**2));
     });
 
   });
@@ -123,6 +141,17 @@ describe("MockTetuConverter helper Tests", function () {
       expect(received).eq(_amount);
     });
 
+    it("with no debt / SWAP (diff decimals)", async () => {
+      await usdc.mint(_tc, _amount6);
+      const balanceBefore = await token.balanceOf(_signer);
+
+      await tc.repay(_token, _usdc, _amount6, _signer);
+
+      const balanceAfter = await token.balanceOf(_signer);
+      const received = balanceAfter.sub(balanceBefore);
+      expect(received).eq(_amount);
+    });
+
     it("full repay", async () => {
       const s = await tc.findConversionStrategy(_token, _amount, _token2, 0, BORROW_2);
       await token.transfer(_tc, _amount);
@@ -132,6 +161,21 @@ describe("MockTetuConverter helper Tests", function () {
 
       await token2.transfer(_tc, s.maxTargetAmount);
       await tc.repay(_token, _token2, s.maxTargetAmount, _signer);
+
+      const balanceAfter = await token.balanceOf(_signer);
+      const received = balanceAfter.sub(balanceBefore);
+      expect(received).eq(_amount);
+    });
+
+    it("full repay (diff decimals)", async () => {
+      const s = await tc.findConversionStrategy(_token, _amount, _usdc, 0, BORROW_2);
+      await token.transfer(_tc, _amount);
+      await tc.borrow(s.converter, _token, _amount, _usdc, s.maxTargetAmount, _signer);
+
+      const balanceBefore = await token.balanceOf(_signer);
+
+      await usdc.transfer(_tc, s.maxTargetAmount);
+      await tc.repay(_token, _usdc, s.maxTargetAmount, _signer);
 
       const balanceAfter = await token.balanceOf(_signer);
       const received = balanceAfter.sub(balanceBefore);

@@ -59,15 +59,39 @@ contract MockTetuConverter is ITetuConverter {
 
   // Math
 
-  function calcMaxTargetAmount(uint conversionModeId, uint sourceAmount_)
+  function _calcMaxTargetAmount(uint conversionModeId, address sourceToken, uint sourceAmount, address targetToken)
   internal view returns (uint maxTargetAmount) {
     if (conversionModeId == uint(ConversionMode.SWAP_1)) {
-      maxTargetAmount = uint(int(sourceAmount_) - (int(sourceAmount_) * swapAprForPeriod36) / (10**36 * 2));
+      maxTargetAmount = uint(int(sourceAmount) - (int(sourceAmount) * swapAprForPeriod36) / (10**36 * 2));
 
     } else if (conversionModeId == uint(ConversionMode.BORROW_2)) {
-      maxTargetAmount = sourceAmount_ * borrowRate2 / 10**2;
+      maxTargetAmount = sourceAmount * borrowRate2 / 10**2;
 
     } else revert('MTC: Wrong conversionMode');
+
+    maxTargetAmount = _convertDecimals(sourceToken, maxTargetAmount, targetToken);
+  }
+
+  function _calcSourceAmount(uint conversionModeId, address sourceToken, address targetToken, uint targetAmount)
+  internal view returns (uint sourceAmount) {
+    if (conversionModeId == uint(ConversionMode.SWAP_1)) {
+      sourceAmount = uint(int(targetAmount) - (int(targetAmount) * swapAprForPeriod36) / (10**36 * 2));
+
+    } else if (conversionModeId == uint(ConversionMode.BORROW_2)) {
+      sourceAmount = targetAmount * 10**2 / borrowRate2;
+
+    } else revert('MTC: Wrong conversionMode');
+
+    sourceAmount = _convertDecimals(targetToken, sourceAmount, sourceToken);
+  }
+
+  function _convertDecimals(address sourceToken, uint sourceAmount, address targetToken)
+  internal view returns (uint targetAmount) {
+    uint sourceDecimals = IMockToken(sourceToken).decimals();
+    uint targetDecimals = IMockToken(targetToken).decimals();
+    targetAmount = sourceDecimals == targetDecimals
+      ? sourceAmount
+      : sourceAmount * 10**targetDecimals / 10**sourceDecimals;
   }
 
   /// @notice Find best conversion strategy (swap or borrow) and provide "cost of money" as interest for the period
@@ -79,9 +103,9 @@ contract MockTetuConverter is ITetuConverter {
   /// @return maxTargetAmount Max available amount of target tokens that we can get after conversion
   /// @return aprForPeriod36 Interest on the use of {outMaxTargetAmount} during the given period, decimals 36
   function findConversionStrategy(
-    address /*sourceToken_*/,
+    address sourceToken_,
     uint sourceAmount_,
-    address /*targetToken_*/,
+    address targetToken_,
     uint /*periodInBlocks_*/,
     ConversionMode conversionMode
   ) override external view returns (
@@ -93,7 +117,7 @@ contract MockTetuConverter is ITetuConverter {
     if (conversionMode == ConversionMode.AUTO_0) conversionMode = ConversionMode.BORROW_2;
     // put conversion mode to converter just to detect it at borrow()
     converter = address(uint160(conversionMode));
-    maxTargetAmount = calcMaxTargetAmount(uint(conversionMode), sourceAmount_);
+    maxTargetAmount = _calcMaxTargetAmount(uint(conversionMode), sourceToken_, sourceAmount_, targetToken_);
     aprForPeriod36 = conversionMode == ConversionMode.SWAP_1 ? swapAprForPeriod36 : borrowAprForPeriod36;
   }
 
@@ -117,7 +141,7 @@ contract MockTetuConverter is ITetuConverter {
   ) {
     IMockToken(collateralAsset_).burn(address(this), collateralAmount_);
 
-    uint maxTargetAmount = calcMaxTargetAmount(uint160(converter_), collateralAmount_);
+    uint maxTargetAmount = _calcMaxTargetAmount(uint160(converter_), collateralAsset_, collateralAmount_, borrowAsset_);
 
     if (uint160(converter_) == uint160(ConversionMode.SWAP_1)) {
       borrowedAmountTransferred = maxTargetAmount;
@@ -158,12 +182,12 @@ contract MockTetuConverter is ITetuConverter {
       // swap excess
       uint excess = amountToRepay_ - debt;
       if (excess > 0) {
-        collateralAmountTransferred += calcMaxTargetAmount(uint(ConversionMode.SWAP_1), excess);
+        collateralAmountTransferred += _calcSourceAmount(uint(ConversionMode.SWAP_1), collateralAsset_, borrowAsset_, excess);
       }
 
     } else { // partial repay
       debts[msg.sender][collateralAsset_][borrowAsset_] -= amountToRepay_;
-      collateralAmountTransferred += calcMaxTargetAmount(uint(ConversionMode.BORROW_2), amountToRepay_);
+      collateralAmountTransferred = _calcSourceAmount(uint(ConversionMode.BORROW_2), collateralAsset_, borrowAsset_, amountToRepay_);
       collaterals[msg.sender][collateralAsset_][borrowAsset_] -= collateralAmountTransferred;
     }
 
