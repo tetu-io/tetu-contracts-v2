@@ -1,9 +1,9 @@
 import {ethers} from "hardhat";
 import {ContractTransaction} from "ethers";
-import {DeployerUtils} from "./DeployerUtils";
 import {Logger} from "tslog";
 import logSettings from "../../log_settings";
 import {Misc} from "./Misc";
+import {WAIT_BLOCKS_BETWEEN_DEPLOY} from "../deploy/DeployContract";
 
 const log: Logger = new Logger(logSettings);
 
@@ -11,13 +11,14 @@ const log: Logger = new Logger(logSettings);
 export class RunHelper {
 
   public static async runAndWait(callback: () => Promise<ContractTransaction>, stopOnError = true, wait = true) {
+    console.log('Start on-chain transaction')
     const start = Date.now();
     const tr = await callback();
     if (!wait) {
       Misc.printDuration('runAndWait completed', start);
       return;
     }
-    const r0 = await tr.wait(1);
+    const r0 = await tr.wait(WAIT_BLOCKS_BETWEEN_DEPLOY);
 
     log.info('tx sent', tr.hash, 'gas used:', r0.gasUsed.toString());
 

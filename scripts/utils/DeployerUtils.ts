@@ -1,33 +1,36 @@
-import {ethers, web3} from "hardhat";
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
-import {BigNumber, BigNumberish, ContractFactory, utils} from "ethers";
-import {Misc} from "./Misc";
+import {ContractFactory} from "ethers";
 import logSettings from "../../log_settings";
 import {Logger} from "tslog";
-import {Libraries} from "hardhat-deploy/dist/types";
 import {parseUnits} from "ethers/lib/utils";
 import {
-  ControllerMinimal, ControllerV2, ControllerV2__factory, ForwarderV3, ForwarderV3__factory,
+  ControllerMinimal,
+  ControllerV2,
+  ControllerV2__factory,
+  ForwarderV3,
+  ForwarderV3__factory,
   MockStakingToken,
   MockToken,
   MockVault,
   MockVault__factory,
   MockVoter,
   MultiBribe__factory,
-  MultiGauge__factory, PlatformVoter, PlatformVoter__factory,
+  MultiGauge__factory,
+  PlatformVoter,
+  PlatformVoter__factory,
   ProxyControlled,
   StrategySplitterV2,
   StrategySplitterV2__factory,
   TetuVaultV2,
   TetuVaultV2__factory,
   TetuVoter,
-  TetuVoter__factory, VaultFactory,
+  TetuVoter__factory,
+  VaultFactory,
   VaultInsurance,
   VeDistributor__factory,
   VeTetu,
   VeTetu__factory
 } from "../../typechain";
-import {VerifyUtils} from "./VerifyUtils";
 import {RunHelper} from "./RunHelper";
 import {deployContract} from "../deploy/DeployContract";
 
@@ -35,10 +38,6 @@ import {deployContract} from "../deploy/DeployContract";
 const hre = require("hardhat");
 const log: Logger = new Logger(logSettings);
 
-
-const libraries = new Map<string, string>([
-  ['VeTetu', 'VeTetuLogo']
-]);
 
 export class DeployerUtils {
 

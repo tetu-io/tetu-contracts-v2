@@ -1,8 +1,8 @@
 import {CoreAddresses} from "../models/CoreAddresses";
 
-export class GoerliCoreAddresses {
+export class GoerliAddresses {
 
-  public static ADDRESSES = new CoreAddresses(
+  public static CORE_ADDRESSES = new CoreAddresses(
     "0x88a12B7b6525c0B46c0c200405f49cE0E72D71Aa", // tetu
   "0x0EFc2D2D054383462F2cD72eA2526Ef7687E1016", // controller
   "0xA43eA51b3251f96bB48c48567A93b15e7e4b99F6", // ve

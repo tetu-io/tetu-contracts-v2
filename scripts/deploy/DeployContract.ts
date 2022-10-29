@@ -3,8 +3,11 @@ import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {Libraries} from "hardhat-deploy/dist/types";
 import {Logger} from "tslog";
 import logSettings from "../../log_settings";
+import {formatUnits} from "ethers/lib/utils";
 
 const log: Logger = new Logger(logSettings);
+
+export const WAIT_BLOCKS_BETWEEN_DEPLOY = 50;
 
 const libraries = new Map<string, string>([
   ['VeTetu', 'VeTetuLogo']
@@ -24,7 +27,7 @@ export async function deployContract<T extends ContractFactory>(
   log.info("Account balance: " + utils.formatUnits(await signer.getBalance(), 18));
 
   const gasPrice = await web3.eth.getGasPrice();
-  log.info("Gas price: " + gasPrice);
+  log.info("Gas price: " + formatUnits(gasPrice, 9));
   const lib: string | undefined = libraries.get(name);
   let _factory;
   if (lib) {
@@ -60,7 +63,7 @@ export async function deployContract<T extends ContractFactory>(
   console.log('DEPLOYED: ', name, receipt.contractAddress);
 
   if (hre.network.name !== 'hardhat') {
-    await wait(hre, 2);
+    await wait(hre, WAIT_BLOCKS_BETWEEN_DEPLOY);
     if (args.length === 0) {
       await verify(hre, receipt.contractAddress);
     } else {

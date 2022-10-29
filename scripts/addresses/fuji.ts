@@ -1,8 +1,8 @@
 import {CoreAddresses} from "../models/CoreAddresses";
 
-export class FujiCoreAddresses {
+export class FujiAddresses {
 
-  public static ADDRESSES = new CoreAddresses(
+  public static CORE_ADDRESSES = new CoreAddresses(
     "0xDe0636C1A6B9295aEF794aa32c39bf1F9F842CAd", // tetu
   "0xA609fA657A9cfbD658be45dcbe31cc477F2d6d18", // controller
   "0x318ecFd6B245Ae618D68e702a51fc3dcaaeac1b9", // ve

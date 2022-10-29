@@ -1,6 +1,7 @@
 import {CoreAddresses} from "../models/CoreAddresses";
-import {FujiCoreAddresses} from "./fuji";
-import {GoerliCoreAddresses} from "./goerli";
+import {FujiAddresses} from "./fuji";
+import {GoerliAddresses} from "./goerli";
+import {PolygonAddresses} from "./polygon";
 
 // tslint:disable-next-line:no-var-requires
 const hre = require("hardhat");
@@ -8,8 +9,9 @@ const hre = require("hardhat");
 export class Addresses {
 
   public static CORE = new Map<number, CoreAddresses>([
-    [43113, FujiCoreAddresses.ADDRESSES],
-    [5, GoerliCoreAddresses.ADDRESSES],
+    [43113, FujiAddresses.CORE_ADDRESSES],
+    [5, GoerliAddresses.CORE_ADDRESSES],
+    [137, PolygonAddresses.CORE_ADDRESSES],
   ]);
 
   public static getCore(): CoreAddresses {
