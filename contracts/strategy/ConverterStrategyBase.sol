@@ -23,7 +23,7 @@ abstract contract ConverterStrategyBase is DepositorBase, ITetuConverterCallback
   string public constant CONVERTER_STRATEGY_BASE_VERSION = "1.0.0";
 
   // approx one month for average block time 2 sec
-  uint private constant _LOAN_PERIOD_IN_BLOCKS = 3600 * 24 * 30 / 2; // TODO check
+  uint private constant _LOAN_PERIOD_IN_BLOCKS = 30 days / 2;
 
   uint private constant LIQUIDATION_SLIPPAGE = 5_000; // 5%
 
@@ -38,9 +38,6 @@ abstract contract ConverterStrategyBase is DepositorBase, ITetuConverterCallback
 
   /// @dev Linked Tetu Converter
   ITetuConverter public tetuConverter;
-
-  /// @dev Linked Tetu Liquidator
-  ITetuLiquidator public tetuLiquidator;
 
   bool private _isReadyToHardWork;
 
@@ -65,7 +62,7 @@ abstract contract ConverterStrategyBase is DepositorBase, ITetuConverterCallback
   //                     RESTRICTIONS
   // *************************************************************
 
-  /// @dev Restrict access only for splitter
+  /// @dev Restrict access only for TetuConverter
   function _onlyTetuConverter() internal view {
     require(msg.sender == address(tetuConverter), "CSB: Only TetuConverter");
   }
@@ -170,15 +167,17 @@ abstract contract ConverterStrategyBase is DepositorBase, ITetuConverterCallback
 
 
   function _recycle(address[] memory tokens, uint[] memory amounts) internal {
+    ITetuLiquidator tetuLiquidator = ITetuLiquidator(IController(controller()).liquidator());
     require(tokens.length == amounts.length, "SB: Arrays mismatch");
     uint len = tokens.length;
+    uint _compoundRatio = compoundRatio;
 
     for (uint i = 0; i < len; ++i) {
       address token = tokens[i];
       uint amount = amounts[i];
 
       if (amount > 0) {
-        uint amountToCompound = amount * compoundRatio / COMPOUND_DENOMINATOR;
+        uint amountToCompound = amount * _compoundRatio / COMPOUND_DENOMINATOR;
         if (amountToCompound > 0) {
           tetuLiquidator.liquidate(token, asset, amountToCompound, LIQUIDATION_SLIPPAGE);
         }
@@ -193,14 +192,76 @@ abstract contract ConverterStrategyBase is DepositorBase, ITetuConverterCallback
 
   /// @dev Claim all possible rewards.
   function _claim() override internal virtual {
+    address[] memory tokens1;
+    uint[] memory amounts1;
+    (tokens1, amounts1) = _depositorClaimRewards();
+
+    address[] memory tokens2;
+    uint[] memory amounts2;
+    (tokens2, amounts2) = tetuConverter.claimRewards(address(this));
+
     address[] memory tokens;
     uint[] memory amounts;
-
-    (tokens, amounts) = _depositorClaimRewards();
+    (tokens, amounts) = _uniteTokensAmounts(tokens, amounts, tokens2, amounts2);
     _recycle(tokens, amounts);
 
-    (tokens, amounts) = tetuConverter.claimRewards(address(this));
-    _recycle(tokens, amounts);
+  }
+
+  /// @dev unites tokens2 and amounts2 in to tokens & amounts
+  function _uniteTokensAmounts(
+    address[] memory tokens1,
+    uint[] memory amounts1,
+    address[] memory tokens2,
+    uint[] memory amounts2
+  ) internal pure returns (
+    address[] memory allTokens,
+    uint[] memory allAmounts
+  ) {
+
+    require (tokens1.length == amounts1.length && tokens2.length == amounts2.length, 'Arrays mismatch');
+
+    uint tokensLength = tokens1.length + tokens2.length;
+    address[] memory tokens = new address[](tokensLength);
+    uint[] memory amounts = new uint[](tokensLength);
+
+    // copy tokens1 to tokens (& amounts)
+    for (uint i; i < tokens1.length; i++) {
+        tokens[i] = tokens1[i];
+        amounts[i] = amounts1[i];
+    }
+
+    // join tokens2
+    tokensLength = tokens1.length;
+    for (uint t2; t2 < tokens2.length; t2++) {
+
+      address token2 = tokens2[t2];
+      uint amount2 = amounts2[t2];
+      bool united = false;
+
+      for (uint i; i < tokensLength; i++) {
+        if (token2 == tokens1[i]) {
+          amounts[i] += amount2;
+          united = true;
+          break;
+        }
+      }
+
+      if (!united) {
+        tokens[tokensLength] = token2;
+        amounts[tokensLength] = amount2;
+        tokensLength++;
+      }
+
+    }
+
+    // copy united tokens to result array
+    allTokens = new address[](tokensLength);
+    allAmounts = new uint[](tokensLength);
+    for (uint i; i < tokensLength; i++) {
+      allTokens[i] = tokens[i];
+      allAmounts[i] = amounts[i];
+    }
+
   }
 
   /// @dev Is strategy ready to hard work
@@ -328,5 +389,11 @@ abstract contract ConverterStrategyBase is DepositorBase, ITetuConverterCallback
 
   }
 
+  /**
+* @dev This empty reserved space is put in place to allow future versions to add new
+     * variables without shifting down storage in the inheritance chain.
+     * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+     */
+  uint[32] private __gap;
 
 }

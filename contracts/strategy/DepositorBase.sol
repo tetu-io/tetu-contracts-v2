@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.4;
 
-/// @title Abstract contract for base Depositor.
-/// All communication with external pools should be done at inherited contract
+/// @title Abstract base Depositor contract.
+/// @notice Converter strategies should inherit xDepositor.
+/// @notice All communication with external pools should be done at inherited contract
 /// @author bogdoslav
 abstract contract DepositorBase {
 
