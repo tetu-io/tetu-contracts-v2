@@ -87,7 +87,7 @@ abstract contract ConverterStrategyBase is DepositorBase, ITetuConverterCallback
 
   /// @dev Deposit given amount to the pool.
   function _depositToPool(uint amount) override internal virtual {
-    _doHardWork(false);
+    doHardWork();
     if (amount == 0) return;
 
     address _asset = asset;
@@ -123,7 +123,7 @@ abstract contract ConverterStrategyBase is DepositorBase, ITetuConverterCallback
   function _withdrawFromPoolUniversal(uint amount, bool emergency) internal {
     if (amount == 0) return;
 
-    if (!emergency) _doHardWork(false);
+    if (!emergency) doHardWork();
 
     address _asset = asset;
     uint assetBalanceBefore = _balance(_asset);
@@ -272,25 +272,15 @@ abstract contract ConverterStrategyBase is DepositorBase, ITetuConverterCallback
 
   /// @dev Do hard work
   function doHardWork()
-  override external returns (uint earned, uint lost) {
-    return _doHardWork(true);
-  }
-
-  /// @dev Do hard work
-  function _doHardWork(bool doDepositToPool)
-  internal returns (uint earned, uint lost) {
+  override public returns (uint earned, uint lost) {
 
     uint assetBalanceBefore = _balance(asset);
     _claim();
     earned = _balance(asset) - assetBalanceBefore;
 
-    if (doDepositToPool) {
-      _depositToPool(_balance(asset));
-    }
-
     lost = 0; // TODO
-
   }
+
 
   // *************************************************************
   //               OVERRIDES ITetuConverterCallback
@@ -354,16 +344,22 @@ abstract contract ConverterStrategyBase is DepositorBase, ITetuConverterCallback
     address borrowAsset,
     ITetuConverter.ConversionMode conversionMode
   ) internal returns (uint borrowedAmount) {
+     ITetuConverter _tetuConverter = tetuConverter;
     (
       address converter,
       uint maxTargetAmount,
       /*int aprForPeriod36*/
-    ) = tetuConverter.findConversionStrategy(
-      collateralAsset, collateralAmount, borrowAsset, _LOAN_PERIOD_IN_BLOCKS, conversionMode);
+    ) = _tetuConverter.findConversionStrategy(
+      collateralAsset,
+        collateralAmount,
+        borrowAsset,
+        _LOAN_PERIOD_IN_BLOCKS,
+        conversionMode
+    );
 
-    IERC20(collateralAsset).safeTransfer(address(tetuConverter), collateralAmount);
+    IERC20(collateralAsset).safeTransfer(address(_tetuConverter), collateralAmount);
 
-    borrowedAmount = tetuConverter.borrow(
+    borrowedAmount = _tetuConverter.borrow(
       converter, collateralAsset, collateralAmount, borrowAsset, maxTargetAmount, address(this));
   }
 
