@@ -133,6 +133,7 @@ abstract contract ConverterStrategyBase is DepositorBase, ITetuConverterCallback
       _depositorEmergencyExit();
     } else {
       uint liquidityAmount = amount * _depositorLiquidity() / _investedAssets;
+      liquidityAmount += liquidityAmount / 100; // add 1% on top
       _depositorExit(liquidityAmount);
     }
 
@@ -180,6 +181,7 @@ abstract contract ConverterStrategyBase is DepositorBase, ITetuConverterCallback
       if (amount > 0) {
         uint amountToCompound = amount * _compoundRatio / COMPOUND_DENOMINATOR;
         if (amountToCompound > 0) {
+          _approveIfNeeded(token, amountToCompound, address(tetuLiquidator));
           tetuLiquidator.liquidate(token, asset, amountToCompound, LIQUIDATION_SLIPPAGE);
         }
 
@@ -332,12 +334,12 @@ abstract contract ConverterStrategyBase is DepositorBase, ITetuConverterCallback
     return IERC20(token).balanceOf(address(this));
   }
 
-/*  function _approveIfNeeded(address token, uint amount, address spender) internal {
+  function _approveIfNeeded(address token, uint amount, address spender) internal {
     if (IERC20(token).allowance(address(this), spender) < amount) {
       IERC20(token).safeApprove(spender, 0);
       IERC20(token).safeApprove(spender, type(uint).max);
     }
-  }*/
+  }
 
   function _openPosition(
     address collateralAsset,
