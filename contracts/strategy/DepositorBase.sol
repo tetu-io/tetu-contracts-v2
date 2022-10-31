@@ -28,6 +28,7 @@ abstract contract DepositorBase {
   returns (uint[] memory amountsConsumed, uint liquidityOut);
 
   /// @dev Withdraw given lp amount from the pool.
+  /// @notice if requested liquidityAmount >= invested, then should make full exit
   function _depositorExit(uint liquidityAmount) internal virtual returns (uint[] memory amountsOut);
 
   /// @dev If pool supports emergency withdraw need to call it for emergencyExit()

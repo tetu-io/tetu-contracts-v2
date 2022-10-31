@@ -23,22 +23,24 @@ contract MockDepositor is DepositorBase, Initializable {
   // @notice tokens must be MockTokens
   function __MockDepositor_init(
     address[] memory tokens_,
-    uint8[] memory weights_,
     address[] memory rewardTokens_,
     uint[] memory rewardAmounts_
   ) internal onlyInitializing {
-    require(tokens_.length == weights_.length);
     require(rewardTokens_.length == rewardAmounts_.length);
-
-    _depositorWeights = weights_;
-
-    for (uint i = 0; i < tokens_.length; ++i) {
+    uint tokensLength = tokens_.length;
+    for (uint i = 0; i < tokensLength; ++i) {
       _depositorAssets.push(tokens_[i]);
       _depositorAmounts.push(0);
     }
     for (uint i = 0; i < rewardTokens_.length; ++i) {
       _depositorRewardTokens.push(rewardTokens_[i]);
       _depositorRewardAmounts.push(rewardAmounts_[i]);
+    }
+
+    // proportional weights for now
+    uint weight = 100 / tokensLength;
+    for (uint i = 0; i < tokensLength; ++i) {
+      _depositorWeights[i] = uint8(weight);
     }
   }
 
@@ -88,8 +90,14 @@ contract MockDepositor is DepositorBase, Initializable {
   }
 
   /// @dev Withdraw given lp amount from the pool.
+  /// @notice if requested liquidityAmount >= invested, then should make full exit
   function _depositorExit(uint liquidityAmount) override internal virtual returns (uint[] memory amountsOut) {
-    require(liquidityAmount <= _depositorLiquidity());
+
+    uint depositorLiquidity = _depositorLiquidity();
+    if (liquidityAmount > depositorLiquidity) {
+      liquidityAmount = depositorLiquidity;
+    }
+
     uint len = _depositorAssets.length;
     amountsOut = new uint[](len);
 
