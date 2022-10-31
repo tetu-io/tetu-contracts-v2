@@ -309,6 +309,8 @@ abstract contract ConverterStrategyBase is DepositorBase, ITetuConverterCallback
       amountOut = requiredAmountCollateralAsset_;
 
     } else {
+      // we assume if withdraw less amount then requiredAmountCollateralAsset_
+      // it will be rebalanced in the next call
       _withdrawFromPool(requiredAmountCollateralAsset_ - assetBalance);
       amountOut = _balance(collateralAsset_);
     }
