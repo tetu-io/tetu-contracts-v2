@@ -12,6 +12,8 @@ contract MockDepositor is DepositorBase, Initializable {
   /// @dev Version of this contract. Adjust manually on each code modification.
   string public constant DEPOSITOR_MOCK_VERSION = "1.0.0";
 
+  uint8[] private _depositorWeights;
+
   address[] private _depositorAssets;
   uint[] private _depositorAmounts;
 
@@ -21,10 +23,14 @@ contract MockDepositor is DepositorBase, Initializable {
   // @notice tokens must be MockTokens
   function __MockDepositor_init(
     address[] memory tokens_,
+    uint8[] memory weights_,
     address[] memory rewardTokens_,
     uint[] memory rewardAmounts_
   ) internal onlyInitializing {
+    require(tokens_.length == weights_.length);
     require(rewardTokens_.length == rewardAmounts_.length);
+
+    _depositorWeights = weights_;
 
     for (uint i = 0; i < tokens_.length; ++i) {
       _depositorAssets.push(tokens_[i]);
@@ -40,6 +46,12 @@ contract MockDepositor is DepositorBase, Initializable {
   function _depositorPoolAssets() override public virtual view
   returns (address[] memory) {
     return _depositorAssets;
+  }
+
+  /// @dev Returns pool weights in percents
+  function _depositorPoolWeights() override public virtual view
+  returns (uint8[] memory) {
+    return _depositorWeights;
   }
 
   /// @dev Returns depositor's pool shares / lp token amount

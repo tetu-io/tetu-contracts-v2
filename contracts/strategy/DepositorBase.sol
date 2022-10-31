@@ -12,14 +12,14 @@ abstract contract DepositorBase {
 
   /// @dev Returns pool assets
   function _depositorPoolAssets() public virtual view returns (address[] memory assets);
-  /*
-  /// @dev Returns pool assets
+
+  /// @dev Returns pool weights in percents
   function _depositorPoolWeights() public virtual view returns (uint8[] memory weights);
-  */
+
   /// @dev Returns depositor's pool shares / lp token amount
   function _depositorLiquidity() public virtual view returns (uint);
-/*
-  /// @dev Returns lp token total supply
+
+/*  /// @dev Returns lp token total supply
   function _depositorTotalSupply() public virtual view returns (uint);*/
 
   /// @dev Deposit given amount to the pool.

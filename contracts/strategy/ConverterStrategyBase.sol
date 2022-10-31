@@ -94,11 +94,12 @@ abstract contract ConverterStrategyBase is DepositorBase, ITetuConverterCallback
     uint assetBalanceBefore = _balance(_asset);
 
     address[] memory tokens = _depositorPoolAssets();
+    uint8[] memory weights = _depositorPoolWeights();
     uint len = tokens.length;
     uint[] memory tokenAmounts = new uint[](len);
-    uint assetAmountForToken = amount / len;
 
     for (uint i = 0; i < len; ++i) {
+      uint assetAmountForToken = amount * weights[i] / 100;
       address token = tokens[i];
       if (token == _asset) {
         tokenAmounts[i] = assetAmountForToken;
