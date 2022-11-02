@@ -169,8 +169,10 @@ abstract contract ConverterStrategyBase is DepositorBase, ITetuConverterCallback
 
 
   function _recycle(address[] memory tokens, uint[] memory amounts) internal {
-    ITetuLiquidator tetuLiquidator = ITetuLiquidator(IController(controller()).liquidator());
     require(tokens.length == amounts.length, "SB: Arrays mismatch");
+
+    ITetuLiquidator tetuLiquidator = ITetuLiquidator(IController(controller()).liquidator());
+    address _asset = asset;
     uint len = tokens.length;
     uint _compoundRatio = compoundRatio;
 
@@ -182,7 +184,7 @@ abstract contract ConverterStrategyBase is DepositorBase, ITetuConverterCallback
         uint amountToCompound = amount * _compoundRatio / COMPOUND_DENOMINATOR;
         if (amountToCompound > 0) {
           _approveIfNeeded(token, amountToCompound, address(tetuLiquidator));
-          tetuLiquidator.liquidate(token, asset, amountToCompound, LIQUIDATION_SLIPPAGE);
+          tetuLiquidator.liquidate(token, _asset, amountToCompound, LIQUIDATION_SLIPPAGE);
         }
 
         uint amountToForward = amount - amountToCompound;
