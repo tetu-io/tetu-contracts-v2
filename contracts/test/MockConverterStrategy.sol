@@ -21,8 +21,23 @@ contract MockConverterStrategy is ConverterStrategyBase, MockDepositor {
     address[] memory depositorRewardTokens_,
     uint[] memory depositorRewardAmounts_
   ) external initializer {
-    __MockDepositor_init(depositorTokens_, depositorRewardTokens_, depositorRewardAmounts_);
-    __ConverterStrategyBase_init(controller_, splitter_, converter_);
+
+    __MockDepositor_init(
+      depositorTokens_,
+      depositorRewardTokens_,
+      depositorRewardAmounts_
+    );
+
+    address[] memory thresholdTokens;
+    uint[] memory thresholdAmounts;
+
+    __ConverterStrategyBase_init(
+      controller_,
+      splitter_,
+      converter_,
+      thresholdTokens,
+      thresholdAmounts
+    );
   }
 
 }

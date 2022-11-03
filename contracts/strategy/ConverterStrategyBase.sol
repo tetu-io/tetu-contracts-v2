@@ -39,7 +39,13 @@ abstract contract ConverterStrategyBase is DepositorBase, ITetuConverterCallback
   /// @dev Linked Tetu Converter
   ITetuConverter public tetuConverter;
 
+  /// @dev Minimum token amounts to liquidate etc.
+  mapping (address => uint) public thresholds;
+
   bool private _isReadyToHardWork;
+
+  event ThresholdChanged(address token, uint amount);
+
 
   // *************************************************************
   //                        INIT
@@ -49,11 +55,16 @@ abstract contract ConverterStrategyBase is DepositorBase, ITetuConverterCallback
   function __ConverterStrategyBase_init(
     address controller_,
     address splitter_,
-    address converter_
+    address converter_,
+    address[] memory thresholdTokens_,
+    uint[] memory thresholdAmounts_
   ) internal onlyInitializing {
     __StrategyBase_init(controller_, splitter_);
     _requireInterface(converter_, InterfaceIds.I_TETU_CONVERTER);
     tetuConverter = ITetuConverter(converter_);
+
+    _setThresholds(thresholdTokens_, thresholdAmounts_);
+
     _isReadyToHardWork = true;
 
   }
@@ -65,6 +76,32 @@ abstract contract ConverterStrategyBase is DepositorBase, ITetuConverterCallback
   /// @dev Restrict access only for TetuConverter
   function _onlyTetuConverter() internal view {
     require(msg.sender == address(tetuConverter), "CSB: Only TetuConverter");
+  }
+
+
+  // *************************************************************
+  //                     OPERATORS
+  // *************************************************************
+
+  function setThreshold(address token, uint amount) public {
+    _onlyOperators();
+    thresholds[token] = amount;
+    emit ThresholdChanged(token, amount);
+  }
+
+  function setThresholds(address[] memory tokens, uint[] memory amounts) public {
+    _onlyOperators();
+    _setThresholds(tokens, amounts);
+  }
+
+  function _setThresholds(address[] memory tokens, uint[] memory amounts) internal {
+    require(tokens.length == amounts.length, 'CSB: Arrays mismatch');
+    for (uint i = 0; i < tokens.length; ++i) {
+      address token = tokens[i];
+      uint amount = amounts[i];
+      thresholds[token] = amount;
+      emit ThresholdChanged(token, amount);
+    }
   }
 
   // *************************************************************
@@ -171,7 +208,7 @@ abstract contract ConverterStrategyBase is DepositorBase, ITetuConverterCallback
   function _recycle(address[] memory tokens, uint[] memory amounts) internal {
     require(tokens.length == amounts.length, "SB: Arrays mismatch");
 
-    ITetuLiquidator tetuLiquidator = ITetuLiquidator(IController(controller()).liquidator());
+    ITetuLiquidator _tetuLiquidator = ITetuLiquidator(IController(controller()).liquidator());
     address _asset = asset;
     uint len = tokens.length;
     uint _compoundRatio = compoundRatio;
@@ -180,11 +217,10 @@ abstract contract ConverterStrategyBase is DepositorBase, ITetuConverterCallback
       address token = tokens[i];
       uint amount = amounts[i];
 
-      if (amount > 0) {
+      if (amount > thresholds[token]) {
         uint amountToCompound = amount * _compoundRatio / COMPOUND_DENOMINATOR;
         if (amountToCompound > 0) {
-          _approveIfNeeded(token, amountToCompound, address(tetuLiquidator));
-          tetuLiquidator.liquidate(token, _asset, amountToCompound, LIQUIDATION_SLIPPAGE);
+          _liquidate(_tetuLiquidator, token, _asset, amountToCompound, LIQUIDATION_SLIPPAGE);
         }
 
         uint amountToForward = amount - amountToCompound;
@@ -207,7 +243,7 @@ abstract contract ConverterStrategyBase is DepositorBase, ITetuConverterCallback
 
     address[] memory tokens;
     uint[] memory amounts;
-    (tokens, amounts) = _uniteTokensAmounts(tokens, amounts, tokens2, amounts2);
+    (tokens, amounts) = _uniteTokensAmounts(tokens1, amounts1, tokens2, amounts2);
     _recycle(tokens, amounts);
 
   }
@@ -390,6 +426,25 @@ abstract contract ConverterStrategyBase is DepositorBase, ITetuConverterCallback
     );
     require(unobtainableCollateralAssetAmount == 0, 'CSB: Can not convert back');
 
+  }
+
+  function _liquidate(ITetuLiquidator _liquidator, address tokenIn, address tokenOut, uint amountIn, uint slippage) internal {
+    (ITetuLiquidator.PoolData[] memory route,/* string memory error*/)
+    = _liquidator.buildRoute(tokenIn, tokenOut);
+
+    if (route.length == 0) {
+      revert('CSB: No liquidation route');
+    }
+
+    // calculate balance in out value for check threshold
+    uint amountOut = _liquidator.getPriceForRoute(route, amountIn);
+
+    // if the value higher than threshold distribute to destinations
+    if (amountOut > thresholds[tokenOut]) {
+      // we need to approve each time, liquidator address can be changed in controller
+      _approveIfNeeded(tokenIn, amountIn, address(_liquidator));
+      _liquidator.liquidateWithRoute(route, amountIn, slippage);
+    }
   }
 
   /**
