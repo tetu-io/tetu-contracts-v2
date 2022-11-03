@@ -38,6 +38,7 @@ contract MockDepositor is DepositorBase, Initializable {
     }
 
     // proportional weights for now
+    _depositorWeights = new uint8[](tokensLength);
     uint weight = 100 / tokensLength;
     for (uint i = 0; i < tokensLength; ++i) {
       _depositorWeights[i] = uint8(weight);
