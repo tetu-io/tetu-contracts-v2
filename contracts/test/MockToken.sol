@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.4;
 
-import "@tetu_io/tetu-contracts-v2/contracts/openzeppelin/ERC20Upgradeable.sol";
+import "../openzeppelin/ERC20Upgradeable.sol";
 
 contract MockToken is ERC20Upgradeable {
 
