@@ -4,6 +4,8 @@
   "description": "TETU solidity base contracts V2",
   "main": "hardhat.config.js",
   "directories": {
+    "contracts": "contracts",
+    "scripts": "scripts",
     "test": "test"
   },
   "scripts": {
