@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.4;
 
-import "../openzeppelin/ERC20Upgradeable.sol";
+import "@tetu_io/tetu-contracts-v2/contracts/openzeppelin/ERC20Upgradeable.sol";
 
 contract MockToken is ERC20Upgradeable {
 
@@ -31,5 +31,9 @@ contract MockToken is ERC20Upgradeable {
 
   function mint(address to, uint amount) external {
     _mint(to, amount);
+  }
+
+  function burn(address from, uint amount) external {
+    _burn(from, amount);
   }
 }
