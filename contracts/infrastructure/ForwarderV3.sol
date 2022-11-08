@@ -13,8 +13,6 @@ import "../interfaces/IMultiPool.sol";
 import "../interfaces/IBribe.sol";
 import "../proxy/ControllableV3.sol";
 
-import "hardhat/console.sol";
-
 /// @title This contract should contains a buffer of fees from strategies.
 ///        Periodically sell rewards and distribute to their destinations.
 /// @author belbix
@@ -229,10 +227,7 @@ contract ForwarderV3 is ReentrancyGuard, ControllableV3, IForwarder {
     for (uint i; i < tokens.length; ++i) {
       address token = tokens[i];
       uint amount = amounts[i];
-
-      console.log("registerIncome", token, amount);
       IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
-      console.log("registerIncome transferred");
 
       amountPerDestination[token][vaults] += amount;
       // suppose to be not unique, relatively cheap
@@ -280,18 +275,10 @@ contract ForwarderV3 is ReentrancyGuard, ControllableV3, IForwarder {
 
     (uint tetuBalance, uint tetuValue) = _liquidate(controller_, incomeToken, _tetu, queuedBalance);
 
-
-    console.log("DISTRIBUTE", incomeToken, _tetu);
-    console.log("DISTRIBUTE", queuedBalance, tetuBalance, tetuValue);
-
     if (tetuBalance != 0) {
       uint toInvestFund = tetuBalance * toInvestFundRatio / RATIO_DENOMINATOR;
       uint toGauges = (tetuBalance - toInvestFund) * toGaugesRatio / RATIO_DENOMINATOR;
       uint toBribes = (tetuBalance - toInvestFund) - toGauges;
-
-      console.log("DISTRIBUTE toInvestFund", toInvestFund);
-      console.log("DISTRIBUTE toGauges", toGauges);
-      console.log("DISTRIBUTE toBribes", toBribes);
 
       if (toInvestFund != 0) {
         IERC20(_tetu).safeTransfer(controller_.investFund(), toInvestFund);
@@ -344,16 +331,12 @@ contract ForwarderV3 is ReentrancyGuard, ControllableV3, IForwarder {
     (ITetuLiquidator.PoolData[] memory route, string memory error)
     = _liquidator.buildRoute(tokenIn, _tetu);
 
-    console.log("_liquidate", route.length, amount);
-
     if (route.length == 0) {
       revert(error);
     }
 
     // calculate balance in tetu value for check threshold
     tetuValue = _liquidator.getPriceForRoute(route, amount);
-
-    console.log("_liquidate tetuValue", tetuValue, tetuThreshold);
 
     // if the value higher than threshold distribute to destinations
     if (tetuValue > tetuThreshold) {
@@ -364,13 +347,11 @@ contract ForwarderV3 is ReentrancyGuard, ControllableV3, IForwarder {
       }
 
       uint tetuBalanceBefore = IERC20(_tetu).balanceOf(address(this));
-      console.log("_liquidate tetuBalanceBefore", tetuBalanceBefore);
 
       _approveIfNeed(tokenIn, address(_liquidator), amount);
       _liquidator.liquidateWithRoute(route, amount, slippage);
 
       boughtTetu = IERC20(_tetu).balanceOf(address(this)) - tetuBalanceBefore;
-      console.log("_liquidate boughtTetu", boughtTetu);
     }
   }
 
@@ -400,8 +381,6 @@ contract ForwarderV3 is ReentrancyGuard, ControllableV3, IForwarder {
         remaining -= toSend;
       }
 
-      console.log("_distributeToBribes", _bribe, vaults[i], tokenToDistribute);
-
       _registerRewardInBribe(_bribe, vaults[i], tokenToDistribute);
       IBribe(_bribe).notifyRewardAmount(vaults[i], tokenToDistribute, toSend);
 
@@ -417,7 +396,6 @@ contract ForwarderV3 is ReentrancyGuard, ControllableV3, IForwarder {
   }
 
   function _registerRewardInBribe(address _bribe, address stakingToken, address rewardToken) internal {
-    console.log("_registerRewardInBribe isRegistred:", IMultiPool(_bribe).isRewardToken(stakingToken, rewardToken));
     if (!IMultiPool(_bribe).isRewardToken(stakingToken, rewardToken)) {
       IMultiPool(_bribe).registerRewardToken(stakingToken, rewardToken);
     }
