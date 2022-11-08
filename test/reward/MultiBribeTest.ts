@@ -49,7 +49,6 @@ describe("multi bribe tests", function () {
     const gauge = await DeployerUtils.deployMultiGauge(
       owner,
       controller.address,
-      owner.address,
       ve.address,
       tetu.address
     );
@@ -57,7 +56,6 @@ describe("multi bribe tests", function () {
     bribe = await DeployerUtils.deployMultiBribe(
       owner,
       controller.address,
-      owner.address,
       ve.address,
       tetu.address,
     );
@@ -71,6 +69,9 @@ describe("multi bribe tests", function () {
       bribe.address
     );
     await controller.setVoter(voter.address);
+
+    const forwarder = await DeployerUtils.deployContract(owner, 'MockForwarder')
+    await controller.setForwarder(forwarder.address);
 
     await tetu.approve(ve.address, Misc.MAX_UINT);
     await tetu.approve(bribe.address, Misc.MAX_UINT);

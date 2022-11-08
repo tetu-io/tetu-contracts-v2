@@ -134,7 +134,6 @@ export class DeployerUtils {
   public static async deployMultiGauge(
     signer: SignerWithAddress,
     controller: string,
-    operator: string,
     ve: string,
     defaultRewardToken: string,
   ) {
@@ -143,7 +142,6 @@ export class DeployerUtils {
     await RunHelper.runAndWait(() => proxy.initProxy(logic.address));
     await RunHelper.runAndWait(() => MultiGauge__factory.connect(proxy.address, signer).init(
       controller,
-      operator,
       ve,
       defaultRewardToken,
     ));
@@ -153,7 +151,6 @@ export class DeployerUtils {
   public static async deployMultiBribe(
     signer: SignerWithAddress,
     controller: string,
-    operator: string,
     ve: string,
     defaultReward: string,
   ) {
@@ -162,7 +159,6 @@ export class DeployerUtils {
     await RunHelper.runAndWait(() => proxy.initProxy(logic.address));
     await RunHelper.runAndWait(() => MultiBribe__factory.connect(proxy.address, signer).init(
       controller,
-      operator,
       ve,
       defaultReward
     ));
@@ -238,7 +234,8 @@ export class DeployerUtils {
   public static async deployForwarder(
     signer: SignerWithAddress,
     controller: string,
-    tetu: string
+    tetu: string,
+    bribe: string
   ) {
     const logic = await DeployerUtils.deployContract(signer, 'ForwarderV3') as ForwarderV3;
     const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
@@ -246,7 +243,8 @@ export class DeployerUtils {
     const forwarder = ForwarderV3__factory.connect(proxy.address, signer);
     await RunHelper.runAndWait(() => forwarder.init(
       controller,
-      tetu
+      tetu,
+      bribe
     ));
     return forwarder;
   }

@@ -16,6 +16,7 @@ import {
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {Misc} from "../../scripts/utils/Misc";
+import { MockBribe } from "../../typechain/MockBribe";
 
 const {expect} = chai;
 
@@ -55,10 +56,12 @@ describe("Platform voter tests", function () {
     await controller.setPlatformVoter(platformVoter.address);
     await controller.setVoter(platformVoter.address);
 
-    forwarder = await DeployerUtils.deployForwarder(owner, controller.address, tetu.address);
+    const mockGauge = await DeployerUtils.deployContract(owner, 'MockGauge', controller.address) as MockGauge;
+    const mockBribe = await DeployerUtils.deployContract(owner, 'MockBribe', controller.address) as MockBribe;
+
+    forwarder = await DeployerUtils.deployForwarder(owner, controller.address, tetu.address, mockBribe.address);
     await controller.setForwarder(forwarder.address);
 
-    const mockGauge = await DeployerUtils.deployContract(owner, 'MockGauge', controller.address) as MockGauge;
     const vault = await DeployerUtils.deployTetuVaultV2(
       owner,
       controller.address,

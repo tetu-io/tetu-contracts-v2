@@ -7,12 +7,19 @@ import {WAIT_BLOCKS_BETWEEN_DEPLOY} from "../deploy/DeployContract";
 
 const log: Logger = new Logger(logSettings);
 
+// tslint:disable-next-line:no-var-requires
+const hre = require("hardhat");
 
 export class RunHelper {
 
   public static async runAndWait(callback: () => Promise<ContractTransaction>, stopOnError = true, wait = true) {
     console.log('Start on-chain transaction')
     const start = Date.now();
+
+    if (hre.network.name === 'hardhat') {
+      wait = false;
+    }
+
     const tr = await callback();
     if (!wait) {
       Misc.printDuration('runAndWait completed', start);

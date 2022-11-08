@@ -60,7 +60,6 @@ describe("multi gauge tests", function () {
     gauge = await DeployerUtils.deployMultiGauge(
       owner,
       controller.address,
-      owner.address,
       ve.address,
       rewardTokenDefault.address,
     );
@@ -101,7 +100,7 @@ describe("multi gauge tests", function () {
   // ************* STAKING TOKEN
 
   it("add staking token from not operator revert", async function () {
-    await expect(gauge.connect(user).addStakingToken(rewardToken2.address)).revertedWith('Not operator');
+    await expect(gauge.connect(user).addStakingToken(rewardToken2.address)).revertedWith('Not allowed');
   });
 
   it("is staking token test", async function () {

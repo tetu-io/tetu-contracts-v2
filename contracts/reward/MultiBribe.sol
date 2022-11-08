@@ -5,12 +5,12 @@ pragma solidity 0.8.4;
 import "../interfaces/IVoter.sol";
 import "../interfaces/IERC721.sol";
 import "../interfaces/IBribe.sol";
-import "../proxy/ControllableV3.sol";
 import "./StakelessMultiPoolBase.sol";
+import "../interfaces/IForwarder.sol";
 
 /// @title Stakeless pool for ve token
 /// @author belbix
-contract MultiBribe is StakelessMultiPoolBase, ControllableV3, IBribe {
+contract MultiBribe is StakelessMultiPoolBase, IBribe {
 
   // *************************************************************
   //                        CONSTANTS
@@ -41,12 +41,10 @@ contract MultiBribe is StakelessMultiPoolBase, ControllableV3, IBribe {
 
   function init(
     address controller_,
-    address _operator,
     address _ve,
     address _defaultReward
   ) external initializer {
-    __Controllable_init(controller_);
-    __MultiPool_init(_operator, _defaultReward);
+    __MultiPool_init(controller_, _defaultReward);
     _requireInterface(_ve, InterfaceIds.I_VE_TETU);
     ve = _ve;
   }
@@ -105,6 +103,7 @@ contract MultiBribe is StakelessMultiPoolBase, ControllableV3, IBribe {
     address[] memory _rewardTokens,
     address recipient
   ) internal {
+    IForwarder(IController(controller()).forwarder()).distributeAll(_vault);
     _getReward(_vault, tokenIdToAddress(veId), _rewardTokens, recipient);
   }
 
@@ -157,7 +156,7 @@ contract MultiBribe is StakelessMultiPoolBase, ControllableV3, IBribe {
   // *************************************************************
 
   /// @dev See {IERC165-supportsInterface}.
-  function supportsInterface(bytes4 interfaceId) public view virtual override(ControllableV3, StakelessMultiPoolBase) returns (bool) {
+  function supportsInterface(bytes4 interfaceId) public view virtual override(StakelessMultiPoolBase) returns (bool) {
     return interfaceId == InterfaceIds.I_BRIBE || super.supportsInterface(interfaceId);
   }
 

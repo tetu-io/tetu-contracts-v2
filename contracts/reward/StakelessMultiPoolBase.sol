@@ -11,10 +11,11 @@ import "../interfaces/IMultiPool.sol";
 import "../interfaces/IERC20.sol";
 import "../lib/CheckpointLib.sol";
 import "../lib/InterfaceIds.sol";
+import "../proxy/ControllableV3.sol";
 
 /// @title Abstract stakeless pool
 /// @author belbix
-abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiPool, Initializable {
+abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiPool, ControllableV3 {
   using SafeERC20 for IERC20;
   using CheckpointLib for mapping(uint => CheckpointLib.Checkpoint);
 
@@ -37,8 +38,6 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
   //     Add only in the bottom and adjust __gap variable
   // *************************************************************
 
-  /// @dev Operator can add/remove reward tokens
-  address public operator;
   /// @dev This token will be always allowed as reward
   address public defaultRewardToken;
 
@@ -96,9 +95,8 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
   //                        INIT
   // *************************************************************
 
-  /// @dev Operator will able to add/remove reward tokens
-  function __MultiPool_init(address _operator, address _defaultRewardToken) internal onlyInitializing {
-    operator = _operator;
+  function __MultiPool_init(address controller_, address _defaultRewardToken) internal onlyInitializing {
+    __Controllable_init(controller_);
     _requireERC20(_defaultRewardToken);
     defaultRewardToken = _defaultRewardToken;
   }
@@ -107,8 +105,12 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
   //                        RESTRICTIONS
   // *************************************************************
 
-  modifier onlyOperator() {
-    require(msg.sender == operator, "Not operator");
+  modifier onlyAllowedContracts() {
+    IController controller = IController(controller());
+    require(
+      msg.sender == controller.governance()
+      || msg.sender == controller.forwarder()
+    , "Not allowed");
     _;
   }
 
@@ -158,7 +160,7 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
   }
 
   /// @dev See {IERC165-supportsInterface}.
-  function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+  function supportsInterface(bytes4 interfaceId) public view virtual override(ControllableV3, TetuERC165) returns (bool) {
     return interfaceId == InterfaceIds.I_MULTI_POOL || super.supportsInterface(interfaceId);
   }
 
@@ -167,7 +169,7 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
   // *************************************************************
 
   /// @dev Whitelist reward token for staking token. Only operator can do it.
-  function registerRewardToken(address stakeToken, address rewardToken) external override onlyOperator {
+  function registerRewardToken(address stakeToken, address rewardToken) external override onlyAllowedContracts {
     require(rewardTokens[stakeToken].length < _MAX_REWARD_TOKENS, "Too many reward tokens");
     require(!isRewardToken[stakeToken][rewardToken], "Already registered");
     isRewardToken[stakeToken][rewardToken] = true;
@@ -176,7 +178,7 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
 
   /// @dev Remove from whitelist reward token for staking token. Only operator can do it.
   ///      We assume that the first token can not be removed.
-  function removeRewardToken(address stakeToken, address rewardToken) external override onlyOperator {
+  function removeRewardToken(address stakeToken, address rewardToken) external override onlyAllowedContracts {
     require(periodFinish[stakeToken][rewardToken] < block.timestamp, "Rewards not ended");
     require(isRewardToken[stakeToken][rewardToken], "Not reward token");
 

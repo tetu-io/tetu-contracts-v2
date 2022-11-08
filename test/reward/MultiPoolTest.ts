@@ -47,7 +47,7 @@ describe("multi pool tests", function () {
 
     const proxy = await DeployerUtils.deployProxy(owner, 'StakelessMultiPoolMock');
     pool = StakelessMultiPoolMock__factory.connect(proxy, owner);
-    await pool.init(controller.address, owner.address, [wmatic.address], rewardTokenDefault.address);
+    await pool.init(controller.address, [wmatic.address], rewardTokenDefault.address);
 
     await wmatic.approve(pool.address, parseUnits('999999999'));
     await wmatic.connect(user).approve(pool.address, parseUnits('999999999'));
@@ -96,7 +96,7 @@ describe("multi pool tests", function () {
 
   it("removeRewardToken revert for not finished rewards test", async function () {
     await pool.connect(rewarder).notifyRewardAmount(wmatic.address, rewardToken.address, FULL_REWARD);
-    await expect(pool.connect(user).registerRewardToken(wmatic.address, rewardToken2.address)).revertedWith('Not operator')
+    await expect(pool.connect(user).registerRewardToken(wmatic.address, rewardToken2.address)).revertedWith('Not allowed')
     await pool.registerRewardToken(wmatic.address, rewardToken2.address)
     await expect(pool.registerRewardToken(wmatic.address, rewardToken2.address)).revertedWith('Already registered')
     await pool.registerRewardToken(wmatic.address, owner.address)

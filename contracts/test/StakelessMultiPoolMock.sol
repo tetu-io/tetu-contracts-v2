@@ -3,21 +3,17 @@
 pragma solidity 0.8.4;
 
 import "../reward/StakelessMultiPoolBase.sol";
-import "../proxy/ControllableV3.sol";
 
-
-contract StakelessMultiPoolMock is StakelessMultiPoolBase, ControllableV3 {
+contract StakelessMultiPoolMock is StakelessMultiPoolBase {
 
   mapping(address => bool) public stakingTokens;
 
   function init(
     address controller_,
-    address _operator,
     address[] memory _stakingTokens,
     address _defaultRewardToken
   ) external initializer {
-    __Controllable_init(controller_);
-    __MultiPool_init(_operator, _defaultRewardToken);
+    __MultiPool_init(controller_, _defaultRewardToken);
     for (uint i; i < _stakingTokens.length; i++) {
       stakingTokens[_stakingTokens[i]] = true;
     }
@@ -61,7 +57,7 @@ contract StakelessMultiPoolMock is StakelessMultiPoolBase, ControllableV3 {
   }
 
   /// @dev See {IERC165-supportsInterface}.
-  function supportsInterface(bytes4 interfaceId) public view virtual override(ControllableV3, StakelessMultiPoolBase) returns (bool) {
+  function supportsInterface(bytes4 interfaceId) public view virtual override(StakelessMultiPoolBase) returns (bool) {
     return interfaceId == InterfaceIds.I_MULTI_POOL || super.supportsInterface(interfaceId);
   }
 

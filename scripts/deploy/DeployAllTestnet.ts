@@ -11,11 +11,11 @@ async function main() {
   const controller = await DeployerUtils.deployController(signer);
   const ve = await DeployerUtils.deployVeTetu(signer, tetu.address, controller.address);
   const veDist = await DeployerUtils.deployVeDistributor(signer, controller.address, ve.address, tetu.address);
-  const gauge = await DeployerUtils.deployMultiGauge(signer, controller.address, signer.address, ve.address, tetu.address);
-  const bribe = await DeployerUtils.deployMultiBribe(signer, controller.address, signer.address, ve.address, tetu.address);
+  const gauge = await DeployerUtils.deployMultiGauge(signer, controller.address, ve.address, tetu.address);
+  const bribe = await DeployerUtils.deployMultiBribe(signer, controller.address, ve.address, tetu.address);
   const tetuVoter = await DeployerUtils.deployTetuVoter(signer, controller.address, ve.address, tetu.address, gauge.address, bribe.address);
   const platformVoter = await DeployerUtils.deployPlatformVoter(signer, controller.address, ve.address);
-  const forwarder = await DeployerUtils.deployForwarder(signer, controller.address, tetu.address);
+  const forwarder = await DeployerUtils.deployForwarder(signer, controller.address, tetu.address, bribe.address);
   const fundAdr = await DeployerUtils.deployProxy(signer, 'InvestFundV2');
   const investFund = InvestFundV2__factory.connect(fundAdr, signer);
   await RunHelper.runAndWait(() =>  investFund.init(controller.address));

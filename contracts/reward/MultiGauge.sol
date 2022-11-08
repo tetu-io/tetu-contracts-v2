@@ -11,7 +11,7 @@ import "./StakelessMultiPoolBase.sol";
 
 /// @title Stakeless pool for vaults
 /// @author belbix
-contract MultiGauge is StakelessMultiPoolBase, ControllableV3, IGauge {
+contract MultiGauge is StakelessMultiPoolBase, IGauge {
 
   // *************************************************************
   //                        CONSTANTS
@@ -49,12 +49,10 @@ contract MultiGauge is StakelessMultiPoolBase, ControllableV3, IGauge {
 
   function init(
     address controller_,
-    address _operator,
     address _ve,
     address _defaultRewardToken
   ) external initializer {
-    __Controllable_init(controller_);
-    __MultiPool_init(_operator, _defaultRewardToken);
+    __MultiPool_init(controller_, _defaultRewardToken);
     _requireInterface(_ve, InterfaceIds.I_VE_TETU);
     ve = _ve;
   }
@@ -67,8 +65,8 @@ contract MultiGauge is StakelessMultiPoolBase, ControllableV3, IGauge {
   //                    OPERATOR ACTIONS
   // *************************************************************
 
-  /// @dev Operator can whitelist token. Removing is forbidden.
-  function addStakingToken(address token) external onlyOperator {
+  /// @dev Allowed contracts can whitelist token. Removing is forbidden.
+  function addStakingToken(address token) external onlyAllowedContracts {
     stakingTokens[token] = true;
     emit AddStakingToken(token);
   }
@@ -242,7 +240,7 @@ contract MultiGauge is StakelessMultiPoolBase, ControllableV3, IGauge {
   // *************************************************************
 
   /// @dev See {IERC165-supportsInterface}.
-  function supportsInterface(bytes4 interfaceId) public view virtual override(ControllableV3, StakelessMultiPoolBase) returns (bool) {
+  function supportsInterface(bytes4 interfaceId) public view virtual override(StakelessMultiPoolBase) returns (bool) {
     return interfaceId == InterfaceIds.I_GAUGE || super.supportsInterface(interfaceId);
   }
 

@@ -54,7 +54,6 @@ describe("Tetu voter tests", function () {
     gauge = await DeployerUtils.deployMultiGauge(
       owner,
       controller.address,
-      owner.address,
       ve.address,
       tetu.address
     );
@@ -62,7 +61,6 @@ describe("Tetu voter tests", function () {
     bribe = await DeployerUtils.deployMultiBribe(
       owner,
       controller.address,
-      owner.address,
       ve.address,
       tetu.address,
     );

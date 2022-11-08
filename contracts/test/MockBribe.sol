@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: MIT
+
+pragma solidity 0.8.4;
+
+import "../proxy/ControllableV3.sol";
+
+contract MockBribe is ControllableV3 {
+
+  mapping(address => mapping(address => bool)) rewardTokens;
+
+  constructor (address controller_) {
+    init(controller_);
+  }
+
+  function init(address controller_) internal initializer {
+    __Controllable_init(controller_);
+  }
+
+  function isRewardToken(address st, address rt) external view returns (bool) {
+    return rewardTokens[st][rt];
+  }
+
+  function registerRewardToken(address st, address rt) external {
+    rewardTokens[st][rt] = true;
+  }
+
+  function notifyRewardAmount(address, address token, uint amount) external {
+    IERC20(token).transferFrom(msg.sender, address(this), amount);
+  }
+
+  /// @dev See {IERC165-supportsInterface}.
+  function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+    return interfaceId == InterfaceIds.I_BRIBE || super.supportsInterface(interfaceId);
+  }
+
+}

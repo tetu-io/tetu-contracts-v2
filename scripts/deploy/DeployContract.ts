@@ -7,7 +7,7 @@ import {formatUnits} from "ethers/lib/utils";
 
 const log: Logger = new Logger(logSettings);
 
-export const WAIT_BLOCKS_BETWEEN_DEPLOY = 50;
+export const WAIT_BLOCKS_BETWEEN_DEPLOY = 5;
 
 const libraries = new Map<string, string>([
   ['VeTetu', 'VeTetuLogo']
