@@ -17,7 +17,7 @@ abstract contract ERC4626Upgradeable is ERC20Upgradeable, ReentrancyGuard, IERC4
 
   /// @dev The address of the underlying token used for the Vault uses for accounting,
   ///      depositing, and withdrawing
-  IERC20 public asset;
+  IERC20 public override asset;
 
   function __ERC4626_init(
     IERC20 _asset,

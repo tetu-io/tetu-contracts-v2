@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.0;
+import "./IERC20.sol";
 
 interface IERC4626 {
 
@@ -14,6 +15,7 @@ interface IERC4626 {
     uint shares
   );
 
+  function asset() external view returns (IERC20);
 
   function deposit(uint assets, address receiver) external returns (uint shares);
 

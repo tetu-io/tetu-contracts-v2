@@ -5,10 +5,10 @@ import {
   IERC20__factory,
   InvestFundV2__factory,
   MultiBribe__factory,
-  MultiGauge__factory, StakelessMultiPoolBase__factory
+  MultiGauge__factory, StakelessMultiPoolBase__factory, TetuVoter__factory, VeTetu__factory
 } from "../../typechain";
 import {Addresses} from "../addresses/addresses";
-import {parseUnits} from "ethers/lib/utils";
+import {formatUnits, parseUnits} from "ethers/lib/utils";
 import {RunHelper} from "../utils/RunHelper";
 import {Misc} from "../utils/Misc";
 import {Signer} from "ethers";
@@ -30,12 +30,34 @@ async function main() {
   for (const vault of vaults) {
 
     await registerTokenIfnOtExist(signer, gauge.address, vault, USDC);
-    // await RunHelper.runAndWait(() => gauge.notifyRewardAmount(vault, USDC, parseUnits('1', 6)));
+    const gaugeLeft = await gauge.left(vault, USDC)
+    if (gaugeLeft.lt(parseUnits('1', 6))) {
+      await RunHelper.runAndWait(() => gauge.notifyRewardAmount(vault, USDC, parseUnits('1', 6)));
+    }
 
     await registerTokenIfnOtExist(signer, bribe.address, vault, WETH);
-    await RunHelper.runAndWait(() => bribe.notifyRewardAmount(vault, WETH, parseUnits('1')))
+    const bribeLeft = await bribe.left(vault, WETH)
+    if (bribeLeft.lt(parseUnits('1'))) {
+      await RunHelper.runAndWait(() => bribe.notifyRewardAmount(vault, WETH, parseUnits('1')))
+    }
+    const veBalance = await VeTetu__factory.connect(core.ve, signer).balanceOf(signer.address);
+    console.log('ve balance', veBalance.toString());
+    for (let i = 0; i < veBalance.toNumber(); i++) {
+      if (!veBalance.isZero()) {
+        const veId = (await VeTetu__factory.connect(core.ve, signer).tokenOfOwnerByIndex(signer.address, i)).toNumber()
+        const power = await VeTetu__factory.connect(core.ve, signer).balanceOfNFT(veId)
+        console.log('veId', veId, formatUnits(power))
+        if (!power.isZero()) {
 
-
+          const voter = TetuVoter__factory.connect(core.tetuVoter, signer);
+          const lastVote = (await voter.lastVote(veId)).toNumber();
+          console.log('lastVote', new Date(lastVote * 1000))
+          if ((lastVote + 60 * 60 * 24 * 7) < (Date.now() / 1000)) {
+            await RunHelper.runAndWait(() =>  voter.vote(veId, [vault], [100]));
+          }
+        }
+      }
+    }
   }
 
 }

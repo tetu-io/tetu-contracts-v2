@@ -4,17 +4,16 @@ pragma solidity 0.8.4;
 
 import "../interfaces/IERC4626.sol";
 import "../interfaces/IERC20.sol";
-import "../interfaces/IMultiSwap2.sol";
 import "../interfaces/IVeTetu.sol";
 import "../openzeppelin/SafeERC20.sol";
 
 contract DepositHelper {
   using SafeERC20 for IERC20;
 
-  address public immutable multiSwap;
+  address public immutable oneInchRouter;
 
-  constructor(address _multiSwap) {
-    multiSwap = _multiSwap;
+  constructor(address _oneInchRouter) {
+    oneInchRouter = _oneInchRouter;
   }
 
   /// @dev Proxy deposit action for keep approves on this contract
@@ -27,26 +26,22 @@ contract DepositHelper {
   /// @dev Convert input token to output token and deposit.
   ///      tokenOut should be vault asset
   function convertAndDeposit(
-    address vault,
-    IMultiSwap2.SwapData memory swapData,
-    IBVault.BatchSwapStep[] memory swaps,
-    IAsset[] memory tokenAddresses,
-    uint slippage,
-    uint deadline
+    bytes memory swapData,
+    address tokenIn,
+    uint amountIn,
+    address vault
   ) external returns (uint){
-    IERC20(swapData.tokenIn).safeTransferFrom(msg.sender, address(this), swapData.swapAmount);
+    IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
 
-    _approveIfNeeds(swapData.tokenIn, swapData.swapAmount, multiSwap);
-    IMultiSwap2(multiSwap).multiSwap(
-      swapData,
-      swaps,
-      tokenAddresses,
-      slippage,
-      deadline
-    );
+    _approveIfNeeds(tokenIn, amountIn, oneInchRouter);
+    (bool success,bytes memory result) = oneInchRouter.call(swapData);
+    require(success, string(result));
 
-    uint balance = IERC20(swapData.tokenOut).balanceOf(address(this));
-    _approveIfNeeds(swapData.tokenOut, balance, vault);
+    address asset = address(IERC4626(vault).asset());
+    uint balance = IERC20(asset).balanceOf(address(this));
+
+    require(balance != 0, "Zero result balance");
+    _approveIfNeeds(asset, balance, vault);
     return IERC4626(vault).deposit(balance, msg.sender);
   }
 
@@ -55,26 +50,19 @@ contract DepositHelper {
   function withdrawAndConvert(
     address vault,
     uint shareAmount,
-    IMultiSwap2.SwapData memory swapData,
-    IBVault.BatchSwapStep[] memory swaps,
-    IAsset[] memory tokenAddresses,
-    uint slippage,
-    uint deadline
+    bytes memory swapData,
+    address tokenOut
   ) external returns (uint){
+    _approveIfNeeds(vault, shareAmount, vault);
     uint amountIn = IERC4626(vault).redeem(shareAmount, address(this), msg.sender);
-    swapData.swapAmount = amountIn;
 
-    _approveIfNeeds(swapData.tokenIn, amountIn, multiSwap);
-    IMultiSwap2(multiSwap).multiSwap(
-      swapData,
-      swaps,
-      tokenAddresses,
-      slippage,
-      deadline
-    );
+    _approveIfNeeds(address(IERC4626(vault).asset()), amountIn, oneInchRouter);
+    (bool success,) = oneInchRouter.call(swapData);
+    require(success, "Swap error");
 
-    uint balance = IERC20(swapData.tokenOut).balanceOf(address(this));
-    IERC20(swapData.tokenOut).safeTransfer(msg.sender, balance);
+    uint balance = IERC20(tokenOut).balanceOf(address(this));
+    require(balance != 0, "Zero result balance");
+    IERC20(tokenOut).safeTransfer(msg.sender, balance);
     return balance;
   }
 
