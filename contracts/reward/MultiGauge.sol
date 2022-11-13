@@ -66,7 +66,7 @@ contract MultiGauge is StakelessMultiPoolBase, IGauge {
   // *************************************************************
 
   /// @dev Allowed contracts can whitelist token. Removing is forbidden.
-  function addStakingToken(address token) external onlyAllowedContracts {
+  function addStakingToken(address token) external override onlyAllowedContracts {
     stakingTokens[token] = true;
     emit AddStakingToken(token);
   }
