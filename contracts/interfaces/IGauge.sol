@@ -30,4 +30,6 @@ interface IGauge {
 
   function notifyRewardAmount(address stakingToken, address token, uint amount) external;
 
+  function addStakingToken(address token) external;
+
 }
