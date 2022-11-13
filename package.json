@@ -2,13 +2,15 @@
   "name": "@tetu_io/tetu-contracts-v2",
   "version": "2.0.0",
   "description": "TETU solidity base contracts V2",
-  "main": "hardhat.config.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "directories": {
     "contracts": "contracts",
-    "scripts": "scripts",
-    "test": "test"
+    "dist": "dist"
   },
   "scripts": {
+    "build-module": "npm run build && tsc",
+    "prepare": "npm run build-module",
     "build": "npm run clean && npm run compile",
     "clean": "npx hardhat clean",
     "compile": "npx hardhat compile",
