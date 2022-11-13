@@ -17,6 +17,8 @@ export class PolygonAddresses {
     "0x80AdB956d856df1Db52F18173CF1E8809b5767b4", // vaultFactory
   );
 
+  public static TETU_CONVERTER = "0x8190db4549E382dECD94aEe211eAeB5F3DbC6836".toLowerCase();
+
   public static ONE_INCH_ROUTER = "0x1111111254fb6c44bAC0beD2854e76F90643097d".toLowerCase();
 
   // tokens
@@ -34,4 +36,6 @@ export class PolygonAddresses {
   public static TETU_TOKEN = "0x255707B70BF90aa112006E1b07B9AeA6De021424".toLowerCase();
   public static BAL_TOKEN = "0x9a71012B13CA4d3D0Cdc72A177DF3ef03b0E76A3".toLowerCase();
   public static tetuBAL_TOKEN = '0x7fC9E0Aa043787BFad28e29632AdA302C790Ce33'.toLowerCase();
+  public static USDPlus_TOKEN = '0x236eeC6359fb44CCe8f97E99387aa7F8cd5cdE1f'.toLowerCase();
+
 }
