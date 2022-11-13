@@ -17,6 +17,8 @@ export class PolygonAddresses {
     "0x80AdB956d856df1Db52F18173CF1E8809b5767b4", // vaultFactory
   );
 
+  public static GOV_ADDRESS = "0xcc16d636dD05b52FF1D8B9CE09B09BC62b11412B".toLowerCase();
+
   public static TETU_CONVERTER = "0x8190db4549E382dECD94aEe211eAeB5F3DbC6836".toLowerCase();
 
   public static ONE_INCH_ROUTER = "0x1111111254fb6c44bAC0beD2854e76F90643097d".toLowerCase();
