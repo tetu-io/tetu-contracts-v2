@@ -69,6 +69,7 @@ describe("TetuEmitterTest", function () {
 
   it("startEpoch to ve 100% test", async function () {
     await expect(emitter.connect(owner2).setToVeRatio(100)).revertedWith("!gov");
+    await expect(emitter.setToVeRatio(100_001)).revertedWith("too high");
     await emitter.setToVeRatio(100_000);
     await tetu.transfer(emitter.address, 100)
     await emitter.startEpoch(100);

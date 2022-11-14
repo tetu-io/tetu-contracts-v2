@@ -106,7 +106,7 @@ contract TetuEmitter is ControllableV3 {
   /// @dev How much % of tokens will go to VeDistributor
   function setToVeRatio(uint value) external {
     _olyGov();
-    require(value <= RATIO_DENOMINATOR);
+    require(value <= RATIO_DENOMINATOR, "too high");
     toVeRatio = value;
     emit ToVeRatioChanged(value);
   }
