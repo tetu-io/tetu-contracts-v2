@@ -6,6 +6,7 @@ import "../proxy/ControllableV3.sol";
 
 contract MockBribe is ControllableV3 {
 
+  uint public epoch;
   mapping(address => mapping(address => bool)) rewardTokens;
 
   constructor (address controller_) {
@@ -28,9 +29,21 @@ contract MockBribe is ControllableV3 {
     IERC20(token).transferFrom(msg.sender, address(this), amount);
   }
 
+  function notifyForNextEpoch(address, address token, uint amount) external {
+    IERC20(token).transferFrom(msg.sender, address(this), amount);
+  }
+
+  function notifyDelayedRewards(address, address, uint) external {
+    // noop
+  }
+
   /// @dev See {IERC165-supportsInterface}.
   function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
     return interfaceId == InterfaceIds.I_BRIBE || super.supportsInterface(interfaceId);
+  }
+
+  function increaseEpoch() external {
+    epoch++;
   }
 
 }

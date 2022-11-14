@@ -101,7 +101,6 @@ describe("multi bribe tests", function () {
     await TimeUtils.rollback(snapshotBefore);
   });
 
-
   beforeEach(async function () {
     snapshot = await TimeUtils.snapshot();
   });
@@ -158,8 +157,8 @@ describe("multi bribe tests", function () {
 
     // check that all metrics are fine
     expect(await rewardToken.balanceOf(bribe.address)).eq(parseUnits('1'));
-    expect(+formatUnits(await bribe.rewardRate(vault.address, rewardToken.address), 36) * 60 * 60 * 24 * 7).eq(1);
-    expect(await bribe.left(vault.address, rewardToken.address)).eq(parseUnits('1').sub(1));
+    expect(+formatUnits(await bribe.rewardRate(vault.address, rewardToken.address), 36)).eq(1);
+    expect(await bribe.left(vault.address, rewardToken.address)).eq(parseUnits('1'));
 
     // make sure that for second reward everything empty
     expect(await rewardToken2.balanceOf(bribe.address)).eq(0);
@@ -171,8 +170,8 @@ describe("multi bribe tests", function () {
 
     // check second reward metrics
     expect(await rewardToken2.balanceOf(bribe.address)).eq(parseUnits('10'));
-    expect((+formatUnits(await bribe.rewardRate(vault.address, rewardToken2.address), 36) * 60 * 60 * 24 * 7).toFixed(0)).eq('10');
-    expect(await bribe.left(vault.address, rewardToken2.address)).eq(parseUnits('10').sub(1));
+    expect((+formatUnits(await bribe.rewardRate(vault.address, rewardToken2.address), 36)).toFixed(0)).eq('10');
+    expect(await bribe.left(vault.address, rewardToken2.address)).eq(parseUnits('10'));
   });
 
   it("claim test", async function () {
@@ -185,18 +184,63 @@ describe("multi bribe tests", function () {
 
     expect(await tetu.balanceOf(user.address)).eq(0);
     await bribe.getAllRewardsForTokens([vault.address], 1);
-    await bribe.getAllRewards(vault.address, 2);
+    await bribe.connect(user).getAllRewards(vault.address, 2);
 
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 4)
 
     await bribe.getAllRewardsForTokens([vault.address], 1);
-    await bribe.getReward(vault.address, 2, [tetu.address, rewardToken2.address]);
+    await bribe.connect(user).getReward(vault.address, 2, [tetu.address, rewardToken2.address]);
 
     expect(await tetu.balanceOf(user.address)).above(parseUnits('0.49'));
     expect(await rewardToken2.balanceOf(user.address)).above(parseUnits('0.49'));
     // some dust
     expect(await tetu.balanceOf(bribe.address)).below(10);
     expect(await rewardToken2.balanceOf(bribe.address)).below(10);
+  });
+
+  it("claim delayed rewards test", async function () {
+    // add reward
+    await bribe.notifyForNextEpoch(vault.address, tetu.address, 100);
+    await expect(bribe.connect(user).setEpochOperator(owner.address)).revertedWith('!gov')
+    await bribe.setEpochOperator(owner.address)
+    await expect(bribe.connect(user).increaseEpoch()).revertedWith('!operator');
+    await bribe.increaseEpoch();
+    await bribe.getAllRewardsForTokens([vault.address], 1);
+
+    await tetu.transfer(tetu.address, await tetu.balanceOf(owner.address))
+    expect(await tetu.balanceOf(user.address)).eq(0);
+    expect(await tetu.balanceOf(owner.address)).eq(0);
+    console.log('>>> claim 1')
+    await bribe.getAllRewardsForTokens([vault.address], 1);
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 365)
+    console.log('>>> claim 2')
+    await bribe.connect(user).getAllRewardsForTokens([vault.address], 2);
+
+    expect(await tetu.balanceOf(user.address)).above(48);
+    expect(await tetu.balanceOf(user.address)).below(51);
+
+    expect(await tetu.balanceOf(owner.address)).above(48);
+    expect(await tetu.balanceOf(owner.address)).below(51);
+  });
+
+  it("claim delayed rewards test2", async function () {
+    // add reward
+    await expect(bribe.notifyForNextEpoch(vault.address, owner.address, parseUnits('1'))).revertedWith('Token not allowed');
+    await bribe.notifyForNextEpoch(vault.address, tetu.address, parseUnits('1'));
+    await bribe.setEpochOperator(owner.address)
+    await bribe.increaseEpoch();
+    await expect(bribe.notifyDelayedRewards(vault.address, tetu.address, 10)).revertedWith('!epoch')
+    await bribe.notifyDelayedRewards(vault.address, tetu.address, 1)
+
+    await expect(bribe.connect(user).setRewardsRedirect(owner.address, user.address)).revertedWith('Not allowed');
+    await bribe.setRewardsRedirect(owner.address, user.address);
+
+    expect(await tetu.balanceOf(user.address)).eq(0);
+    await bribe.connect(user).getAllRewardsForTokens([vault.address], 1);
+    await bribe.connect(user).getAllRewardsForTokens([vault.address], 2);
+
+    expect(await tetu.balanceOf(user.address)).above(parseUnits('0.99'));
+    expect(await tetu.balanceOf(user.address)).below(parseUnits('1.01'));
   });
 
 });

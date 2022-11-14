@@ -13,7 +13,8 @@ import "../lib/CheckpointLib.sol";
 import "../lib/InterfaceIds.sol";
 import "../proxy/ControllableV3.sol";
 
-/// @title Abstract stakeless pool
+/// @title Abstract stakeless pool for multiple rewards.
+///        Universal pool for different purposes, cover the most popular use cases.
 /// @author belbix
 abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiPool, ControllableV3 {
   using SafeERC20 for IERC20;
@@ -25,8 +26,6 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
 
   /// @dev Version of this contract. Adjust manually on each code modification.
   string public constant MULTI_POOL_VERSION = "1.0.0";
-  /// @dev Rewards are released over 7 days
-  uint internal constant _DURATION = 7 days;
   /// @dev Precision for internal calculations
   uint internal constant _PRECISION = 10 ** 18;
   /// @dev Max reward tokens per 1 staking token
@@ -38,6 +37,8 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
   //     Add only in the bottom and adjust __gap variable
   // *************************************************************
 
+  /// @dev Rewards are released over this period
+  uint public duration;
   /// @dev This token will be always allowed as reward
   address public defaultRewardToken;
 
@@ -81,6 +82,8 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
   mapping(address => mapping(address => mapping(uint => CheckpointLib.Checkpoint))) public rewardPerTokenCheckpoints;
   /// @notice The number of checkpoints for each token
   mapping(address => mapping(address => uint)) public rewardPerTokenNumCheckpoints;
+  /// @notice account => recipient. All rewards for this account will receive recipient
+  mapping(address => address) public rewardsRedirect;
 
   // *************************************************************
   //                        EVENTS
@@ -95,10 +98,16 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
   //                        INIT
   // *************************************************************
 
-  function __MultiPool_init(address controller_, address _defaultRewardToken) internal onlyInitializing {
+  function __MultiPool_init(
+    address controller_,
+    address _defaultRewardToken,
+    uint _duration
+  ) internal onlyInitializing {
     __Controllable_init(controller_);
     _requireERC20(_defaultRewardToken);
     defaultRewardToken = _defaultRewardToken;
+    require(_duration != 0, "wrong duration");
+    duration = _duration;
   }
 
   // *************************************************************
@@ -147,7 +156,7 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
   }
 
   /// @dev Amount of reward tokens left for the current period
-  function left(address stakeToken, address rewardToken) external view override returns (uint) {
+  function left(address stakeToken, address rewardToken) public view override returns (uint) {
     uint _periodFinish = periodFinish[stakeToken][rewardToken];
     if (block.timestamp >= _periodFinish) return 0;
     uint _remaining = _periodFinish - block.timestamp;
@@ -196,6 +205,13 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
     // if isRewardToken map and rewardTokens array changed accordingly the token always exist
     rewardTokens[stakeToken][i] = rewardTokens[stakeToken][length - 1];
     rewardTokens[stakeToken].pop();
+  }
+
+  /// @dev Account or governance can setup a redirect of all rewards.
+  ///      It needs for 3rd party contracts integrations.
+  function setRewardsRedirect(address account, address recipient) external {
+    require(msg.sender == account || isGovernance(msg.sender), "Not allowed");
+    rewardsRedirect[account] = recipient;
   }
 
   // *************************************************************
@@ -248,13 +264,18 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
     _updateDerivedBalanceAndWriteCheckpoints(stakingToken, account);
   }
 
-  /// @dev Caller should implement restriction checks
+  /// @dev Sender should be a recipient (or redirected recipient)
   function _getReward(
     address stakingToken,
     address account,
     address[] memory rewardTokens_,
     address recipient
   ) internal nonReentrant virtual {
+    address newRecipient = rewardsRedirect[recipient];
+    if (newRecipient != address(0)) {
+      recipient = newRecipient;
+    }
+    require(recipient == msg.sender, "Not allowed");
     for (uint i = 0; i < rewardTokens_.length; i++) {
       (rewardPerTokenStored[stakingToken][rewardTokens_[i]], lastUpdateTime[stakingToken][rewardTokens_[i]])
       = _updateRewardPerToken(stakingToken, rewardTokens_[i], type(uint).max, true);
@@ -453,8 +474,9 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
   function _notifyRewardAmount(
     address stakingToken,
     address rewardToken,
-    uint amount
-  ) internal nonReentrant virtual {
+    uint amount,
+    bool transferRewards
+  ) internal virtual {
     require(amount > 0, "Zero amount");
     require(defaultRewardToken == rewardToken
       || isRewardToken[stakingToken][rewardToken], "Token not allowed");
@@ -464,19 +486,23 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
     (rewardPerTokenStored[stakingToken][rewardToken], lastUpdateTime[stakingToken][rewardToken])
     = _updateRewardPerToken(stakingToken, rewardToken, type(uint).max, true);
 
-    IERC20(rewardToken).safeTransferFrom(msg.sender, address(this), amount);
+    if (transferRewards) {
+      IERC20(rewardToken).safeTransferFrom(msg.sender, address(this), amount);
+    }
 
-    if (block.timestamp >= periodFinish[stakingToken][rewardToken]) {
-      rewardRate[stakingToken][rewardToken] = amount * _PRECISION / _DURATION;
+    uint _duration = duration;
+    uint _periodFinish = periodFinish[stakingToken][rewardToken];
+    if (block.timestamp >= _periodFinish) {
+      rewardRate[stakingToken][rewardToken] = amount * _PRECISION / _duration;
     } else {
-      uint _remaining = periodFinish[stakingToken][rewardToken] - block.timestamp;
+      uint _remaining = _periodFinish - block.timestamp;
       uint _left = _remaining * rewardRate[stakingToken][rewardToken];
       // rewards should not extend period infinity, only higher amount allowed
       require(amount > _left / _PRECISION, "Amount should be higher than remaining rewards");
-      rewardRate[stakingToken][rewardToken] = (amount * _PRECISION + _left) / _DURATION;
+      rewardRate[stakingToken][rewardToken] = (amount * _PRECISION + _left) / _duration;
     }
 
-    periodFinish[stakingToken][rewardToken] = block.timestamp + _DURATION;
+    periodFinish[stakingToken][rewardToken] = block.timestamp + _duration;
     emit NotifyReward(msg.sender, stakingToken, rewardToken, amount);
   }
 

@@ -11,6 +11,7 @@ import "../interfaces/IForwarder.sol";
 /// @title Stakeless pool for ve token
 /// @author belbix
 contract MultiBribe is StakelessMultiPoolBase, IBribe {
+  using SafeERC20 for IERC20;
 
   // *************************************************************
   //                        CONSTANTS
@@ -27,6 +28,11 @@ contract MultiBribe is StakelessMultiPoolBase, IBribe {
 
   /// @dev The ve token used for gauges
   address public ve;
+  /// @dev vault => rt => epoch => amount
+  mapping(address => mapping(address => mapping(uint => uint))) public rewardsQueue;
+  /// @dev Current epoch for delayed rewards
+  uint public override epoch;
+  address public epochOperator;
 
   // *************************************************************
   //                        EVENTS
@@ -34,6 +40,10 @@ contract MultiBribe is StakelessMultiPoolBase, IBribe {
 
   event BribeDeposit(address indexed vault, uint indexed veId, uint amount);
   event BribeWithdraw(address indexed vault, uint indexed veId, uint amount);
+  event RewardsForNextEpoch(address vault, address token, uint epoch, uint amount);
+  event DelayedRewardsNotified(address vault, address token, uint epoch, uint amount);
+  event EpochOperatorChanged(address value);
+  event EpochIncreased(uint epoch);
 
   // *************************************************************
   //                        INIT
@@ -44,13 +54,23 @@ contract MultiBribe is StakelessMultiPoolBase, IBribe {
     address _ve,
     address _defaultReward
   ) external initializer {
-    __MultiPool_init(controller_, _defaultReward);
+    __MultiPool_init(controller_, _defaultReward, 1);
     _requireInterface(_ve, InterfaceIds.I_VE_TETU);
     ve = _ve;
   }
 
   function voter() public view returns (address) {
     return IController(controller()).voter();
+  }
+
+  // *************************************************************
+  //                      GOV ACTIONS
+  // *************************************************************
+
+  function setEpochOperator(address value) external {
+    require(isGovernance(msg.sender), "!gov");
+    epochOperator = value;
+    emit EpochOperatorChanged(value);
   }
 
   // *************************************************************
@@ -104,6 +124,10 @@ contract MultiBribe is StakelessMultiPoolBase, IBribe {
     address recipient
   ) internal {
     IForwarder(IController(controller()).forwarder()).distributeAll(_vault);
+    uint _epoch = epoch;
+    for (uint i; i < _rewardTokens.length; ++i) {
+      _notifyDelayedRewards(_vault, _rewardTokens[i], _epoch);
+    }
     _getReward(_vault, tokenIdToAddress(veId), _rewardTokens, recipient);
   }
 
@@ -129,8 +153,43 @@ contract MultiBribe is StakelessMultiPoolBase, IBribe {
   //                   REWARDS DISTRIBUTION
   // *************************************************************
 
-  function notifyRewardAmount(address vault, address token, uint amount) external override {
-    _notifyRewardAmount(vault, token, amount);
+  /// @dev Add rewards to the current users
+  function notifyRewardAmount(address vault, address token, uint amount) external nonReentrant override {
+    _notifyRewardAmount(vault, token, amount, true);
+  }
+
+  /// @dev Add delayed rewards for the next epoch
+  function notifyForNextEpoch(address vault, address token, uint amount) external nonReentrant override {
+    require(defaultRewardToken == token || isRewardToken[vault][token], "Token not allowed");
+
+    IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+
+    uint _epoch = epoch + 1;
+    rewardsQueue[vault][token][_epoch] = amount;
+
+    emit RewardsForNextEpoch(vault, token, _epoch, amount);
+  }
+
+  /// @dev Notify delayed rewards
+  function notifyDelayedRewards(address vault, address token, uint _epoch) external nonReentrant override {
+    require(epoch == _epoch, "!epoch");
+    _notifyDelayedRewards(vault, token, _epoch);
+  }
+
+  function _notifyDelayedRewards(address vault, address token, uint _epoch) internal {
+    uint amount = rewardsQueue[vault][token][_epoch];
+    if (amount != 0 && amount > left(vault, token)) {
+      _notifyRewardAmount(vault, token, amount, false);
+      delete rewardsQueue[vault][token][_epoch];
+      emit DelayedRewardsNotified(vault, token, epoch, amount);
+    }
+  }
+
+  /// @dev Increase the current epoch by one, Epoch operator should increase it weekly.
+  function increaseEpoch() external override {
+    require(msg.sender == epochOperator, "!operator");
+    epoch++;
+    emit EpochIncreased(epoch);
   }
 
   // *************************************************************

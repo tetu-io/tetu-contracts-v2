@@ -2,7 +2,7 @@ import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {ethers} from "hardhat";
 import chai from "chai";
 import {parseUnits} from "ethers/lib/utils";
-import {MockToken, StakelessMultiPoolMock, StakelessMultiPoolMock__factory} from "../../typechain";
+import {ControllerMinimal, MockToken, StakelessMultiPoolMock, StakelessMultiPoolMock__factory} from "../../typechain";
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {Misc} from "../../scripts/utils/Misc";
@@ -27,13 +27,15 @@ describe("multi pool tests", function () {
   let rewardToken2: MockToken;
   let rewardTokenDefault: MockToken;
   let pool: StakelessMultiPoolMock;
+  let pool2: StakelessMultiPoolMock;
+  let controller: ControllerMinimal;
 
 
   before(async function () {
     snapshotBefore = await TimeUtils.snapshot();
     [owner, user, rewarder] = await ethers.getSigners();
 
-    const controller = await DeployerUtils.deployMockController(owner);
+    controller = await DeployerUtils.deployMockController(owner);
     wmatic = await DeployerUtils.deployMockToken(owner, 'WMATIC', 18);
     await wmatic.mint(owner.address, parseUnits('100'));
     await wmatic.mint(user.address, FULL_REWARD);
@@ -47,7 +49,8 @@ describe("multi pool tests", function () {
 
     const proxy = await DeployerUtils.deployProxy(owner, 'StakelessMultiPoolMock');
     pool = StakelessMultiPoolMock__factory.connect(proxy, owner);
-    await pool.init(controller.address, [wmatic.address], rewardTokenDefault.address);
+    await expect(pool.init(controller.address, [wmatic.address], rewardTokenDefault.address, 0)).revertedWith('wrong duration');
+    await pool.init(controller.address, [wmatic.address], rewardTokenDefault.address, 60 * 60 * 24 * 7);
 
     await wmatic.approve(pool.address, parseUnits('999999999'));
     await wmatic.connect(user).approve(pool.address, parseUnits('999999999'));
@@ -56,6 +59,19 @@ describe("multi pool tests", function () {
     await rewardTokenDefault.connect(rewarder).approve(pool.address, parseUnits('999999999'));
 
     await pool.registerRewardToken(wmatic.address, rewardToken.address);
+
+
+    const proxy2 = await DeployerUtils.deployProxy(owner, 'StakelessMultiPoolMock');
+    pool2 = StakelessMultiPoolMock__factory.connect(proxy2, owner);
+    await pool2.init(controller.address, [wmatic.address], rewardTokenDefault.address, 1);
+
+    await wmatic.approve(pool2.address, parseUnits('999999999'));
+    await wmatic.connect(user).approve(pool2.address, parseUnits('999999999'));
+    await rewardToken.connect(rewarder).approve(pool2.address, Misc.MAX_UINT);
+    await rewardToken2.connect(rewarder).approve(pool2.address, parseUnits('999999999'));
+    await rewardTokenDefault.connect(rewarder).approve(pool2.address, parseUnits('999999999'));
+
+    await pool2.registerRewardToken(wmatic.address, rewardToken.address);
   });
 
   after(async function () {
@@ -173,10 +189,10 @@ describe("multi pool tests", function () {
   });
 
   it("get rewards not for the owner should be reverted", async function () {
-    await expect(pool.getReward(wmatic.address, user.address, [])).revertedWith('Forbidden');
+    await expect(pool.getReward(wmatic.address, user.address, [])).revertedWith('Not allowed');
   });
 
-  it("get rewards not for the owner should be reverted", async function () {
+  it("notify with zero amount", async function () {
     await expect(pool.notifyRewardAmount(wmatic.address, Misc.ZERO_ADDRESS, 0)).revertedWith('Zero amount');
   });
 
@@ -389,6 +405,33 @@ describe("multi pool tests", function () {
     await pool.deposit(wmatic.address, parseUnits('1'));
 
     await pool.batchUpdateRewardPerToken(wmatic.address, rewardToken.address, 200);
+  });
+
+  it("deposit and get rewards should receive all amount with 1 sec period", async function () {
+
+    await pool2.deposit(wmatic.address, parseUnits('1'));
+
+    await pool2.connect(rewarder).notifyRewardAmount(wmatic.address, rewardToken.address, FULL_REWARD.div(4));
+
+    await TimeUtils.advanceBlocksOnTs(2);
+    await pool2.getReward(wmatic.address, owner.address, [rewardToken.address]);
+
+    await pool2.connect(rewarder).notifyRewardAmount(wmatic.address, rewardToken.address, FULL_REWARD.div(4));
+
+    await TimeUtils.advanceBlocksOnTs(2);
+    await pool2.getReward(wmatic.address, owner.address, [rewardToken.address]);
+
+    await pool2.connect(rewarder).notifyRewardAmount(wmatic.address, rewardToken.address, FULL_REWARD.div(4));
+
+    await TimeUtils.advanceBlocksOnTs(60 * 60);
+
+    await pool2.connect(rewarder).notifyRewardAmount(wmatic.address, rewardToken.address, FULL_REWARD.div(4));
+
+    await TimeUtils.advanceBlocksOnTs(2);
+    await pool2.getReward(wmatic.address, owner.address, [rewardToken.address]);
+
+    expect(await rewardToken.balanceOf(pool2.address)).is.below(4);
+    expect(await rewardToken.balanceOf(owner.address)).is.above(FULL_REWARD.sub(4));
   });
 
 });

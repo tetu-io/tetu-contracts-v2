@@ -4,6 +4,8 @@ pragma solidity 0.8.4;
 
 interface IBribe {
 
+  function epoch() external view returns (uint);
+
   function getReward(
     address vault,
     uint veId,
@@ -25,4 +27,10 @@ interface IBribe {
   function withdraw(address vault, uint amount, uint tokenId) external;
 
   function notifyRewardAmount(address vault, address token, uint amount) external;
+
+  function notifyForNextEpoch(address vault, address token, uint amount) external;
+
+  function notifyDelayedRewards(address vault, address token, uint _epoch) external;
+
+  function increaseEpoch() external;
 }

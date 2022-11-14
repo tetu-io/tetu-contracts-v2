@@ -8,6 +8,8 @@ interface IVeDistributor {
 
   function checkpoint() external;
 
+  function checkpointTotalSupply() external;
+
   function claim(uint _tokenId) external returns (uint);
 
 }

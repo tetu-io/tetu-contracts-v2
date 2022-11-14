@@ -52,7 +52,7 @@ contract MultiGauge is StakelessMultiPoolBase, IGauge {
     address _ve,
     address _defaultRewardToken
   ) external initializer {
-    __MultiPool_init(controller_, _defaultRewardToken);
+    __MultiPool_init(controller_, _defaultRewardToken, 7 days);
     _requireInterface(_ve, InterfaceIds.I_VE_TETU);
     ve = _ve;
   }
@@ -231,8 +231,8 @@ contract MultiGauge is StakelessMultiPoolBase, IGauge {
   //                   REWARDS DISTRIBUTION
   // *************************************************************
 
-  function notifyRewardAmount(address stakingToken, address token, uint amount) external override {
-    _notifyRewardAmount(stakingToken, token, amount);
+  function notifyRewardAmount(address stakingToken, address token, uint amount) external nonReentrant override {
+    _notifyRewardAmount(stakingToken, token, amount, true);
   }
 
   // *************************************************************

@@ -217,7 +217,7 @@ contract VeDistributor is ControllableV3, IVeDistributor {
   }
 
   /// @dev Call ve checkpoint and write veSupply at the current timeCursor
-  function checkpointTotalSupply() external {
+  function checkpointTotalSupply() external override {
     _checkpointTotalSupply();
   }
 

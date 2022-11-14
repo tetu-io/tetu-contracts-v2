@@ -2,13 +2,7 @@ import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {ethers} from "hardhat";
 import chai from "chai";
 import {formatUnits, parseUnits} from "ethers/lib/utils";
-import {
-  MockStakingToken,
-  MockToken,
-  MultiGauge,
-  MultiGauge__factory,
-  VeTetu
-} from "../../typechain";
+import {MockStakingToken, MockToken, MultiGauge, VeTetu} from "../../typechain";
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {Misc} from "../../scripts/utils/Misc";
@@ -233,12 +227,12 @@ describe("multi gauge tests", function () {
 
     expect(await rewardToken.balanceOf(user.address)).eq(0);
     await gauge.getAllRewardsForTokens([stakingToken.address], owner.address);
-    await gauge.getAllRewards(stakingToken.address, user.address);
+    await gauge.connect(user).getAllRewards(stakingToken.address, user.address);
 
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 4)
 
     await gauge.getAllRewardsForTokens([stakingToken.address], owner.address);
-    await gauge.getReward(stakingToken.address, user.address, [rewardToken.address, rewardToken2.address]);
+    await gauge.connect(user).getReward(stakingToken.address, user.address, [rewardToken.address, rewardToken2.address]);
 
     expect(await rewardToken.balanceOf(user.address)).eq(parseUnits('0.5').sub(80));
     expect(await rewardToken2.balanceOf(user.address)).eq(parseUnits('0.5').sub(80));

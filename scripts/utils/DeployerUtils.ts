@@ -20,7 +20,7 @@ import {
   PlatformVoter__factory,
   ProxyControlled,
   StrategySplitterV2,
-  StrategySplitterV2__factory,
+  StrategySplitterV2__factory, TetuEmitter__factory,
   TetuVaultV2,
   TetuVaultV2__factory,
   TetuVoter,
@@ -272,6 +272,15 @@ export class DeployerUtils {
     const controller = ControllerV2__factory.connect(proxy.address, signer);
     await RunHelper.runAndWait(() => controller.init(signer.address));
     return controller;
+  }
+
+  public static async deployTetuEmitter(signer: SignerWithAddress, controller: string, token: string, bribe: string) {
+    const logic = await DeployerUtils.deployContract(signer, 'TetuEmitter') as ControllerV2;
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
+    await RunHelper.runAndWait(() => proxy.initProxy(logic.address));
+    const contract = TetuEmitter__factory.connect(proxy.address, signer);
+    await RunHelper.runAndWait(() => contract.init(controller, token, bribe));
+    return contract;
   }
 
   public static async deployVaultFactory(

@@ -5,7 +5,7 @@ import {InterfaceIds, MockToken, TetuERC165Test} from "../../typechain";
 import {TimeUtils} from "../TimeUtils";
 import {expect} from "chai";
 
-describe("Deposit helper Tests", function () {
+describe("TetuERC165Test", function () {
   let snapshotBefore: string;
   let snapshot: string;
   let signer: SignerWithAddress;

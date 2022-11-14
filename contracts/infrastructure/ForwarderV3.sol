@@ -369,6 +369,7 @@ contract ForwarderV3 is ReentrancyGuard, ControllableV3, IForwarder {
     uint toDistribute
   ) internal {
     address _bribe = bribe;
+    uint _epoch = IBribe(_bribe).epoch();
     _approveIfNeed(tokenToDistribute, _bribe, toDistribute);
 
     uint remaining = toDistribute;
@@ -382,7 +383,8 @@ contract ForwarderV3 is ReentrancyGuard, ControllableV3, IForwarder {
       }
 
       _registerRewardInBribe(_bribe, vaults[i], tokenToDistribute);
-      IBribe(_bribe).notifyRewardAmount(vaults[i], tokenToDistribute, toSend);
+      IBribe(_bribe).notifyForNextEpoch(vaults[i], tokenToDistribute, toSend);
+      IBribe(_bribe).notifyDelayedRewards(vaults[i], tokenToDistribute, _epoch);
 
       // clear queued data
       _destinationQueue[incomeToken].remove(vaults[i]);

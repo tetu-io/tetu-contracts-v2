@@ -11,9 +11,10 @@ contract StakelessMultiPoolMock is StakelessMultiPoolBase {
   function init(
     address controller_,
     address[] memory _stakingTokens,
-    address _defaultRewardToken
+    address _defaultRewardToken,
+    uint duration_
   ) external initializer {
-    __MultiPool_init(controller_, _defaultRewardToken);
+    __MultiPool_init(controller_, _defaultRewardToken, duration_);
     for (uint i; i < _stakingTokens.length; i++) {
       stakingTokens[_stakingTokens[i]] = true;
     }
@@ -44,12 +45,11 @@ contract StakelessMultiPoolMock is StakelessMultiPoolBase {
   }
 
   function getReward(address stakingToken, address account, address[] memory tokens) external {
-    require(msg.sender == account, "Forbidden");
     _getReward(stakingToken, account, tokens, account);
   }
 
   function notifyRewardAmount(address stakingToken, address token, uint amount) external {
-    _notifyRewardAmount(stakingToken, token, amount);
+    _notifyRewardAmount(stakingToken, token, amount, true);
   }
 
   function isStakeToken(address token) public view override returns (bool) {
