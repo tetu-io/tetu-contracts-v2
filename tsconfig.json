@@ -6,7 +6,8 @@
     "strict": true,
     "esModuleInterop": true,
     "outDir": "dist",
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "declaration": true
   },
   "include": [
     "./scripts",
@@ -14,6 +15,7 @@
     "./typechain",
     "./tmp"
   ],
+  "exclude": ["node_modules"],
   "files": [
     "./hardhat.config.ts",
     "./scripts/addresses/addresses.ts"
