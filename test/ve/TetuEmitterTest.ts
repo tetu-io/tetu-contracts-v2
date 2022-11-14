@@ -88,6 +88,13 @@ describe("TetuEmitterTest", function () {
     expect(await tetu.balanceOf(voter.address)).eq(200);
   });
 
+  it("startEpoch with zero amount test", async function () {
+    await emitter.startEpoch(0);
+    expect(await bribe.epoch()).eq(1);
+    expect(await emitter.epoch()).eq(1);
+    expect(await emitter.startEpochTS()).above(0);
+  });
+
   it("setMinAmountPerEpoch test", async function () {
     await expect(emitter.connect(owner2).setMinAmountPerEpoch(100)).revertedWith("!gov");
     await emitter.setMinAmountPerEpoch(200);

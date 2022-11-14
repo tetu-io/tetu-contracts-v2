@@ -117,13 +117,14 @@ contract TetuEmitter is ControllableV3 {
 
   /// @dev Start new epoch with given token amount.
   ///      Amount should be higher than token balance and `minAmountPerEpoch`.
+  ///      With zero amount we will just start a new epoch without additional rewards.
   function startEpoch(uint amount) external {
     _onlyOperator();
 
     require(isReadyToStart(), "too early");
     address _token = token;
     uint balance = IERC20(_token).balanceOf(address(this));
-    require(amount != 0 && amount <= balance && amount >= minAmountPerEpoch, "!amount");
+    require(amount <= balance && amount >= minAmountPerEpoch, "!amount");
 
     IController _controller = IController(controller());
 
