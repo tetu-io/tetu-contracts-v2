@@ -1,6 +1,5 @@
 import {ethers} from "hardhat";
 import {DeployerUtils} from "../utils/DeployerUtils";
-import {writeFileSync} from "fs";
 import {InvestFundV2__factory} from "../../typechain";
 import {RunHelper} from "../utils/RunHelper";
 import {Addresses} from "../addresses/addresses";
@@ -49,19 +48,20 @@ async function main() {
   await RunHelper.runAndWait(() => controller.changeAddress(6)); // INVEST_FUND
   await RunHelper.runAndWait(() => controller.changeAddress(7)); // VE_DIST
 
-  const result = `
-  tetu: ${tetu}
-  controller: ${controller.address}
-  ve: ${ve.address}
-  veDist: ${veDist.address}
-  gauge: ${gauge.address}
-  bribe: ${bribe.address}
-  tetuVoter: ${tetuVoter.address}
-  platformVoter: ${platformVoter.address}
-  forwarder: ${forwarder.address}
-  vaultFactory: ${vaultFactory.address}
-  `;
-  writeFileSync('tmp/deployed/core.txt', result, 'utf8');
+  const result = `  public static CORE_ADDRESSES = new CoreAddresses(
+    "${tetu}", // tetu
+    "${controller.address}", // controller
+    "${ve.address}", // ve
+    "${veDist.address}", // veDist
+    "${gauge.address}", // gauge
+    "${bribe.address}", // bribe
+    "${tetuVoter.address}", // tetuVoter
+    "${platformVoter.address}", // platformVoter
+    "${forwarder.address}", // forwarder
+    "${vaultFactory.address}", // vaultFactory
+  );`
+
+  DeployerUtils.createFolderAndWriteFileSync('tmp/deployed/core.txt', result);
 }
 
 main()
