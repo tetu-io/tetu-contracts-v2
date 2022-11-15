@@ -12,7 +12,7 @@ import {BigNumber} from "ethers";
 const {expect} = chai;
 
 const FULL_AMOUNT = parseUnits('100');
-const LOCK_PERIOD = 60 * 60 * 24 * 365;
+const LOCK_PERIOD = 60 * 60 * 24 * 90;
 
 describe("multi gauge tests", function () {
 

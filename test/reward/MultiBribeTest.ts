@@ -11,7 +11,7 @@ import {BigNumber} from "ethers";
 
 const {expect} = chai;
 
-const LOCK_PERIOD = 60 * 60 * 24 * 365;
+const LOCK_PERIOD = 60 * 60 * 24 * 90;
 
 describe("multi bribe tests", function () {
 
@@ -128,7 +128,7 @@ describe("multi bribe tests", function () {
   // ************* deposit/withdraw/balance
 
   it("balance test", async function () {
-    expect(await bribe.balanceOf(vault.address, await bribe.tokenIdToAddress(1))).above(parseUnits('0.98'));
+    expect(await bribe.balanceOf(vault.address, await bribe.tokenIdToAddress(1))).above(parseUnits('0.93'));
   });
   it("balance after vote reset test", async function () {
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 7);

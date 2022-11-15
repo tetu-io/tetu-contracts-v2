@@ -21,7 +21,7 @@ import { MockBribe } from "../../typechain/MockBribe";
 const {expect} = chai;
 
 const WEEK = 60 * 60 * 24 * 7;
-const LOCK_PERIOD = 60 * 60 * 24 * 365;
+const LOCK_PERIOD = 60 * 60 * 24 * 90;
 
 describe("Platform voter tests", function () {
 
@@ -206,8 +206,8 @@ describe("Platform voter tests", function () {
     expect(votes.length).eq(1);
     expect(votes[0]._type).eq(1);
     expect(votes[0].target).eq(Misc.ZERO_ADDRESS);
-    expect(votes[0].weight).above(parseUnits('0.98'));
-    expect(votes[0].weightedValue).above(parseUnits('98'));
+    expect(votes[0].weight).above(parseUnits('0.94'));
+    expect(votes[0].weightedValue).above(parseUnits('94'));
     expect(votes[0].timestamp).above(0);
   });
 

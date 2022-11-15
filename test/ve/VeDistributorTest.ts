@@ -19,7 +19,7 @@ import {BigNumber} from "ethers";
 const {expect} = chai;
 
 const WEEK = 60 * 60 * 24 * 7;
-const LOCK_PERIOD = 60 * 60 * 24 * 365;
+const LOCK_PERIOD = 60 * 60 * 24 * 90;
 
 describe("Ve distributor tests", function () {
 
@@ -251,7 +251,7 @@ describe("Ve distributor tests", function () {
     let bal = await ve.balanceOfNFT(2)
     expect(bal).above(0)
     await veDist.claim(2);
-    expect((await ve.balanceOfNFT(2)).sub(bal)).above(parseUnits('0.15'));
+    expect((await ve.balanceOfNFT(2)).sub(bal)).above(parseUnits('0.10'));
 
     // SECOND CLAIM
 

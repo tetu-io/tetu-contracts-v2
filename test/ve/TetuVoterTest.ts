@@ -19,7 +19,7 @@ import {Misc} from "../../scripts/utils/Misc";
 const {expect} = chai;
 
 const WEEK = 60 * 60 * 24 * 7;
-const LOCK_PERIOD = 60 * 60 * 24 * 365;
+const LOCK_PERIOD = 60 * 60 * 24 * 90;
 
 describe("Tetu voter tests", function () {
 
@@ -138,7 +138,7 @@ describe("Tetu voter tests", function () {
   // *** VOTES
 
   it("reset test", async function () {
-    expect(await voter.votes(1, vault.address)).above(parseUnits('0.98'))
+    expect(await voter.votes(1, vault.address)).above(parseUnits('0.93'))
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 14)
     await voter.vote(1, [vault.address], [100]);
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 14)
@@ -192,8 +192,8 @@ describe("Tetu voter tests", function () {
   it("vote negative test", async function () {
     await voter.vote(1, [vault.address], [-100]);
     await TimeUtils.advanceBlocksOnTs(WEEK * 2);
-    expect(await voter.votes(1, vault.address)).below(parseUnits('-0.94'))
-    expect(await voter.usedWeights(1)).above(parseUnits('0.94'))
+    expect(await voter.votes(1, vault.address)).below(parseUnits('-0.77'))
+    expect(await voter.usedWeights(1)).above(parseUnits('0.77'))
   });
 
   it("reset negative test", async function () {
@@ -212,7 +212,7 @@ describe("Tetu voter tests", function () {
 
   it("poke test", async function () {
     await voter.vote(1, [vault.address], [100]);
-    expect(await voter.votes(1, vault.address)).above(parseUnits('0.94'))
+    expect(await voter.votes(1, vault.address)).above(parseUnits('0.77'))
     await TimeUtils.advanceBlocksOnTs(LOCK_PERIOD / 2);
     await voter.poke(1)
     expect(await voter.votes(1, vault.address)).below(parseUnits('0.5'))
@@ -242,7 +242,7 @@ describe("Tetu voter tests", function () {
     expect(attached.find((x: string) => x === stakingToken.address)).eq(stakingToken.address);
     expect(attached.find((x: string) => x === stakingToken2.address)).eq(stakingToken2.address);
     // check votes
-    expect(await voter.votes(1, vault.address)).above(parseUnits('0.98'))
+    expect(await voter.votes(1, vault.address)).above(parseUnits('0.93'))
     // transfer should reset everything
     await ve.setApprovalForAll(pawnshop.address, true);
     await pawnshop.transfer(ve.address, owner.address, pawnshop.address, 1)
@@ -349,7 +349,7 @@ describe("Tetu voter tests", function () {
     expect(await voter.claimable(vault.address)).above(parseUnits('75', 18));
     expect(await voter.supplyIndex(vault.address)).above(parseUnits('50', 18));
 
-    expect(await voter.claimable(vault2.address)).above(parseUnits('24.4', 18));
+    expect(await voter.claimable(vault2.address)).above(parseUnits('21.4', 18));
     expect(await voter.supplyIndex(vault2.address)).above(parseUnits('50', 18));
   });
 
@@ -366,7 +366,7 @@ describe("Tetu voter tests", function () {
     expect(await voter.claimable(vault.address)).above(parseUnits('75', 18));
     expect(await voter.supplyIndex(vault.address)).above(parseUnits('50', 18));
 
-    expect(await voter.claimable(vault2.address)).above(parseUnits('24.4', 18));
+    expect(await voter.claimable(vault2.address)).above(parseUnits('22.4', 18));
     expect(await voter.supplyIndex(vault2.address)).above(parseUnits('50', 18));
   });
 
