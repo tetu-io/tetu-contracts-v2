@@ -33,6 +33,8 @@ import {
 } from "../../typechain";
 import {RunHelper} from "./RunHelper";
 import {deployContract} from "../deploy/DeployContract";
+import {mkdirSync, writeFileSync} from "fs";
+import path from "path";
 
 // tslint:disable-next-line:no-var-requires
 const hre = require("hardhat");
@@ -300,6 +302,13 @@ export class DeployerUtils {
 
   public static async delay(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  public static createFolderAndWriteFileSync(targetFile: string, data: string) {
+    const dir = path.dirname(targetFile)
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(targetFile, data, 'utf8');
+    console.log('+Data written to', targetFile);
   }
 
 }
