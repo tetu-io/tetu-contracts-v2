@@ -17,6 +17,7 @@ import {task} from "hardhat/config";
 import {deployContract} from "./scripts/deploy/DeployContract";
 
 dotEnvConfig();
+const defaultPrivateKey = "85bb5fa78d5c4ed1fde856e9d0d1fe19973d7a79ce9ed6c0358ee06a4550504e"; // random account
 // tslint:disable-next-line:no-var-requires
 const argv = require('yargs/yargs')()
   .env('TETU')
@@ -72,7 +73,7 @@ const argv = require('yargs/yargs')()
     },
     privateKey: {
       type: "string",
-      default: "85bb5fa78d5c4ed1fde856e9d0d1fe19973d7a79ce9ed6c0358ee06a4550504e" // random account
+      default: defaultPrivateKey
     },
     ethForkBlock: {
       type: "number",
@@ -119,7 +120,17 @@ export default {
               argv.hardhatChainId === 250 ? argv.ftmForkBlock !== 0 ? argv.ftmForkBlock : undefined :
                 undefined
       } : undefined,
-      accounts: [{privateKey: argv.privateKey, balance: "100000000000000000000000000000"}]
+      accounts: argv.privateKey !== defaultPrivateKey
+        ? [
+          {privateKey: argv.privateKey, balance: "100000000000000000000000000000"},
+          {privateKey: defaultPrivateKey, balance: "100000000000000000000000000000"},
+        ]
+        : {
+          mnemonic: "test test test test test test test test test test test junk",
+          path: "m/44'/60'/0'/0",
+          accountsBalance: "100000000000000000000000000000"
+        }
+
       // loggingEnabled: true
     },
     ftm: {
