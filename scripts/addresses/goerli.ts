@@ -1,4 +1,5 @@
 import {CoreAddresses} from "../models/CoreAddresses";
+import {IToolsAddresses} from "../models/ToolsAddresses";
 
 export class GoerliAddresses {
 
@@ -15,6 +16,8 @@ export class GoerliAddresses {
   "0xCF66857b468740d6dbF9cE11929A9c03DDA12988", // vaultFactory
   );
 
+  public static TOOLS_ADDRESSES: IToolsAddresses = {
+  };
 }
 
 

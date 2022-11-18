@@ -2,6 +2,7 @@
 // noinspection JSUnusedGlobalSymbols
 
 import {CoreAddresses} from "../models/CoreAddresses";
+import {IToolsAddresses} from "../models/ToolsAddresses";
 
 // noinspection SpellCheckingInspection
 export class PolygonAddresses {
@@ -19,7 +20,10 @@ export class PolygonAddresses {
     "0x0DB3F125a484F0019b91dD1897dcED4c02104fA5", // vaultFactory
   );
 
-  public static TETU_CONVERTER = "0x8190db4549E382dECD94aEe211eAeB5F3DbC6836".toLowerCase();
+  public static TOOLS_ADDRESSES: IToolsAddresses = {
+    liquidator: "0x255707B70BF90aa112006E1b07B9AeA6De021424",
+    converter: "0x8190db4549E382dECD94aEe211eAeB5F3DbC6836",
+  };
 
   public static ONE_INCH_ROUTER = "0x1111111254fb6c44bAC0beD2854e76F90643097d".toLowerCase();
 

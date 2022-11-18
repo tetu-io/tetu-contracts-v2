@@ -1,4 +1,5 @@
 import {CoreAddresses} from "../models/CoreAddresses";
+import {IToolsAddresses} from "../models/ToolsAddresses";
 
 export class FujiAddresses {
 
@@ -15,6 +16,8 @@ export class FujiAddresses {
   "0x1606Cee37b0171fbCa4FB1982Dc51f9763ca0863", // vaultFactory
   );
 
+  public static TOOLS_ADDRESSES: IToolsAddresses = {
+  }
 }
 
 // usdc: 0xc9D292E9154193Ef4526DE3183c4EB854EF7e4BF
