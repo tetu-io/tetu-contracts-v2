@@ -29,7 +29,7 @@ export class Addresses {
     return Addresses.TOOLS.get(hre.network.config.chainId) as IToolsAddresses;
   }
 
-  public static get() {
+  public static get(): PolygonAddresses | GoerliAddresses | FujiAddresses {
     switch (hre.network.config.chainId) {
       case 5: return GoerliAddresses;
       case 137: return PolygonAddresses;
