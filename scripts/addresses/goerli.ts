@@ -17,6 +17,9 @@ export class GoerliAddresses {
   );
 
   public static TOOLS_ADDRESSES: IToolsAddresses = {
+    liquidator: "",
+    converter: "",
+    multicall: "",
   };
 }
 

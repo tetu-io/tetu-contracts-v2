@@ -1,7 +1,7 @@
 export interface IToolsAddresses {
 
-  liquidator?: string;
-  converter?: string;
-  multicall?: string;
+  liquidator: string;
+  converter: string;
+  multicall: string;
 
 }
