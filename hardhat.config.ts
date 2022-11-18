@@ -119,11 +119,7 @@ export default {
               argv.hardhatChainId === 250 ? argv.ftmForkBlock !== 0 ? argv.ftmForkBlock : undefined :
                 undefined
       } : undefined,
-      accounts: {
-        mnemonic: "test test test test test test test test test test test junk",
-        path: "m/44'/60'/0'/0",
-        accountsBalance: "100000000000000000000000000000"
-      },
+      accounts: [{privateKey: argv.privateKey, balance: "100000000000000000000000000000"}]
       // loggingEnabled: true
     },
     ftm: {
@@ -143,6 +139,7 @@ export default {
       // gasPrice: 50_000_000_000,
       // gasMultiplier: 1.3,
       accounts: [argv.privateKey],
+      loggingEnabled: true
     },
     eth: {
       url: argv.ethRpcUrl || '',
