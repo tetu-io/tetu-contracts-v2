@@ -30,4 +30,6 @@ interface IStrategyV2 {
 
   function setCompoundRatio(uint value) external;
 
+  function rewardTokens() external returns (address[] memory tokens);
+
 }

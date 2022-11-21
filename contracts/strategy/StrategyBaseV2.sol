@@ -215,4 +215,10 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   /// @dev Claim all possible rewards.
   function _claim() internal virtual;
 
+  /// @dev Returns reward token addresses.
+  function rewardTokens() external override virtual
+  returns (address[] memory tokens) {
+    return tokens; // returns empty array by default
+  }
+
 }

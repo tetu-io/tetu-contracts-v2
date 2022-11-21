@@ -69,4 +69,10 @@ contract MockStrategySimple is ControllableV3, IStrategyV2 {
     compoundRatio = value;
   }
 
+  /// @dev Returns reward token addresses.
+  function rewardTokens() external override virtual
+  returns (address[] memory tokens) {
+    return tokens; // returns empty array by default
+  }
+
 }
