@@ -202,6 +202,7 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
         break;
       }
     }
+    require(found);
     // if isRewardToken map and rewardTokens array changed accordingly the token always exist
     rewardTokens[stakeToken][i] = rewardTokens[stakeToken][length - 1];
     rewardTokens[stakeToken].pop();
