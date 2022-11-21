@@ -171,9 +171,9 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     _supportedInterfaces[_ERC721_METADATA_INTERFACE_ID] = true;
 
     // mint-ish
-    emit Transfer(address(0), address(this), tokenId);
+    emit Transfer(address(0), address(this), 0);
     // burn-ish
-    emit Transfer(address(this), address(0), tokenId);
+    emit Transfer(address(this), address(0), 0);
   }
 
   // *************************************************************
@@ -920,8 +920,8 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     depositType : DepositType.INCREASE_UNLOCK_TIME
     }));
 
-    power = balanceOfNFT(tokenId);
-    unlockDate = lockedEnd[tokenId];
+    power = balanceOfNFT(_tokenId);
+    unlockDate = lockedEnd[_tokenId];
   }
 
   /// @dev Merge two NFTs union their balances and keep the biggest lock time.
