@@ -11,7 +11,7 @@ import {BigNumber} from "ethers";
 
 const {expect} = chai;
 
-const LOCK_PERIOD = 60 * 60 * 24 * 90;
+const LOCK_PERIOD = 60 * 60 * 24 * 7 * 16;
 
 describe("multi bribe tests", function () {
 

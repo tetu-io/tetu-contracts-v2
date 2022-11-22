@@ -19,7 +19,7 @@ import {Misc} from "../../scripts/utils/Misc";
 const {expect} = chai;
 
 const WEEK = 60 * 60 * 24 * 7;
-const LOCK_PERIOD = 60 * 60 * 24 * 90;
+const LOCK_PERIOD = 16 * WEEK;
 
 describe("Tetu voter tests", function () {
 
@@ -233,14 +233,15 @@ describe("Tetu voter tests", function () {
     await stakingToken.mint(owner.address, parseUnits('1'));
     await gauge.attachVe(stakingToken.address, owner.address, 1);
 
-    const stakingToken2 = await DeployerUtils.deployMockStakingToken(owner, gauge.address, 'VAULT', 18);
-    await gauge.addStakingToken(stakingToken2.address);
-    await stakingToken2.mint(owner.address, parseUnits('1'));
-    await gauge.attachVe(stakingToken2.address, owner.address, 1);
+    // const stakingToken2 = await DeployerUtils.deployMockStakingToken(owner, gauge.address, 'VAULT', 18);
+    // await gauge.addStakingToken(stakingToken2.address);
+    // await stakingToken2.mint(owner.address, parseUnits('1'));
+    // await gauge.attachVe(stakingToken2.address, owner.address, 1);
+
     // check attachments
     const attached = await voter.attachedStakingTokens(1);
     expect(attached.find((x: string) => x === stakingToken.address)).eq(stakingToken.address);
-    expect(attached.find((x: string) => x === stakingToken2.address)).eq(stakingToken2.address);
+    // expect(attached.find((x: string) => x === stakingToken2.address)).eq(stakingToken2.address);
     // check votes
     expect(await voter.votes(1, vault.address)).above(parseUnits('0.93'))
     // transfer should reset everything

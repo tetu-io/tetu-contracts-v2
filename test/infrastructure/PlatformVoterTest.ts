@@ -21,7 +21,7 @@ import { MockBribe } from "../../typechain/MockBribe";
 const {expect} = chai;
 
 const WEEK = 60 * 60 * 24 * 7;
-const LOCK_PERIOD = 60 * 60 * 24 * 90;
+const LOCK_PERIOD = 60 * 60 * 24 * 7 * 16;
 
 describe("Platform voter tests", function () {
 
