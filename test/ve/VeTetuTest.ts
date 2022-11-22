@@ -428,6 +428,7 @@ describe("veTETU tests", function () {
     await proxy.initProxy(logic.address);
     await expect(VeTetu__factory.connect(proxy.address, owner).init(
       underlying2.address,
+      parseUnits('1'),
       controller.address
     )).revertedWith('Token wrong decimals')
   });

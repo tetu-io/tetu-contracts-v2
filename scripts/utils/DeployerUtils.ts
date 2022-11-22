@@ -107,6 +107,7 @@ export class DeployerUtils {
     await RunHelper.runAndWait(() => proxy.initProxy(logic.address));
     await RunHelper.runAndWait(() => VeTetu__factory.connect(proxy.address, signer).init(
       token,
+      parseUnits('100'),
       controller
     ));
     return VeTetu__factory.connect(proxy.address, signer);
@@ -306,7 +307,7 @@ export class DeployerUtils {
 
   public static createFolderAndWriteFileSync(targetFile: string, data: string) {
     const dir = path.dirname(targetFile)
-    mkdirSync(dir, { recursive: true });
+    mkdirSync(dir, {recursive: true});
     writeFileSync(targetFile, data, 'utf8');
     console.log('+Data written to', targetFile);
   }

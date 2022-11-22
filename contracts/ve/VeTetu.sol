@@ -154,14 +154,14 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   /// @dev Proxy initialization. Call it after contract deploy.
   /// @param token_ Underlying ERC20 token
   /// @param controller_ Central contract of the protocol
-  function init(address token_, address controller_) external initializer {
+  function init(address token_, uint weight, address controller_) external initializer {
     _requireERC20(token_);
     __Controllable_init(controller_);
 
     // initial token will have 100% power
     // should be a token with 18 decimals
     require(IERC20Metadata(token_).decimals() == uint8(18), "Token wrong decimals");
-    _addToken(token_, WEIGHT_DENOMINATOR);
+    _addToken(token_, weight);
 
     _pointHistory[0].blk = block.number;
     _pointHistory[0].ts = block.timestamp;
