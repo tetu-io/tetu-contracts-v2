@@ -270,10 +270,13 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
 
   function _removeFromArray(uint tokenId, uint index) internal {
     Vote[] storage _votes = votes[tokenId];
-    if (index != _votes.length - 1) {
-      _votes[index] = _votes[_votes.length - 1];
+    uint length = _votes.length;
+    if (length != 0) {
+      if (index != length - 1) {
+        _votes[index] = _votes[length - 1];
+      }
+      _votes.pop();
     }
-    _votes.pop();
   }
 
   function _removeVote(uint tokenId, AttributeType _type, address target, uint weight, uint veValue) internal {
