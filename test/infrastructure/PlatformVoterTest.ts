@@ -16,7 +16,7 @@ import {
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {Misc} from "../../scripts/utils/Misc";
-import { MockBribe } from "../../typechain/MockBribe";
+import {MockBribe} from "../../typechain/MockBribe";
 
 const {expect} = chai;
 
@@ -282,5 +282,23 @@ describe("Platform voter tests", function () {
   it("vote batch not owner revert", async function () {
     await expect(platformVoter.voteBatch(2, [2], [100], [Misc.ZERO_ADDRESS])).revertedWith('!owner');
   });
+
+
+  it("should remove votes properly", async function () {
+    await platformVoter.vote(1, 1, 23_000, Misc.ZERO_ADDRESS);
+    await platformVoter.vote(1, 2, 48_000, Misc.ZERO_ADDRESS);
+    await TimeUtils.advanceBlocksOnTs(WEEK);
+    await platformVoter.vote(1, 1, 70_000, Misc.ZERO_ADDRESS);
+
+    const votes = await platformVoter.veVotes(1);
+
+    const types = new Set<number>();
+    for (const vote of votes) {
+      expect(types.has(vote._type)).eq(false);
+      console.log(vote._type);
+      types.add(vote._type)
+    }
+  });
+
 
 });

@@ -164,13 +164,13 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
           }
         }
         if (found) {
-          if (i != 0) {
+          if (i != length - 1) {
             _votes[i] = _votes[length - 1];
           }
           _votes.pop();
         } else {
           // it is a new type of vote
-          // we should have restrictions for votes per user for reset votes on ve transfer
+          // need to check MAX votes in this case
           require(length < MAX_VOTES, "max");
         }
       }
@@ -270,7 +270,7 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
 
   function _removeFromArray(uint tokenId, uint index) internal {
     Vote[] storage _votes = votes[tokenId];
-    if (index != 0) {
+    if (index != _votes.length - 1) {
       _votes[index] = _votes[_votes.length - 1];
     }
     _votes.pop();
