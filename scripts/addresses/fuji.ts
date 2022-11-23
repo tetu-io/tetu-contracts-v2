@@ -17,6 +17,7 @@ export class FujiAddresses {
   );
 
   public static TOOLS_ADDRESSES: IToolsAddresses = {
+    liquidator: "",
     converter: "",
     multicall: "",
   }
