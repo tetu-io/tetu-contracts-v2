@@ -21,7 +21,6 @@ export class PolygonAddresses {
   );
 
   public static TOOLS_ADDRESSES: IToolsAddresses = {
-    liquidator: "0x255707B70BF90aa112006E1b07B9AeA6De021424",
     converter: "0x8190db4549E382dECD94aEe211eAeB5F3DbC6836",
     multicall: "0x9e059EdB32FC27430CfC8c9025a55B7C0FcFAbda",
   };
