@@ -70,7 +70,7 @@ contract MockStrategySimple is ControllableV3, IStrategyV2 {
   }
 
   /// @dev Returns reward token addresses.
-  function rewardTokens() external override virtual
+  function rewardTokens() external view override virtual
   returns (address[] memory tokens) {
     return tokens; // returns empty array by default
   }
