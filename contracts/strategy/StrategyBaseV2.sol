@@ -35,7 +35,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   /// @dev Percent of profit for autocompound inside this strategy.
   uint public override compoundRatio;
   /// @dev Reward Tokens
-  address[] private _rewardTokens;
+  address[] internal _rewardTokens;
 
   // *************************************************************
   //                        EVENTS
