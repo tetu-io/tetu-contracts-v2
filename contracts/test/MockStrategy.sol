@@ -26,7 +26,8 @@ contract MockStrategy is StrategyBaseV2 {
     address controller_,
     address _splitter
   ) external initializer {
-    __StrategyBase_init(controller_, _splitter);
+    address[] memory rewardTokens;
+    __StrategyBase_init(controller_, _splitter, rewardTokens);
     splitter = _splitter;
     isReadyToHardWork = true;
     pool = new MockPool();

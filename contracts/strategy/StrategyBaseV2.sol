@@ -145,7 +145,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   }
 
   /// @dev Redefine all reward tokens
-  function setRewardTokens(address[] memory values) external override restricted {
+  function setRewardTokens(address[] memory values) external override {
     _onlyOperators();
 
     _rewardTokens = values;

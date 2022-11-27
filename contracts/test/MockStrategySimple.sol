@@ -17,6 +17,8 @@ contract MockStrategySimple is ControllableV3, IStrategyV2 {
   bool public override isReadyToHardWork;
   uint public override compoundRatio;
 
+  address[] private _rewardTokens;
+
   uint slippage;
   uint lastEarned;
   uint lastLost;
@@ -73,6 +75,10 @@ contract MockStrategySimple is ControllableV3, IStrategyV2 {
   function rewardTokens() external view override virtual
   returns (address[] memory tokens) {
     return tokens; // returns empty array by default
+  }
+
+  function setRewardTokens(address[] memory values) external override {
+    _rewardTokens = values;
   }
 
 }
