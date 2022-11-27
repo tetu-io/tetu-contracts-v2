@@ -32,4 +32,6 @@ interface IStrategyV2 {
 
   function rewardTokens() external view returns (address[] memory tokens);
 
+  function setRewardTokens(address[] memory) external;
+
 }

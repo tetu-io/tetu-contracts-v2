@@ -34,6 +34,8 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   address public override splitter;
   /// @dev Percent of profit for autocompound inside this strategy.
   uint public override compoundRatio;
+  /// @dev Reward Tokens
+  address[] private _rewardTokens;
 
   // *************************************************************
   //                        EVENTS
@@ -58,15 +60,17 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   /// @notice Initialize contract after setup it as proxy implementation
   function __StrategyBase_init(
     address controller_,
-    address _splitter
+    address splitter_,
+    address[] memory rewardTokens_
   ) public onlyInitializing {
-    _requireInterface(_splitter, InterfaceIds.I_SPLITTER);
+    _requireInterface(splitter_, InterfaceIds.I_SPLITTER);
     __Controllable_init(controller_);
 
-    require(IControllable(_splitter).isController(controller_), "SB: Wrong controller");
+    require(IControllable(splitter_).isController(controller_), "SB: Wrong controller");
 
-    asset = ISplitter(_splitter).asset();
-    splitter = _splitter;
+    asset = ISplitter(splitter_).asset();
+    splitter = splitter_;
+    _rewardTokens = rewardTokens_;
   }
 
   // *************************************************************
@@ -95,6 +99,12 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   /// @dev See {IERC165-supportsInterface}.
   function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
     return interfaceId == InterfaceIds.I_STRATEGY_V2 || super.supportsInterface(interfaceId);
+  }
+
+  /// @dev Returns reward token addresses array.
+  function rewardTokens() external view override
+  returns (address[] memory tokens) {
+    return _rewardTokens;
   }
 
   // *************************************************************
@@ -132,6 +142,13 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
 
     _claim();
     emit ManualClaim(msg.sender);
+  }
+
+  /// @dev Redefine all reward tokens
+  function setRewardTokens(address[] memory values) external override restricted {
+    _onlyOperators();
+
+    _rewardTokens = values;
   }
 
   // *************************************************************
@@ -214,11 +231,5 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
 
   /// @dev Claim all possible rewards.
   function _claim() internal virtual;
-
-  /// @dev Returns reward token addresses.
-  function rewardTokens() external view override virtual
-  returns (address[] memory tokens) {
-    return tokens; // returns empty array by default
-  }
 
 }
