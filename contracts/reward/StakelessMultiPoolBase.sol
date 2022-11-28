@@ -27,7 +27,7 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
   /// @dev Version of this contract. Adjust manually on each code modification.
   string public constant MULTI_POOL_VERSION = "1.0.0";
   /// @dev Precision for internal calculations
-  uint internal constant _PRECISION = 10 ** 18;
+  uint internal constant _PRECISION = 10 ** 27;
   /// @dev Max reward tokens per 1 staking token
   uint internal constant _MAX_REWARD_TOKENS = 10;
 
@@ -51,7 +51,7 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
   /// @dev Staking token => Total amount of attached staking tokens
   mapping(address => uint) public override totalSupply;
 
-  /// @dev Staking token => Reward token => Reward rate with precision 1e18
+  /// @dev Staking token => Reward token => Reward rate with precision _PRECISION
   mapping(address => mapping(address => uint)) public rewardRate;
   /// @dev Staking token => Reward token => Reward finish period in timestamp.
   mapping(address => mapping(address => uint)) public periodFinish;

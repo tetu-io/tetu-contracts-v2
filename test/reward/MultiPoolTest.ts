@@ -219,7 +219,7 @@ describe("multi pool tests", function () {
     await pool.connect(rewarder).notifyRewardAmount(wmatic.address, rewardToken.address, FULL_REWARD.div(4));
     // await expect(pool.connect(rewarder).notifyRewardAmount(wmatic.address, rewardToken.address, 10)).revertedWith('Amount should be higher than remaining rewards');
     await expect(pool.connect(rewarder).notifyRewardAmount(wmatic.address, wmatic.address, 10)).revertedWith("Token not allowed");
-    await pool.connect(rewarder).notifyRewardAmount(wmatic.address, rewardToken.address, BigNumber.from(Misc.MAX_UINT).div('10000000000000000000'));
+    await pool.connect(rewarder).notifyRewardAmount(wmatic.address, rewardToken.address, BigNumber.from(Misc.MAX_UINT).div(parseUnits('1', 28)));
   });
 
   it("notify with default token is fine", async function () {

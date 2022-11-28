@@ -200,7 +200,7 @@ describe("multi gauge tests", function () {
 
     // check that all metrics are fine
     expect(await rewardToken.balanceOf(gauge.address)).eq(parseUnits('1'));
-    expect(+formatUnits(await gauge.rewardRate(stakingToken.address, rewardToken.address), 36) * 60 * 60 * 24 * 7).eq(1);
+    expect(+formatUnits(await gauge.rewardRate(stakingToken.address, rewardToken.address), 18+27) * 60 * 60 * 24 * 7).eq(1);
     expect(await gauge.left(stakingToken.address, rewardToken.address)).eq(parseUnits('1').sub(1));
 
     // make sure that for second reward everything empty
@@ -213,7 +213,7 @@ describe("multi gauge tests", function () {
 
     // check second reward metrics
     expect(await rewardToken2.balanceOf(gauge.address)).eq(parseUnits('10'));
-    expect((+formatUnits(await gauge.rewardRate(stakingToken.address, rewardToken2.address), 36) * 60 * 60 * 24 * 7).toFixed(0)).eq('10');
+    expect((+formatUnits(await gauge.rewardRate(stakingToken.address, rewardToken2.address), 18+27) * 60 * 60 * 24 * 7).toFixed(0)).eq('10');
     expect(await gauge.left(stakingToken.address, rewardToken2.address)).eq(parseUnits('10').sub(1));
   });
 
@@ -234,11 +234,11 @@ describe("multi gauge tests", function () {
     await gauge.getAllRewardsForTokens([stakingToken.address], owner.address);
     await gauge.connect(user).getReward(stakingToken.address, user.address, [rewardToken.address, rewardToken2.address]);
 
-    expect(await rewardToken.balanceOf(user.address)).eq(parseUnits('0.5').sub(80));
-    expect(await rewardToken2.balanceOf(user.address)).eq(parseUnits('0.5').sub(80));
+    expect(await rewardToken.balanceOf(user.address)).eq(parseUnits('0.5').sub(1));
+    expect(await rewardToken2.balanceOf(user.address)).eq(parseUnits('0.5').sub(1));
     // some dust
-    expect(await rewardToken.balanceOf(gauge.address)).eq(160);
-    expect(await rewardToken2.balanceOf(gauge.address)).eq(160);
+    expect(await rewardToken.balanceOf(gauge.address)).eq(2);
+    expect(await rewardToken2.balanceOf(gauge.address)).eq(2);
   });
 
 });
