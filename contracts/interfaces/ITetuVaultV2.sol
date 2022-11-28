@@ -3,6 +3,7 @@
 pragma solidity 0.8.4;
 
 import "./IVaultInsurance.sol";
+import "./IGauge.sol";
 import "./IERC20.sol";
 
 interface ITetuVaultV2 {
@@ -22,6 +23,6 @@ interface ITetuVaultV2 {
 
   function initInsurance(IVaultInsurance _insurance) external;
 
-  function gauge() external returns (address);
+  function gauge() external returns (IGauge);
 
 }
