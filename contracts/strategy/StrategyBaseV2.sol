@@ -145,10 +145,12 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   }
 
   /// @dev Redefine all reward tokens
-  function setRewardTokens(address[] memory values) external override {
+  function setRewardTokens(address[] memory tokens) virtual external override {
     _onlyOperators();
-
-    _rewardTokens = values;
+    for (uint i = 0; i < tokens.length; i++) {
+      require(tokens[i] != asset, "SB: Asset can not be reward");
+    }
+    _rewardTokens = tokens;
   }
 
   // *************************************************************
