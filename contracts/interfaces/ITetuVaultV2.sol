@@ -22,4 +22,6 @@ interface ITetuVaultV2 {
 
   function initInsurance(IVaultInsurance _insurance) external;
 
+  function gauge() external returns (address);
+
 }

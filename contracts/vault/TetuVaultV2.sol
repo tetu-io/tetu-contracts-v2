@@ -37,7 +37,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   /// @dev Strategy splitter. Should be setup after deploy.
   ISplitter public splitter;
   /// @dev Connected gauge for stakeless rewards
-  IGauge public gauge;
+  IGauge public override gauge;
   /// @dev Dedicated contract for holding insurance for covering share price loss.
   IVaultInsurance public insurance;
   /// @dev Percent of assets that will always stay in this vault.
