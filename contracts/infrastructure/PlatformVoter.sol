@@ -253,7 +253,8 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
       if (found) {
         require(v.timestamp + VOTE_DELAY < block.timestamp, "delay");
         _removeVote(tokenId, v._type, v.target, v.weight, v.weightedValue);
-        _removeFromArray(tokenId, i - 1);
+        // with descent loop we remove one by one last elements
+        _votes.pop();
 
         IVeTetu(ve).abstain(tokenId);
         emit VoteReset(
@@ -265,17 +266,6 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
           v.timestamp
         );
       }
-    }
-  }
-
-  function _removeFromArray(uint tokenId, uint index) internal {
-    Vote[] storage _votes = votes[tokenId];
-    uint length = _votes.length;
-    if (length != 0) {
-      if (index != length - 1) {
-        _votes[index] = _votes[length - 1];
-      }
-      _votes.pop();
     }
   }
 

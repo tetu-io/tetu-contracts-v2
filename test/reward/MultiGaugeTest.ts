@@ -3,7 +3,7 @@ import {ethers} from "hardhat";
 import chai from "chai";
 import {formatUnits, parseUnits} from "ethers/lib/utils";
 import {MockStakingToken, MockToken, MultiGauge, VeTetu} from "../../typechain";
-import {TimeUtils} from "../TimeUtils";
+import {LOCK_PERIOD, TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {Misc} from "../../scripts/utils/Misc";
 import {BigNumber} from "ethers";
@@ -12,7 +12,6 @@ import {BigNumber} from "ethers";
 const {expect} = chai;
 
 const FULL_AMOUNT = parseUnits('100');
-const LOCK_PERIOD = 60 * 60 * 24 * 90;
 
 describe("multi gauge tests", function () {
 
@@ -239,6 +238,53 @@ describe("multi gauge tests", function () {
     // some dust
     expect(await rewardToken.balanceOf(gauge.address)).eq(2);
     expect(await rewardToken2.balanceOf(gauge.address)).eq(2);
+  });
+
+  it("claim with derived balance", async function () {
+    await gauge.addStakingToken(stakingToken2.address);
+    await gauge.registerRewardToken(stakingToken2.address, rewardToken.address);
+
+    await ve.createLock(tetu.address, parseUnits('1'), LOCK_PERIOD);
+    await ve.createLock(tetu.address, parseUnits('10'), LOCK_PERIOD);
+    await gauge.attachVe(stakingToken2.address, owner.address, 1);
+    await stakingToken2.mint(owner.address, FULL_AMOUNT);
+
+    const bal1 = await gauge.derivedBalance(stakingToken2.address, owner.address);
+    expect(+formatUnits(bal1)).approximately(45, 2);
+
+    await gauge.notifyRewardAmount(stakingToken2.address, rewardToken.address, parseUnits('1'));
+    await rewardToken.transfer(rewardToken.address, await rewardToken.balanceOf(owner.address));
+
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 4)
+    await ve.increaseUnlockTime(2, LOCK_PERIOD);
+
+    const bal2 = await gauge.derivedBalance(stakingToken2.address, owner.address);
+    expect(+formatUnits(bal2)).approximately(45, 2);
+
+    expect(await rewardToken.balanceOf(owner.address)).eq(0);
+    await gauge.getAllRewards(stakingToken2.address, owner.address);
+    expect(+formatUnits(await rewardToken.balanceOf(owner.address))).approximately(0.57, 0.1);
+
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 30)
+    await ve.increaseUnlockTime(2, LOCK_PERIOD);
+
+    const bal3 = await gauge.derivedBalance(stakingToken2.address, owner.address);
+    expect(+formatUnits(bal3)).approximately(43, 2);
+
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 7 * 14)
+    await ve.increaseUnlockTime(2, LOCK_PERIOD);
+
+    const bal4 = await gauge.derivedBalance(stakingToken2.address, owner.address);
+    expect(+formatUnits(bal4)).eq(40);
+
+    await gauge.getAllRewards(stakingToken2.address, owner.address);
+
+    expect(+formatUnits(await rewardToken.balanceOf(owner.address))).eq(1);
+
+    await gauge.connect(owner).getAllRewards(stakingToken2.address, owner.address);
+
+    // some dust
+    expect(await rewardToken.balanceOf(gauge.address)).eq(1);
   });
 
 });

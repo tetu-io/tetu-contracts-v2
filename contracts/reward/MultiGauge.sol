@@ -126,16 +126,14 @@ contract MultiGauge is StakelessMultiPoolBase, IGauge {
     require(IERC721(ve).ownerOf(veId) == account && account == msg.sender, "Not ve token owner");
     require(isStakeToken(stakingToken), "Wrong staking token");
 
-    _updateRewardForAllTokens(stakingToken);
-
     if (veIds[stakingToken][account] == 0) {
       veIds[stakingToken][account] = veId;
       voter().attachTokenToGauge(stakingToken, veId, account);
     }
     require(veIds[stakingToken][account] == veId, "Wrong ve");
 
-    _updateDerivedBalanceAndWriteCheckpoints(stakingToken, account);
-
+    _updateDerivedBalance(stakingToken, account);
+    _updateRewardForAllTokens(stakingToken, account);
     emit VeTokenLocked(stakingToken, account, veId);
   }
 
@@ -144,9 +142,9 @@ contract MultiGauge is StakelessMultiPoolBase, IGauge {
       || msg.sender == address(voter()), "Not ve token owner or voter");
     require(isStakeToken(stakingToken), "Wrong staking token");
 
-    _updateRewardForAllTokens(stakingToken);
     _unlockVeToken(stakingToken, account, veId);
-    _updateDerivedBalanceAndWriteCheckpoints(stakingToken, account);
+    _updateDerivedBalance(stakingToken, account);
+    _updateRewardForAllTokens(stakingToken, account);
   }
 
   /// @dev Must be called from stakingToken when user balance changed.
@@ -208,10 +206,10 @@ contract MultiGauge is StakelessMultiPoolBase, IGauge {
   // *************************************************************
 
   /// @dev Similar to Curve https://resources.curve.fi/reward-gauges/boosting-your-crv-rewards#formula
-  function _derivedBalance(
+  function derivedBalance(
     address stakingToken,
     address account
-  ) internal override view returns (uint) {
+  ) public override view returns (uint) {
     uint _tokenId = veIds[stakingToken][account];
     uint _balance = balanceOf[stakingToken][account];
     uint _derived = _balance * 40 / 100;

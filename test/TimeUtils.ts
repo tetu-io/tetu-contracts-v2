@@ -2,6 +2,8 @@ import {ethers} from "hardhat";
 import {Misc} from "../scripts/utils/Misc";
 import {Multicall} from "../typechain";
 
+export const LOCK_PERIOD = 60 * 60 * 24 * 7 * 16;
+
 export class TimeUtils {
 
   public static async advanceBlocksOnTs(add: number) {
