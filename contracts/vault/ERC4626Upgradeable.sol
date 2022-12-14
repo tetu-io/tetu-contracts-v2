@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.17;
 
-import "../openzeppelin/ERC20Upgradeable.sol";
+import "../openzeppelin/ERC20PermitUpgradeable.sol";
 import "../openzeppelin/SafeERC20.sol";
 import "../openzeppelin/ReentrancyGuard.sol";
 import "../interfaces/IERC4626.sol";
@@ -10,8 +10,8 @@ import "../lib/FixedPointMathLib.sol";
 
 /// @notice Minimal ERC4626 tokenized Vault implementation.
 /// @author Solmate (https://github.com/Rari-Capital/solmate/blob/main/src/mixins/ERC4626.sol)
-/// @author belbix - adopted to proxy pattern + add ReentrancyGuard
-abstract contract ERC4626Upgradeable is ERC20Upgradeable, ReentrancyGuard, IERC4626 {
+/// @author belbix - adopted to proxy pattern + added ReentrancyGuard
+abstract contract ERC4626Upgradeable is ERC20PermitUpgradeable, ReentrancyGuard, IERC4626 {
   using SafeERC20 for IERC20;
   using FixedPointMathLib for uint;
 
