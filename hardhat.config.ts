@@ -3,14 +3,10 @@ import "@nomiclabs/hardhat-waffle";
 import "@nomiclabs/hardhat-ethers";
 import "@nomiclabs/hardhat-etherscan";
 import "@nomiclabs/hardhat-web3";
-import "@nomiclabs/hardhat-solhint";
-// import '@openzeppelin/hardhat-upgrades';
 import "@typechain/hardhat";
-// import "hardhat-docgen";
 import "hardhat-contract-sizer";
 import "hardhat-gas-reporter";
 import "hardhat-tracer";
-// import "hardhat-etherscan-abi";
 import "solidity-coverage"
 import "hardhat-abi-exporter"
 import {task} from "hardhat/config";
@@ -28,28 +24,9 @@ const argv = require('yargs/yargs')()
     maticRpcUrl: {
       type: "string",
     },
-    ftmRpcUrl: {
-      type: "string",
-    },
     ethRpcUrl: {
       type: "string",
       default: ''
-    },
-    mumbaiRpcUrl: {
-      type: "string",
-      default: ''
-    },
-    arbtestRpcUrl: {
-      type: "string",
-      default: ''
-    },
-    fujiRpcUrl: {
-      type: "string",
-      default: 'https://api.avax-test.network/ext/bc/C/rpc'
-    },
-    avaxRpcUrl: {
-      type: "string",
-      default: 'https://api.avax.network/ext/bc/C/rpc'
     },
     goerliRpcUrl: {
       type: "string",
@@ -61,30 +38,17 @@ const argv = require('yargs/yargs')()
     networkScanKeyMatic: {
       type: "string",
     },
-    networkScanKeyFtm: {
-      type: "string",
-    },
-    networkScanKeyArbitrum: {
-      type: "string",
-    },
-    networkScanKeyAvalanche: {
-      type: "string",
-    },
     privateKey: {
       type: "string",
       default: "85bb5fa78d5c4ed1fde856e9d0d1fe19973d7a79ce9ed6c0358ee06a4550504e" // random account
     },
     ethForkBlock: {
       type: "number",
-      default: 14628000
+      default: 0
     },
     maticForkBlock: {
       type: "number",
-      default: 28058008
-    },
-    ftmForkBlock: {
-      type: "number",
-      default: 35202770
+      default: 0
     },
   }).argv;
 
@@ -105,18 +69,15 @@ export default {
       blockGasLimit: 0x1fffffffffffff,
       gas: argv.hardhatChainId === 1 ? 19_000_000 :
         argv.hardhatChainId === 137 ? 19_000_000 :
-          argv.hardhatChainId === 250 ? 11_000_000 :
             9_000_000,
       forking: argv.hardhatChainId !== 31337 ? {
         url:
           argv.hardhatChainId === 1 ? argv.ethRpcUrl :
             argv.hardhatChainId === 137 ? argv.maticRpcUrl :
-              argv.hardhatChainId === 250 ? argv.ftmRpcUrl :
                 undefined,
         blockNumber:
           argv.hardhatChainId === 1 ? argv.ethForkBlock !== 0 ? argv.ethForkBlock : undefined :
             argv.hardhatChainId === 137 ? argv.maticForkBlock !== 0 ? argv.maticForkBlock : undefined :
-              argv.hardhatChainId === 250 ? argv.ftmForkBlock !== 0 ? argv.ftmForkBlock : undefined :
                 undefined
       } : undefined,
       accounts: {
@@ -125,15 +86,6 @@ export default {
         accountsBalance: "100000000000000000000000000000"
       },
       // loggingEnabled: true
-    },
-    ftm: {
-      url: argv.ftmRpcUrl || '',
-      timeout: 99999,
-      chainId: 250,
-      gas: 10_000_000,
-      // gasPrice: 100_000_000_000,
-      // gasMultiplier: 2,
-      accounts: [argv.privateKey],
     },
     matic: {
       url: argv.maticRpcUrl || '',
@@ -149,30 +101,6 @@ export default {
       chainId: 1,
       accounts: [argv.privateKey],
     },
-    mumbai: {
-      url: argv.mumbaiRpcUrl || '',
-      chainId: 80001,
-      gas: 50_000_000_000,
-      accounts: [argv.privateKey],
-    },
-    arbtest: {
-      url: argv.arbtestRpcUrl || '',
-      chainId: 421611,
-      // gas: 50_000_000_000,
-      accounts: [argv.privateKey],
-    },
-    fuji: {
-      url: argv.fujiRpcUrl || '',
-      chainId: 43113,
-      // gas: 50_000_000_000,
-      accounts: [argv.privateKey],
-    },
-    avax: {
-      url: argv.avaxRpcUrl || '',
-      chainId: 43114,
-      // gas: 50_000_000_000,
-      accounts: [argv.privateKey],
-    },
     goerli: {
       url: argv.goerliRpcUrl || '',
       chainId: 5,
@@ -186,16 +114,12 @@ export default {
       mainnet: argv.networkScanKey,
       goerli: argv.networkScanKey,
       polygon: argv.networkScanKeyMatic || argv.networkScanKey,
-      opera: argv.networkScanKeyFtm || argv.networkScanKey,
-      polygonMumbai: argv.networkScanKeyMatic || argv.networkScanKey,
-      arbitrumTestnet: argv.networkScanKeyArbitrum || argv.networkScanKey,
-      avalancheFujiTestnet: argv.networkScanKeyAvalanche || argv.networkScanKey
     },
   },
   solidity: {
     compilers: [
       {
-        version: "0.8.4",
+        version: "0.8.17",
         settings: {
           optimizer: {
             enabled: true,
@@ -213,12 +137,6 @@ export default {
   },
   mocha: {
     timeout: 9999999999
-  },
-  docgen: {
-    path: './docs',
-    clear: true,
-    runOnCompile: false,
-    except: ['contracts/third_party', 'contracts/test']
   },
   contractSizer: {
     alphaSort: false,

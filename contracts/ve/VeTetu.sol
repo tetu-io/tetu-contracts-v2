@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.4;
+pragma solidity 0.8.17;
 
 import "../openzeppelin/ReentrancyGuard.sol";
 import "../openzeppelin/SafeERC20.sol";
@@ -158,7 +158,6 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     _requireERC20(token_);
     __Controllable_init(controller_);
 
-    // initial token will have 100% power
     // should be a token with 18 decimals
     require(IERC20Metadata(token_).decimals() == uint8(18), "Token wrong decimals");
     _addToken(token_, weight);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.4;
+pragma solidity 0.8.17;
 
 /// @title Library for setting / getting slot variables (used in upgradable proxy contracts)
 /// @author bogdoslav

@@ -3,7 +3,7 @@ import {Logger} from "tslog";
 import Common from "ethereumjs-common";
 import logSettings from "../../log_settings";
 
-const log: Logger = new Logger(logSettings);
+const log: Logger<unknown> = new Logger(logSettings);
 
 const MATIC_CHAIN = Common.forCustomChain(
   'mainnet', {

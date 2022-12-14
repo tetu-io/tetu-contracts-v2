@@ -7,7 +7,7 @@ import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {
   ControllerMinimal,
   IERC20__factory,
-  MockGauge,
+  MockGauge, MockGauge__factory,
   MockToken,
   TetuVaultV2__factory,
   VaultFactory
@@ -45,7 +45,8 @@ describe("Vault factory tests", function () {
     vaultFactory = await DeployerUtils.deployContract(signer, 'VaultFactory', controller.address,
       vaultLogic.address, insurance.address, splitter.address) as VaultFactory;
 
-    mockGauge = await DeployerUtils.deployContract(signer, 'MockGauge', controller.address) as MockGauge;
+    mockGauge = MockGauge__factory.connect(await DeployerUtils.deployProxy(signer, 'MockGauge'), signer);
+    await mockGauge.init(controller.address)
   });
 
   after(async function () {

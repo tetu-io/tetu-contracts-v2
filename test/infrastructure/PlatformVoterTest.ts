@@ -4,19 +4,21 @@ import chai from "chai";
 import {parseUnits} from "ethers/lib/utils";
 import {
   ControllerMinimal,
-  ForwarderV3, MockGauge,
+  ForwarderV3,
+  MockBribe,
+  MockBribe__factory,
+  MockGauge,
+  MockGauge__factory,
   MockPawnshop,
-  MockStakingToken, MockStrategy,
+  MockStrategy, MockStrategy__factory,
   MockToken,
-  MultiBribe,
-  MultiGauge, PlatformVoter, StrategySplitterV2,
-  TetuVoter,
+  PlatformVoter,
+  StrategySplitterV2,
   VeTetu
 } from "../../typechain";
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {Misc} from "../../scripts/utils/Misc";
-import {MockBribe} from "../../typechain/MockBribe";
 
 const {expect} = chai;
 
@@ -56,8 +58,10 @@ describe("Platform voter tests", function () {
     await controller.setPlatformVoter(platformVoter.address);
     await controller.setVoter(platformVoter.address);
 
-    const mockGauge = await DeployerUtils.deployContract(owner, 'MockGauge', controller.address) as MockGauge;
-    const mockBribe = await DeployerUtils.deployContract(owner, 'MockBribe', controller.address) as MockBribe;
+    const mockGauge = MockGauge__factory.connect(await DeployerUtils.deployProxy(owner, 'MockGauge'), owner);
+    await mockGauge.init(controller.address)
+    const mockBribe = MockBribe__factory.connect(await DeployerUtils.deployProxy(owner, 'MockBribe'), owner);
+    await mockBribe.init(controller.address);
 
     forwarder = await DeployerUtils.deployForwarder(owner, controller.address, tetu.address, mockBribe.address);
     await controller.setForwarder(forwarder.address);
@@ -238,7 +242,7 @@ describe("Platform voter tests", function () {
   });
 
   it("vote for strategy test", async function () {
-    const strategy = await DeployerUtils.deployContract(owner, 'MockStrategy') as MockStrategy;
+    const strategy = MockStrategy__factory.connect(await DeployerUtils.deployProxy(owner, 'MockStrategy'), owner);
     await strategy.init(controller.address, splitter.address)
     await platformVoter.vote(1, 3, 100, strategy.address);
     expect(await strategy.compoundRatio()).eq(100);
@@ -258,7 +262,7 @@ describe("Platform voter tests", function () {
 
   it("too many votes revert", async function () {
     for (let i = 0; i < 20; i++) {
-      const strategy = await DeployerUtils.deployContract(owner, 'MockStrategy') as MockStrategy;
+      const strategy = MockStrategy__factory.connect(await DeployerUtils.deployProxy(owner, 'MockStrategy'), owner);
       await strategy.init(controller.address, splitter.address)
       await platformVoter.vote(1, 3, 100, strategy.address);
     }
@@ -272,7 +276,7 @@ describe("Platform voter tests", function () {
 
 
   it("vote batch test", async function () {
-    const strategy = await DeployerUtils.deployContract(owner, 'MockStrategy') as MockStrategy;
+    const strategy = MockStrategy__factory.connect(await DeployerUtils.deployProxy(owner, 'MockStrategy'), owner);
     await strategy.init(controller.address, splitter.address)
     await platformVoter.voteBatch(1, [2, 3], [100, 100], [Misc.ZERO_ADDRESS, strategy.address]);
     expect(await forwarder.toGaugesRatio()).eq(100);

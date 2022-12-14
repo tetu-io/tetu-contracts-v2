@@ -6,8 +6,8 @@ import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {
   ControllerMinimal,
-  MockGauge,
-  MockSplitter,
+  MockGauge, MockGauge__factory,
+  MockSplitter, MockSplitter__factory,
   MockToken,
   ProxyControlled,
   TetuVaultV2,
@@ -44,7 +44,8 @@ describe("Tetu Vault V2 tests", function () {
     tetu = await DeployerUtils.deployMockToken(signer, 'TETU');
     await usdc.transfer(signer2.address, parseUnits('1', 6));
 
-    mockGauge = await DeployerUtils.deployContract(signer, 'MockGauge', controller.address) as MockGauge;
+    mockGauge = MockGauge__factory.connect(await DeployerUtils.deployProxy(signer, 'MockGauge'), signer);
+    await mockGauge.init(controller.address)
     vault = await DeployerUtils.deployTetuVaultV2(
       signer,
       controller.address,
@@ -55,7 +56,7 @@ describe("Tetu Vault V2 tests", function () {
       10
     );
 
-    mockSplitter = await DeployerUtils.deployContract(signer, 'MockSplitter') as MockSplitter;
+    mockSplitter = MockSplitter__factory.connect(await DeployerUtils.deployProxy(signer, 'MockSplitter'), signer);
     await mockSplitter.init(controller.address, usdc.address, vault.address);
     await vault.setSplitter(mockSplitter.address)
 
@@ -281,7 +282,8 @@ describe("Tetu Vault V2 tests", function () {
     await proxy.initProxy(logic.address);
     const v = TetuVaultV2__factory.connect(proxy.address, signer);
     const c = await DeployerUtils.deployMockController(signer);
-    const g = await DeployerUtils.deployContract(signer, 'MockGauge', c.address) as MockGauge;
+    const g = MockGauge__factory.connect(await DeployerUtils.deployProxy(signer, 'MockGauge'), signer);
+    await g.init(c.address)
     await expect(v.init(
       controller.address,
       usdc.address,
@@ -475,20 +477,20 @@ describe("Tetu Vault V2 tests", function () {
     });
 
     it("wrong asset revert", async () => {
-      const s = await DeployerUtils.deployContract(signer, 'MockSplitter') as MockSplitter;
+      const s = MockSplitter__factory.connect(await DeployerUtils.deployProxy(signer, 'MockSplitter'), signer);
       await s.init(controller.address, tetu.address, vault.address);
       await expect(v.setSplitter(s.address)).revertedWith("WRONG_UNDERLYING");
     });
 
     it("wrong vault revert", async () => {
-      const s = await DeployerUtils.deployContract(signer, 'MockSplitter') as MockSplitter;
+      const s = MockSplitter__factory.connect(await DeployerUtils.deployProxy(signer, 'MockSplitter'), signer);
       await s.init(controller.address, usdc.address, vault.address);
       await expect(v.setSplitter(s.address)).revertedWith("WRONG_VAULT");
     });
 
     it("wrong controller revert", async () => {
       const cc = await DeployerUtils.deployMockController(signer);
-      const s = await DeployerUtils.deployContract(signer, 'MockSplitter') as MockSplitter;
+      const s = MockSplitter__factory.connect(await DeployerUtils.deployProxy(signer, 'MockSplitter'), signer);
       await s.init(cc.address, usdc.address, v.address);
       await expect(v.setSplitter(s.address)).revertedWith("WRONG_CONTROLLER");
     });

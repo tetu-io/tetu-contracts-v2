@@ -251,7 +251,7 @@ describe("Ve distributor tests", function () {
     let bal = await ve.balanceOfNFT(2)
     expect(bal).above(0)
     await veDist.claim(2);
-    expect((await ve.balanceOfNFT(2)).sub(bal)).above(parseUnits('0.09'));
+    expect((await ve.balanceOfNFT(2)).sub(bal)).above(parseUnits('0.08'));
 
     // SECOND CLAIM
 

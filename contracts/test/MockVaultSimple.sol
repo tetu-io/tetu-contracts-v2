@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.4;
+pragma solidity 0.8.17;
 
-import "../vault/ERC4626Upgradeable.sol";
 import "../proxy/ControllableV3.sol";
+import "../vault/ERC4626Upgradeable.sol";
 
 contract MockVaultSimple is ERC4626Upgradeable, ControllableV3 {
-  using FixedPointMathLib for uint;
   using SafeERC20 for IERC20;
 
   uint constant public FEE_DENOMINATOR = 100;
@@ -23,7 +22,7 @@ contract MockVaultSimple is ERC4626Upgradeable, ControllableV3 {
   }
 
   function totalAssets() public view override returns (uint) {
-    return asset.balanceOf(address(this));
+    return _asset.balanceOf(address(this));
   }
 
 }

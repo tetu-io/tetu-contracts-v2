@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.4;
+pragma solidity 0.8.17;
 
-import "../vault/ERC4626Upgradeable.sol";
 import "../proxy/ControllableV3.sol";
+import "../vault/ERC4626Upgradeable.sol";
 
 contract MockVault is ERC4626Upgradeable, ControllableV3 {
   using FixedPointMathLib for uint;
@@ -34,7 +34,7 @@ contract MockVault is ERC4626Upgradeable, ControllableV3 {
   //////////////////////////////////////////////////////////////*/
 
   function totalAssets() public view override returns (uint) {
-    return asset.balanceOf(address(this)) + asset.balanceOf(strategy);
+    return _asset.balanceOf(address(this)) + _asset.balanceOf(strategy);
   }
 
   function previewDeposit(uint assets) public view virtual override returns (uint) {
@@ -43,7 +43,7 @@ contract MockVault is ERC4626Upgradeable, ControllableV3 {
   }
 
   function previewMint(uint shares) public view virtual override returns (uint) {
-    uint supply = _totalSupply;
+    uint supply = totalSupply();
     if (supply != 0) {
       uint assets = shares.mulDivUp(totalAssets(), supply);
       return assets * FEE_DENOMINATOR / (FEE_DENOMINATOR - fee);
@@ -53,7 +53,7 @@ contract MockVault is ERC4626Upgradeable, ControllableV3 {
   }
 
   function previewWithdraw(uint assets) public view virtual override returns (uint) {
-    uint supply = _totalSupply;
+    uint supply = totalSupply();
     uint _totalAssets = totalAssets();
     if (_totalAssets == 0) {
       return assets;
@@ -93,16 +93,16 @@ contract MockVault is ERC4626Upgradeable, ControllableV3 {
   ///////////////////////////////////////////////////////////////
 
   function beforeWithdraw(uint assets, uint) internal override {
-    uint balance = asset.balanceOf(address(this));
+    uint balance = _asset.balanceOf(address(this));
     if (balance < assets) {
-      require(asset.balanceOf(strategy) >= assets - balance, "Strategy has not enough balance");
+      require(_asset.balanceOf(strategy) >= assets - balance, "Strategy has not enough balance");
       // it is stub logic for EOA
-      asset.safeTransferFrom(strategy, address(this), assets - balance);
+      _asset.safeTransferFrom(strategy, address(this), assets - balance);
     }
   }
 
   function afterDeposit(uint assets, uint) internal override {
-    asset.safeTransfer(strategy, assets / 2);
+    _asset.safeTransfer(strategy, assets / 2);
   }
 
 }

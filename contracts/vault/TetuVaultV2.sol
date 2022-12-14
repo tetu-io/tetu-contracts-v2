@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.4;
+pragma solidity 0.8.17;
 
 import "../openzeppelin/Math.sol";
 import "../interfaces/ISplitter.sol";
@@ -128,7 +128,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
     _requireInterface(address(_insurance), InterfaceIds.I_VAULT_INSURANCE);
 
     require(_insurance.vault() == address(this), "!VAULT");
-    require(_insurance.asset() == address(asset), "!ASSET");
+    require(_insurance.asset() == address(_asset), "!ASSET");
     insurance = _insurance;
   }
 
@@ -184,7 +184,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
 
   /// @dev Set splitter address. Can not change exist splitter.
   function setSplitter(address _splitter) external override {
-    IERC20 _asset = asset;
+    IERC20 _asset = _asset;
     require(address(splitter) == address(0), "DENIED");
     _requireInterface(_splitter, InterfaceIds.I_SPLITTER);
     require(ISplitter(_splitter).asset() == address(_asset), "WRONG_UNDERLYING");
@@ -201,7 +201,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
 
   /// @dev Total amount of the underlying asset that is “managed” by Vault
   function totalAssets() public view override returns (uint) {
-    return asset.balanceOf(address(this)) + splitter.totalAssets();
+    return _asset.balanceOf(address(this)) + splitter.totalAssets();
   }
 
   /// @dev Amount of assets under control of strategy splitter.
@@ -212,7 +212,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   /// @dev Price of 1 full share
   function sharePrice() external view returns (uint) {
     uint units = 10 ** uint256(decimals());
-    uint totalSupply_ = _totalSupply;
+    uint totalSupply_ = totalSupply();
     return totalSupply_ == 0
     ? units
     : units * totalAssets() / totalSupply_;
@@ -233,7 +233,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   }
 
   function previewMint(uint shares) public view virtual override returns (uint) {
-    uint supply = _totalSupply;
+    uint supply = totalSupply();
     if (supply != 0) {
       uint assets = shares.mulDivUp(totalAssets(), supply);
       return assets * FEE_DENOMINATOR / (FEE_DENOMINATOR - depositFee);
@@ -245,7 +245,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   /// @dev Calculate available to invest amount and send this amount to splitter
   function afterDeposit(uint assets, uint) internal override {
     address _splitter = address(splitter);
-    IERC20 _asset = asset;
+    IERC20 _asset = _asset;
     uint _depositFee = depositFee;
     // send fee to insurance contract
     if (_depositFee != 0) {
@@ -295,7 +295,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   }
 
   function previewWithdraw(uint assets) public view virtual override returns (uint) {
-    uint supply = _totalSupply;
+    uint supply = totalSupply();
     uint _totalAssets = totalAssets();
     if (_totalAssets == 0) {
       return assets;
@@ -319,11 +319,11 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   }
 
   function maxWithdraw(address owner) public view override returns (uint) {
-    return Math.min(maxWithdrawAssets, convertToAssets(_balances[owner]));
+    return Math.min(maxWithdrawAssets, convertToAssets(balanceOf(owner)));
   }
 
   function maxRedeem(address owner) public view override returns (uint) {
-    return Math.min(maxRedeemShares, _balances[owner]);
+    return Math.min(maxRedeemShares, balanceOf(owner));
   }
 
   /// @dev Internal hook for getting necessary assets from splitter.
@@ -340,14 +340,14 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
       fromSplitter = assets;
     }
 
-    IERC20 _asset = asset;
+    IERC20 _asset = _asset;
     uint balance = _asset.balanceOf(address(this));
     // if not enough balance in the vault withdraw from strategies
     if (balance < fromSplitter) {
       _processWithdrawFromSplitter(
         fromSplitter,
         shares,
-        _totalSupply,
+        totalSupply(),
         buffer,
         splitter,
         balance
@@ -402,7 +402,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   function coverLoss(uint amount) external override {
     require(msg.sender == address(splitter), "!SPLITTER");
     IVaultInsurance _insurance = insurance;
-    uint balance = asset.balanceOf(address(_insurance));
+    uint balance = _asset.balanceOf(address(_insurance));
     uint fromFees = Math.min(amount, balance);
     _insurance.transferToVault(fromFees);
     emit LossCovered(fromFees);

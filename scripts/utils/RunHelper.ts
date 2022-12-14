@@ -5,7 +5,7 @@ import logSettings from "../../log_settings";
 import {Misc} from "./Misc";
 import {WAIT_BLOCKS_BETWEEN_DEPLOY} from "../deploy/DeployContract";
 
-const log: Logger = new Logger(logSettings);
+const log: Logger<unknown> = new Logger(logSettings);
 
 // tslint:disable-next-line:no-var-requires
 const hre = require("hardhat");

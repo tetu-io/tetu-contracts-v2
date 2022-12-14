@@ -3,7 +3,7 @@ import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {expect} from "chai";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {
-  Base64Test, ControllableTest, ControllerMinimal,
+  Base64Test, ControllableTest, ControllableTest__factory, ControllerMinimal,
   SlotsTest,
   SlotsTest2,
   SlotsTest2__factory,
@@ -22,7 +22,7 @@ describe("Controllable Tests", function () {
   before(async function () {
     snapshotBefore = await TimeUtils.snapshot();
     [signer] = await ethers.getSigners();
-    helper = await DeployerUtils.deployContract(signer, 'ControllableTest') as ControllableTest;
+    helper = ControllableTest__factory.connect(await DeployerUtils.deployProxy(signer, 'ControllableTest'), signer);
   });
 
   after(async function () {
