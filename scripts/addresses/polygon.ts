@@ -8,18 +8,21 @@ export class PolygonAddresses {
 
   public static CORE_ADDRESSES = new CoreAddresses(
     "0x255707B70BF90aa112006E1b07B9AeA6De021424", // tetu
-    "0xAf6D45C1E3B8Ee286B45b7FA78dd0BCb79e614Ef", // controller
-    "0xE73DC2b69269F234a8E73Ec76e2eE1d2D2B9359b", // ve
-    "0x636C9FAa5Fa05270e93fa4A8B649eaBd89C7F5A1", // veDist
-    "0xa651678d23D3EAEa2F6c2326a5725f0E4fD92615", // gauge
-    "0xAf6523D5453EbA0e1e6Ec1C1Da5D16619220Ab24", // bribe
-    "0xB8bf7716b1eBEbD0A877B7941372a1B029Fe8015", // tetuVoter
-    "0xF3af65B14b7D1af571745135aF8AF5A727668c21", // platformVoter
-    "0x3c73C38AcC234Ce66B20316879b8d3Ca8362354a", // forwarder
-    "0x7Da32C32E1c05e6572321275925301fDf916FCf5", // vaultFactory
+    "0x33b27e0A2506a4A2FBc213a01C51d0451745343a", // controller
+    "0x6FB29DD17fa6E27BD112Bc3A2D0b8dae597AeDA4", // ve
+    "0xf8d97eC3a778028E84D4364bCd72bb3E2fb5D18e", // veDist
+    "0x4ED1dD7838dE3ec37a2b30902D3c3BE9B50C94a0", // gauge
+    "0xAB45D768Ebca054861cEccbd2982F09C4076C4b4", // bribe
+    "0x4cdF28d6244c6B0560aa3eBcFB326e0C24fe8218", // tetuVoter
+    "0x5576Fe01a9e6e0346c97E546919F5d15937Be92D", // platformVoter
+    "0x88115b5eA38AF3ED6357a26D161307D7F28D2EC9", // forwarder
+    "0xaAd7a2517b0d0d15E3Da5C37C5371F7283cCc074", // vaultFactory
   );
 
+  // PROTOCOL ADRS
+  public static DEPOSIT_HELPER_V1 = "0xb494af6c21cF90992E2161cffd79F47Cc7F46C4b".toLowerCase();
   public static TETU_CONVERTER = "0x8190db4549E382dECD94aEe211eAeB5F3DbC6836".toLowerCase();
+  public static tUSDC = "0x0D397F4515007AE4822703b74b9922508837A04E".toLowerCase();
 
   public static ONE_INCH_ROUTER = "0x1111111254fb6c44bAC0beD2854e76F90643097d".toLowerCase();
 
@@ -39,5 +42,6 @@ export class PolygonAddresses {
   public static BAL_TOKEN = "0x9a71012B13CA4d3D0Cdc72A177DF3ef03b0E76A3".toLowerCase();
   public static tetuBAL_TOKEN = '0x7fC9E0Aa043787BFad28e29632AdA302C790Ce33'.toLowerCase();
   public static USDPlus_TOKEN = '0x236eeC6359fb44CCe8f97E99387aa7F8cd5cdE1f'.toLowerCase();
+  public static BALANCER_TETU_USDC = "0xE2f706EF1f7240b803AAe877C9C762644bb808d8".toLowerCase();
 
 }

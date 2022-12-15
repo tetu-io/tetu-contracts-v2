@@ -75,7 +75,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant VE_VERSION = "1.0.0";
+  string public constant VE_VERSION = "1.0.1";
   uint internal constant WEEK = 1 weeks;
   uint internal constant MAX_TIME = 16 weeks;
   int128 internal constant I_MAX_TIME = 16 weeks;
@@ -176,6 +176,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   event Merged(address indexed stakingToken, address indexed provider, uint from, uint to);
   event Split(uint parentTokenId, uint newTokenId, uint percent);
   event TransferWhitelisted(address value);
+  event StakingTokenAdded(address value, uint weight);
 
   // *************************************************************
   //                        INIT
@@ -228,6 +229,8 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     tokens.push(token);
     tokenWeights[token] = weight;
     isValidToken[token] = true;
+
+    emit StakingTokenAdded(token, weight);
   }
 
   // *************************************************************
