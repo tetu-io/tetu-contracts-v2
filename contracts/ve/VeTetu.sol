@@ -128,7 +128,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   /// @dev Mapping of interface id to bool about whether or not it's supported
   mapping(bytes4 => bool) internal _supportedInterfaces;
   /// @dev Whitelisted contracts will be able to transfer NFTs
-  mapping(address => bool) public isWhitelistedPawnshop;
+  mapping(address => bool) public isWhitelistedTransfer;
 
   // *************************************************************
   //                        EVENTS
@@ -145,7 +145,8 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   );
   event Withdraw(address indexed stakingToken, address indexed provider, uint tokenId, uint value, uint ts);
   event Merged(address indexed stakingToken, address indexed provider, uint from, uint to);
-  event PawnshopWhitelisted(address value);
+  event Split(uint parentTokenId, uint newTokenId, uint percent);
+  event TransferWhitelisted(address value);
 
   // *************************************************************
   //                        INIT
@@ -179,11 +180,11 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   //                        GOVERNANCE ACTIONS
   // *************************************************************
 
-  /// @dev Whitelist pawnshop for transfers. Removing from whitelist should be forbidden.
-  function whitelistPawnshop(address pawnshop) external {
+  /// @dev Whitelist address for transfers. Removing from whitelist should be forbidden.
+  function whitelistTransferFor(address value) external {
     require(isGovernance(msg.sender), "Not governance");
-    isWhitelistedPawnshop[pawnshop] = true;
-    emit PawnshopWhitelisted(pawnshop);
+    isWhitelistedTransfer[value] = true;
+    emit TransferWhitelisted(value);
   }
 
   function addToken(address token, uint weight) external {
@@ -226,8 +227,8 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   /// @param _interfaceID Id of the interface
   function supportsInterface(bytes4 _interfaceID) public view override(ControllableV3, IERC165) returns (bool) {
     return _supportedInterfaces[_interfaceID]
-      || _interfaceID == InterfaceIds.I_VE_TETU
-      || super.supportsInterface(_interfaceID);
+    || _interfaceID == InterfaceIds.I_VE_TETU
+    || super.supportsInterface(_interfaceID);
   }
 
   /// @notice Get the most recently recorded rate of voting power decrease for `_tokenId`
@@ -512,7 +513,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     uint _tokenId,
     bytes memory _data
   ) public override {
-    require(isWhitelistedPawnshop[_to] || isWhitelistedPawnshop[_from], "Forbidden");
+    require(isWhitelistedTransfer[_to] || isWhitelistedTransfer[_from], "Forbidden");
 
     _transferFrom(_from, _to, _tokenId, msg.sender);
 
@@ -833,6 +834,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
     uint _tokenId = tokenId;
     _mint(_to, _tokenId);
 
+    // todo need?
     (uint _lockedAmount,uint _lockedDerivedAmount,uint _lockedEnd) = _lockInfo(_token, _tokenId);
 
     _depositFor(DepositInfo({
@@ -924,7 +926,7 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
   }
 
   /// @dev Merge two NFTs union their balances and keep the biggest lock time.
-  function merge(uint _from, uint _to) external {
+  function merge(uint _from, uint _to) external nonReentrant {
     require(attachments[_from] == 0 && voted[_from] == 0, "attached");
     require(_from != _to, "the same");
     require(_idToOwner[_from] == msg.sender, "!owner from");
@@ -968,6 +970,73 @@ contract VeTetu is IERC721, IERC721Metadata, IVeTetu, ReentrancyGuard, Controlla
       ));
 
     _burn(_from);
+  }
+
+  /// @dev Split given veNFT. A new NFT will have a given percent of underlying tokens.
+  /// @param _tokenId ve token ID
+  /// @param percent percent of underlying tokens for new NFT with denominator 1e18 (1-(100e18-1)).
+  function split(uint _tokenId, uint percent) external nonReentrant {
+    require(attachments[_tokenId] == 0 && voted[_tokenId] == 0, "attached");
+      require(_idToOwner[_tokenId] == msg.sender, "!owner");
+    require(percent != 0 && percent < 100e18, "!percent");
+
+    uint _lockedDerivedAmount = lockedDerivedAmount[_tokenId];
+    uint oldLockedDerivedAmount = _lockedDerivedAmount;
+    uint _lockedEnd = lockedEnd[_tokenId];
+
+    require(_lockedEnd > block.timestamp, "Expired");
+
+    // crete new NFT
+    ++tokenId;
+    uint _newTokenId = tokenId;
+    _mint(msg.sender, _newTokenId);
+
+    // migrate percent of locked tokens to the new NFT
+    uint length = tokens.length;
+    for (uint i; i < length; ++i) {
+      address stakingToken = tokens[i];
+      uint _lockedAmount = lockedAmounts[_tokenId][stakingToken];
+      uint amountForNewNFT = _lockedAmount * percent / 100e18;
+      require(amountForNewNFT != 0, "Too low percent");
+
+      uint newLockedDerivedAmount = _calculateDerivedAmount(
+        _lockedAmount,
+        _lockedDerivedAmount,
+        _lockedAmount - amountForNewNFT,
+        tokenWeights[stakingToken],
+        IERC20Metadata(stakingToken).decimals()
+      );
+
+      _lockedDerivedAmount = newLockedDerivedAmount;
+
+      lockedAmounts[_tokenId][stakingToken] = _lockedAmount - amountForNewNFT;
+
+      // increase values for new NFT
+      _depositFor(DepositInfo({
+      stakingToken : stakingToken,
+      tokenId : _newTokenId,
+      value : amountForNewNFT,
+      unlockTime : _lockedEnd,
+      lockedAmount : 0,
+      lockedDerivedAmount : lockedDerivedAmount[_newTokenId],
+      lockedEnd : _lockedEnd,
+      depositType : DepositType.MERGE_TYPE
+      }));
+    }
+
+    // update derived amount
+    lockedDerivedAmount[_tokenId] = _lockedDerivedAmount;
+
+    // update checkpoint
+    _checkpoint(CheckpointInfo(
+        _tokenId,
+        oldLockedDerivedAmount,
+        _lockedDerivedAmount,
+        _lockedEnd,
+        _lockedEnd
+      ));
+
+    emit Split(_tokenId, _newTokenId, percent);
   }
 
   /// @notice Withdraw all staking tokens for `_tokenId`

@@ -52,7 +52,7 @@ describe("Platform voter tests", function () {
     ve = await DeployerUtils.deployVeTetu(owner, tetu.address, controller.address);
 
     pawnshop = await DeployerUtils.deployContract(owner, 'MockPawnshop') as MockPawnshop;
-    await ve.whitelistPawnshop(pawnshop.address);
+    await ve.whitelistTransferFor(pawnshop.address);
 
     platformVoter = await DeployerUtils.deployPlatformVoter(owner, controller.address, ve.address);
     await controller.setPlatformVoter(platformVoter.address);
@@ -210,8 +210,8 @@ describe("Platform voter tests", function () {
     expect(votes.length).eq(1);
     expect(votes[0]._type).eq(1);
     expect(votes[0].target).eq(Misc.ZERO_ADDRESS);
-    expect(votes[0].weight).above(parseUnits('0.94'));
-    expect(votes[0].weightedValue).above(parseUnits('94'));
+    expect(votes[0].weight).above(parseUnits('0.9'));
+    expect(votes[0].weightedValue).above(parseUnits('9'));
     expect(votes[0].timestamp).above(0);
   });
 
