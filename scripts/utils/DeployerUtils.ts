@@ -1,5 +1,5 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
-import {ContractFactory} from "ethers";
+import {BigNumber, ContractFactory} from "ethers";
 import logSettings from "../../log_settings";
 import {Logger} from "tslog";
 import {parseUnits} from "ethers/lib/utils";
@@ -101,13 +101,13 @@ export class DeployerUtils {
     return vault;
   }
 
-  public static async deployVeTetu(signer: SignerWithAddress, token: string, controller: string) {
+  public static async deployVeTetu(signer: SignerWithAddress, token: string, controller: string, weight = BigNumber.from(1000)) {
     const logic = await DeployerUtils.deployContract(signer, 'VeTetu');
     const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
     await RunHelper.runAndWait(() => proxy.initProxy(logic.address));
     await RunHelper.runAndWait(() => VeTetu__factory.connect(proxy.address, signer).init(
       token,
-      parseUnits('100'),
+      weight,
       controller
     ));
     return VeTetu__factory.connect(proxy.address, signer);

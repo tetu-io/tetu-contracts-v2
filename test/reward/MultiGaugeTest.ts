@@ -256,7 +256,7 @@ describe("multi gauge tests", function () {
     await rewardToken.transfer(rewardToken.address, await rewardToken.balanceOf(owner.address));
 
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 4)
-    await ve.increaseUnlockTime(2, LOCK_PERIOD);
+    // await ve.increaseUnlockTime(2, LOCK_PERIOD);
 
     const bal2 = await gauge.derivedBalance(stakingToken2.address, owner.address);
     expect(+formatUnits(bal2)).approximately(45, 2);
