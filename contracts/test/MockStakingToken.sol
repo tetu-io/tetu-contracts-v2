@@ -7,8 +7,8 @@ import "../interfaces/IGauge.sol";
 
 contract MockStakingToken is ERC20Upgradeable {
 
-  uint8 immutable _decimals;
-  IGauge immutable gauge;
+  uint8 internal immutable _decimals;
+  IGauge internal immutable gauge;
 
   constructor(
     string memory name_,

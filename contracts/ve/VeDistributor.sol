@@ -31,7 +31,7 @@ contract VeDistributor is ControllableV3, IVeDistributor {
 
   /// @dev Version of this contract. Adjust manually on each code modification.
   string public constant VE_DIST_VERSION = "1.0.0";
-  uint constant WEEK = 7 * 86400;
+  uint internal constant WEEK = 7 * 86400;
 
   // *************************************************************
   //                        VARIABLES
@@ -95,13 +95,13 @@ contract VeDistributor is ControllableV3, IVeDistributor {
     address _rewardToken
   ) external initializer {
     __Controllable_init(controller_);
+    _requireERC20(_rewardToken);
+    _requireInterface(_ve, InterfaceIds.I_VE_TETU);
+
     uint _t = block.timestamp / WEEK * WEEK;
     startTime = _t;
     lastTokenTime = _t;
     timeCursor = _t;
-
-    _requireERC20(_rewardToken);
-    _requireInterface(_ve, InterfaceIds.I_VE_TETU);
 
     rewardToken = _rewardToken;
     ve = IVeTetu(_ve);

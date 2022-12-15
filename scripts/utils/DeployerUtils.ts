@@ -101,7 +101,7 @@ export class DeployerUtils {
     return vault;
   }
 
-  public static async deployVeTetu(signer: SignerWithAddress, token: string, controller: string, weight = BigNumber.from(1000)) {
+  public static async deployVeTetu(signer: SignerWithAddress, token: string, controller: string, weight = parseUnits('100')) {
     const logic = await DeployerUtils.deployContract(signer, 'VeTetu');
     const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
     await RunHelper.runAndWait(() => proxy.initProxy(logic.address));

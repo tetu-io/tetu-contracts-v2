@@ -7,9 +7,9 @@ import "../interfaces/IERC20.sol";
 
 contract MockLiquidator is ITetuLiquidator {
 
-  uint price = 100_000 * 1e18;
-  string error = "";
-  uint routeLength = 1;
+  uint internal price = 100_000 * 1e18;
+  string internal error = "";
+  uint internal routeLength = 1;
 
   function setPrice(uint value) external {
     price = value;

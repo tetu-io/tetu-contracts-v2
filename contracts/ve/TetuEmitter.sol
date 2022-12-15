@@ -56,8 +56,11 @@ contract TetuEmitter is ControllableV3 {
   //                        INIT
   // *************************************************************
 
-  function init(address controller, address _token, address _bribe) external initializer {
-    __Controllable_init(controller);
+  function init(address _controller, address _token, address _bribe) external initializer {
+    __Controllable_init(_controller);
+    _requireERC20(_token);
+    _requireInterface(_bribe, InterfaceIds.I_BRIBE);
+
     operator = msg.sender;
     token = _token;
     bribe = _bribe;
@@ -92,6 +95,8 @@ contract TetuEmitter is ControllableV3 {
   /// @dev Change operator address.
   function changeOperator(address _operator) external {
     _olyGov();
+    require(_operator != address(0), "WRONG_INPUT");
+
     operator = _operator;
     emit OperatorChanged(_operator);
   }

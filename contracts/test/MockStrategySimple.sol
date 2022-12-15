@@ -17,9 +17,9 @@ contract MockStrategySimple is ControllableV3, IStrategyV2 {
   bool public override isReadyToHardWork;
   uint public override compoundRatio;
 
-  uint slippage;
-  uint lastEarned;
-  uint lastLost;
+  uint internal slippage;
+  uint internal lastEarned;
+  uint internal lastLost;
 
   function init(
     address controller_,

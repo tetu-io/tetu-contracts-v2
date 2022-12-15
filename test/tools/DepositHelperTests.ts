@@ -27,7 +27,7 @@ describe("Deposit helper Tests", function () {
     token = await DeployerUtils.deployMockToken(signer);
     token2 = await DeployerUtils.deployMockToken(signer);
     vault = await DeployerUtils.deployMockVault(signer, controller.address, token.address, 'V', strategy.address, 1);
-    helper = await DeployerUtils.deployContract(signer, 'DepositHelper', Misc.ZERO_ADDRESS) as DepositHelper;
+    helper = await DeployerUtils.deployContract(signer, 'DepositHelper', token.address) as DepositHelper;
 
     ve = await DeployerUtils.deployVeTetu(signer, token.address, controller.address);
 

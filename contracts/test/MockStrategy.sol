@@ -14,11 +14,11 @@ contract MockStrategy is StrategyBaseV2 {
 
   bool public override isReadyToHardWork;
 
-  uint slippage;
-  uint slippageDeposit;
-  uint hardWorkSlippage;
-  uint lastEarned;
-  uint lastLost;
+  uint internal slippage;
+  uint internal slippageDeposit;
+  uint internal hardWorkSlippage;
+  uint internal lastEarned;
+  uint internal lastLost;
 
   MockPool public pool;
 

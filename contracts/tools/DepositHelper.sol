@@ -13,6 +13,7 @@ contract DepositHelper {
   address public immutable oneInchRouter;
 
   constructor(address _oneInchRouter) {
+    require(_oneInchRouter != address(0), "WRONG_INPUT");
     oneInchRouter = _oneInchRouter;
   }
 

@@ -7,7 +7,7 @@ import "../proxy/ControllableV3.sol";
 contract MockBribe is ControllableV3 {
 
   uint public epoch;
-  mapping(address => mapping(address => bool)) rewardTokens;
+  mapping(address => mapping(address => bool)) internal rewardTokens;
 
   function init(address controller_) external initializer {
     __Controllable_init(controller_);

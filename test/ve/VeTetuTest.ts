@@ -44,7 +44,7 @@ describe("veTETU tests", function () {
     underlying2 = await DeployerUtils.deployMockToken(owner, 'UNDERLYING2', 6);
     tetu = await DeployerUtils.deployMockToken(owner, 'TETU', 18);
     const controller = await DeployerUtils.deployMockController(owner);
-    ve = await DeployerUtils.deployVeTetu(owner, tetu.address, controller.address);
+    ve = await DeployerUtils.deployVeTetu(owner, tetu.address, controller.address, parseUnits('100'));
     voter = await DeployerUtils.deployMockVoter(owner, ve.address);
     pawnshop = await DeployerUtils.deployContract(owner, 'MockPawnshop') as MockPawnshop;
     await controller.setVoter(voter.address);

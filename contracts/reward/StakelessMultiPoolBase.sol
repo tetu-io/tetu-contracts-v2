@@ -100,10 +100,10 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
   // *************************************************************
 
   modifier onlyAllowedContracts() {
-    IController controller = IController(controller());
+    IController _controller = IController(controller());
     require(
-      msg.sender == controller.governance()
-      || msg.sender == controller.forwarder()
+      msg.sender == _controller.governance()
+      || msg.sender == _controller.forwarder()
     , "Not allowed");
     _;
   }

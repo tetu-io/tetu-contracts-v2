@@ -31,7 +31,7 @@ contract MultiGauge is StakelessMultiPoolBase, IGauge {
   /// @dev staking token => ve owner => veId
   mapping(address => mapping(address => uint)) public override veIds;
   /// @dev Staking token => whitelist status
-  mapping(address => bool) stakingTokens;
+  mapping(address => bool) public stakingTokens;
 
   // *************************************************************
   //                        EVENTS

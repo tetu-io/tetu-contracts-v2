@@ -24,8 +24,9 @@ contract VaultInsurance is TetuERC165, IVaultInsurance  {
   function init(address _vault, address _asset) external override {
     require(vault == address(0) && asset == address(0), "INITED");
     _requireInterface(_vault, InterfaceIds.I_TETU_VAULT_V2);
-    vault = _vault;
     _requireERC20(_asset);
+
+    vault = _vault;
     asset = _asset;
   }
 

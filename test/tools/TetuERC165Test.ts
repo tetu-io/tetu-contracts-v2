@@ -4,6 +4,7 @@ import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {InterfaceIds, MockToken, TetuERC165Test} from "../../typechain";
 import {TimeUtils} from "../TimeUtils";
 import {expect} from "chai";
+import {constants} from "ethers";
 
 describe("TetuERC165Test", function () {
   let snapshotBefore: string;
@@ -39,7 +40,8 @@ describe("TetuERC165Test", function () {
 
 
   it("is interface supported", async () => {
-    expect(await test.isInterfaceSupported(ethers.constants.AddressZero, '0x00000000')).eq(false);
+    await expect(test.isInterfaceSupported(constants.AddressZero, '0x00000000')).revertedWith('Zero address')
+    expect(await test.isInterfaceSupported(signer.address, '0x00000000')).eq(false);
     expect(await test.isInterfaceSupported(test.address, '0x00000000')).eq(false);
     expect(await test.isInterfaceSupported(test.address, await interfaceIds.I_TETU_ERC165())).eq(true);
     expect(await test.isInterfaceSupported(token.address, await interfaceIds.I_CONTROLLER())).eq(false);
@@ -54,7 +56,8 @@ describe("TetuERC165Test", function () {
   });
 
   it("is ERC20", async () => {
-    expect(await test.isERC20(ethers.constants.AddressZero)).eq(false);
+    await expect(test.isERC20(constants.AddressZero)).revertedWith('Zero address');
+    expect(await test.isERC20(signer.address)).eq(false);
     expect(await test.isERC20(test.address)).eq(false);
     expect(await test.isERC20(token.address)).eq(true);
   });

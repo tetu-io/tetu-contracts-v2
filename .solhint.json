@@ -20,11 +20,11 @@
     "avoid-suicide": "error",
     "code-complexity": [
       "warn",
-      9
+      20
     ],
     "function-max-lines": [
       "warn",
-      50
+      150
     ],
     "max-line-length": [
       "error",

@@ -22,6 +22,7 @@ import "./VeTetuLogo.sol";
 contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IVeTetu {
   using SafeERC20 for IERC20;
   using FixedPointMathLib for uint;
+  using FixedPointMathLib for int128;
 
   // Only for internal usage
   struct DepositInfo {
@@ -318,7 +319,8 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   /// @dev Returns whether the given spender can transfer a given token ID
   /// @param _spender address of the spender to query
   /// @param _tokenId uint ID of the token to be transferred
-  /// @return bool whether the msg.sender is approved for the given token ID, is an operator of the owner, or is the owner of the token
+  /// @return bool whether the msg.sender is approved for the given token ID,
+  ///              is an operator of the owner, or is the owner of the token
   function isApprovedOrOwner(address _spender, uint _tokenId) public view override returns (bool) {
     address owner = _idToOwner[_tokenId];
     bool spenderIsOwner = owner == _spender;
@@ -553,7 +555,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
         bytes memory reason
       ) {
         if (reason.length == 0) {
-          revert('ERC721: transfer to non ERC721Receiver implementer');
+          revert("ERC721: transfer to non ERC721Receiver implementer");
         } else {
           assembly {
             revert(add(32, reason), mload(reason))
@@ -579,7 +581,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     address _to,
     uint _tokenId
   ) external override {
-    safeTransferFrom(_from, _to, _tokenId, '');
+    safeTransferFrom(_from, _to, _tokenId, "");
   }
 
   /// @dev Set or reaffirm the approved address for an NFT. The zero address indicates there is no approved address.
@@ -694,8 +696,8 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
         } else {
           dSlope = slopeChanges[ti];
         }
-        lastPoint.bias = FixedPointMathLib.positiveInt128(lastPoint.bias - lastPoint.slope * int128(int256(ti - lastCheckpoint)));
-        lastPoint.slope = FixedPointMathLib.positiveInt128(lastPoint.slope + dSlope);
+        lastPoint.bias = (lastPoint.bias - lastPoint.slope * int128(int256(ti - lastCheckpoint))).positiveInt128();
+        lastPoint.slope = (lastPoint.slope + dSlope).positiveInt128();
         lastCheckpoint = ti;
         lastPoint.ts = ti;
         lastPoint.blk = initialLastPoint.blk + (blockSlope * (ti - initialLastPoint.ts)) / MULTIPLIER;
@@ -715,8 +717,8 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     if (info.tokenId != 0) {
       // If last point was in this block, the slope change has been applied already
       // But in such case we have 0 slope(s)
-      lastPoint.slope = FixedPointMathLib.positiveInt128(lastPoint.slope + (uNew.slope - uOld.slope));
-      lastPoint.bias = FixedPointMathLib.positiveInt128(lastPoint.bias + (uNew.bias - uOld.bias));
+      lastPoint.slope = (lastPoint.slope + (uNew.slope - uOld.slope)).positiveInt128();
+      lastPoint.bias = (lastPoint.bias + (uNew.bias - uOld.bias)).positiveInt128();
     }
 
     // Record the changed point into history
@@ -907,7 +909,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   /// @param _value Amount of tokens to deposit and add to the lock
   function increaseAmount(address _token, uint _tokenId, uint _value) external nonReentrant override {
     require(_value > 0, WRONG_INPUT);
-    (uint _lockedAmount,uint _lockedDerivedAmount,uint _lockedEnd) = _lockInfo(_token, _tokenId);
+    (uint _lockedAmount, uint _lockedDerivedAmount, uint _lockedEnd) = _lockInfo(_token, _tokenId);
 
     require(_lockedDerivedAmount > 0, NFT_WITHOUT_POWER);
     require(_lockedEnd > block.timestamp, EXPIRED);
@@ -1084,7 +1086,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     require(isApprovedOrOwner(msg.sender, _tokenId), NOT_OWNER);
     require(attachments[_tokenId] == 0 && voted[_tokenId] == 0, ATTACHED);
 
-    (uint oldLockedAmount,uint oldLockedDerivedAmount,uint oldLockedEnd) =
+    (uint oldLockedAmount, uint oldLockedDerivedAmount, uint oldLockedEnd) =
     _lockInfo(stakingToken, _tokenId);
     require(block.timestamp >= oldLockedEnd, NOT_EXPIRED);
     require(oldLockedAmount > 0, ZERO_LOCKED);
@@ -1239,7 +1241,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     }
 
     uPoint.bias -= uPoint.slope * int128(int256(blockTime - uPoint.ts));
-    return uint(uint128(FixedPointMathLib.positiveInt128(uPoint.bias)));
+    return uint(uint128(uPoint.bias.positiveInt128()));
   }
 
 
@@ -1266,7 +1268,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
       lastPoint.slope += dSlope;
       lastPoint.ts = ti;
     }
-    return uint(uint128(FixedPointMathLib.positiveInt128(lastPoint.bias)));
+    return uint(uint128(lastPoint.bias.positiveInt128()));
   }
 
   /// @notice Calculate total voting power
@@ -1294,9 +1296,9 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     }
     uint dt = 0;
     if (targetEpoch < _epoch) {
-      Point memory point_next = _pointHistory[targetEpoch + 1];
+      Point memory pointNext = _pointHistory[targetEpoch + 1];
       // next point block can not be the same or lower
-      dt = ((_block - point.blk) * (point_next.ts - point.ts)) / (point_next.blk - point.blk);
+      dt = ((_block - point.blk) * (pointNext.ts - point.ts)) / (pointNext.blk - point.blk);
     } else {
       if (point.blk != block.number) {
         dt = ((_block - point.blk) * (block.timestamp - point.ts)) / (block.number - point.blk);
