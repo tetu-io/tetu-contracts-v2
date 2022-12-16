@@ -1,6 +1,7 @@
 import {CoreAddresses} from "../models/CoreAddresses";
 import {GoerliAddresses} from "./goerli";
 import {PolygonAddresses} from "./polygon";
+import {SepoliaAddresses} from "./sepolia";
 
 // tslint:disable-next-line:no-var-requires
 const hre = require("hardhat");
@@ -9,6 +10,7 @@ export class Addresses {
 
   public static CORE = new Map<number, CoreAddresses>([
     [5, GoerliAddresses.CORE_ADDRESSES],
+    [11155111, SepoliaAddresses.CORE_ADDRESSES],
     [137, PolygonAddresses.CORE_ADDRESSES],
   ]);
 

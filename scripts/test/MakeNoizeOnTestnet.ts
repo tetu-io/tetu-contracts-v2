@@ -1,22 +1,22 @@
 import {ethers} from "hardhat";
-import {DeployerUtils} from "../utils/DeployerUtils";
 import {
   ControllerV2__factory,
   IERC20__factory,
-  InvestFundV2__factory,
   MultiBribe__factory,
-  MultiGauge__factory, StakelessMultiPoolBase__factory, TetuVoter__factory, VeTetu__factory
+  MultiGauge__factory,
+  StakelessMultiPoolBase__factory,
+  TetuVoter__factory,
+  VeTetu__factory
 } from "../../typechain";
 import {Addresses} from "../addresses/addresses";
 import {formatUnits, parseUnits} from "ethers/lib/utils";
 import {RunHelper} from "../utils/RunHelper";
 import {Misc} from "../utils/Misc";
-import {Signer} from "ethers";
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 
-const USDC = '0x308A756B4f9aa3148CaD7ccf8e72c18C758b2EF2';
-const BTC = '0x27af55366a339393865FC5943C04bc2600F55C9F';
-const WETH = '0xbf1e638871c59859db851674c7f94efcb0f40954';
+const USDC = '0x27af55366a339393865FC5943C04bc2600F55C9F';
+const BTC = '0x0ed08c9A2EFa93C4bF3C8878e61D2B6ceD89E9d7';
+const WETH = '0x078b7c9304eBA754e916016E8A8939527076f991';
 
 async function main() {
   const signer = (await ethers.getSigners())[0];
@@ -53,7 +53,7 @@ async function main() {
           const lastVote = (await voter.lastVote(veId)).toNumber();
           console.log('lastVote', new Date(lastVote * 1000))
           if ((lastVote + 60 * 60 * 24 * 7) < (Date.now() / 1000)) {
-            await RunHelper.runAndWait(() =>  voter.vote(veId, [vault], [100]));
+            await RunHelper.runAndWait(() => voter.vote(veId, [vault], [100]));
           }
         }
       }

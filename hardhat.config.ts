@@ -29,7 +29,7 @@ const argv = require('yargs/yargs')()
       type: "string",
       default: ''
     },
-    goerliRpcUrl: {
+    sepoliaRpcUrl: {
       type: "string",
       default: ''
     },
@@ -102,9 +102,9 @@ export default {
       chainId: 1,
       accounts: [argv.privateKey],
     },
-    goerli: {
-      url: argv.goerliRpcUrl || '',
-      chainId: 5,
+    sepolia: {
+      url: argv.sepoliaRpcUrl || '',
+      chainId: 11155111,
       // gas: 50_000_000_000,
       accounts: [argv.privateKey],
     },
@@ -114,6 +114,7 @@ export default {
     apiKey: {
       mainnet: argv.networkScanKey,
       goerli: argv.networkScanKey,
+      sepolia: argv.networkScanKey,
       polygon: argv.networkScanKeyMatic || argv.networkScanKey,
     },
   },
