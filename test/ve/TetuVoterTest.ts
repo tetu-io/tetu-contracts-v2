@@ -97,6 +97,8 @@ describe("Tetu voter tests", function () {
     await gauge.addStakingToken(stakingToken.address);
 
     pawnshop = await DeployerUtils.deployContract(owner, 'MockPawnshop') as MockPawnshop;
+    await ve.announceAction(2);
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 18);
     await ve.whitelistTransferFor(pawnshop.address);
 
     const platformVoter = await DeployerUtils.deployPlatformVoter(owner, controller.address, ve.address);

@@ -470,6 +470,16 @@ describe("veTETU tests", function () {
     await expect(ve.connect(owner2).addToken(underlying2.address, parseUnits('1'))).revertedWith('NOT_GOVERNANCE');
   });
 
+  it("announce from non gov revert", async function () {
+    await expect(ve.connect(owner2).announceAction(1)).revertedWith('NOT_GOVERNANCE');
+  });
+
+  it("announce from wrong input revert", async function () {
+    await expect(ve.announceAction(0)).revertedWith('WRONG_INPUT');
+    await ve.announceAction(1);
+    await expect(ve.announceAction(1)).revertedWith('WRONG_INPUT');
+  });
+
   it("add token twice revert", async function () {
     await ve.announceAction(1);
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 18);

@@ -52,6 +52,8 @@ describe("Platform voter tests", function () {
     ve = await DeployerUtils.deployVeTetu(owner, tetu.address, controller.address);
 
     pawnshop = await DeployerUtils.deployContract(owner, 'MockPawnshop') as MockPawnshop;
+    await ve.announceAction(2);
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 18);
     await ve.whitelistTransferFor(pawnshop.address);
 
     platformVoter = await DeployerUtils.deployPlatformVoter(owner, controller.address, ve.address);
