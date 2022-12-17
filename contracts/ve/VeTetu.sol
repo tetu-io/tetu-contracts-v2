@@ -167,7 +167,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
 
   /// @dev Whitelisted contracts will be able to transfer NFTs
   mapping(address => bool) public isWhitelistedTransfer;
-  /// @dev
+  /// @dev Time-locks for governance actions. Zero means not announced and should not processed.
   mapping(TimeLockType => uint) public govActionTimeLock;
 
   // *************************************************************
