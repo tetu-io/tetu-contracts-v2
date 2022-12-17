@@ -48,6 +48,8 @@ describe("veTETU tests", function () {
     voter = await DeployerUtils.deployMockVoter(owner, ve.address);
     pawnshop = await DeployerUtils.deployContract(owner, 'MockPawnshop') as MockPawnshop;
     await controller.setVoter(voter.address);
+    await ve.announceAction(2);
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 18);
     await ve.whitelistTransferFor(pawnshop.address);
 
     await tetu.mint(owner2.address, parseUnits('100'));
@@ -458,11 +460,31 @@ describe("veTETU tests", function () {
     await expect(ve.whitelistTransferFor(Misc.ZERO_ADDRESS)).revertedWith('WRONG_INPUT');
   });
 
+  it("whitelist transfer time-lock revert", async function () {
+    await ve.announceAction(2);
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 17);
+    await expect(ve.whitelistTransferFor(owner.address)).revertedWith('TIME_LOCK');
+  });
+
   it("add token from non gov revert", async function () {
     await expect(ve.connect(owner2).addToken(underlying2.address, parseUnits('1'))).revertedWith('NOT_GOVERNANCE');
   });
 
+  it("add token twice revert", async function () {
+    await ve.announceAction(1);
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 18);
+    await expect(ve.addToken(tetu.address, parseUnits('1'))).revertedWith('DUPLICATE');
+  });
+
+  it("add token time-lock revert", async function () {
+    await ve.announceAction(1);
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 17);
+    await expect(ve.addToken(tetu.address, parseUnits('1'))).revertedWith('TIME_LOCK');
+  });
+
   it("add token wrong input revert", async function () {
+    await ve.announceAction(1);
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 18);
     await expect(ve.addToken(Misc.ZERO_ADDRESS, parseUnits('1'))).revertedWith('WRONG_INPUT');
     await expect(ve.addToken(underlying2.address, 0)).revertedWith('WRONG_INPUT');
   });
@@ -495,6 +517,8 @@ describe("veTETU tests", function () {
     balTETU = await tetu.balanceOf(owner.address);
     const balUNDERLYING2 = await underlying2.balanceOf(owner.address);
 
+    await ve.announceAction(1);
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 18);
     await ve.addToken(underlying2.address, parseUnits('10'));
 
     await ve.createLock(tetu.address, parseUnits('0.77'), LOCK_PERIOD)
@@ -532,6 +556,8 @@ describe("veTETU tests", function () {
     await ve.connect(owner2).withdraw(tetu.address, 2);
 
     // prepare
+    await ve.announceAction(1);
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 18);
     await ve.addToken(underlying2.address, parseUnits('10'));
     await tetu.mint(owner2.address, parseUnits('1000000000'))
     await underlying2.mint(owner2.address, parseUnits('1000000000'))
@@ -589,6 +615,7 @@ describe("veTETU tests", function () {
   });
 
   it("merge test", async function () {
+    await ve.announceAction(1);
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 30);
     await ve.addToken(underlying2.address, parseUnits('10'));
     await underlying2.mint(owner.address, parseUnits('100', 6));
@@ -618,6 +645,7 @@ describe("veTETU tests", function () {
   });
 
   it("split test", async function () {
+    await ve.announceAction(1);
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 30);
     await ve.addToken(underlying2.address, parseUnits('10'));
     await underlying2.mint(owner.address, parseUnits('100', 6));

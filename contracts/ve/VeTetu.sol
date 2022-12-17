@@ -45,6 +45,12 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     uint newEnd;
   }
 
+  enum TimeLockType {
+    UNKNOWN,
+    ADD_TOKEN,
+    WHITELIST_TRANSFER
+  }
+
   // *************************************************************
   //                          ERRORS
   // *************************************************************
@@ -69,19 +75,22 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   string internal constant NOT_EXPIRED = "NOT_EXPIRED";
   string internal constant ZERO_LOCKED = "ZERO_LOCKED";
   string internal constant TOKEN_NOT_EXIST = "TOKEN_NOT_EXIST";
+  string internal constant DUPLICATE = "DUPLICATE";
+  string internal constant TIME_LOCK = "TIME_LOCK";
 
   // *************************************************************
   //                        CONSTANTS
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant VE_VERSION = "1.0.1";
+  string public constant VE_VERSION = "1.0.2";
   uint internal constant WEEK = 1 weeks;
   uint internal constant MAX_TIME = 16 weeks;
   int128 internal constant I_MAX_TIME = 16 weeks;
   uint internal constant MULTIPLIER = 1 ether;
   uint internal constant WEIGHT_DENOMINATOR = 100e18;
   uint public constant MAX_ATTACHMENTS = 1;
+  uint public constant GOV_ACTION_TIME_LOCK = 18 hours;
 
   string constant public override name = "veTETU";
   string constant public override symbol = "veTETU";
@@ -158,6 +167,8 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
 
   /// @dev Whitelisted contracts will be able to transfer NFTs
   mapping(address => bool) public isWhitelistedTransfer;
+  /// @dev
+  mapping(TimeLockType => uint) public govActionTimeLock;
 
   // *************************************************************
   //                        EVENTS
@@ -177,6 +188,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   event Split(uint parentTokenId, uint newTokenId, uint percent);
   event TransferWhitelisted(address value);
   event StakingTokenAdded(address value, uint weight);
+  event GovActionAnnounced(uint _type, uint timeToExecute);
 
   // *************************************************************
   //                        INIT
@@ -209,22 +221,44 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   //                        GOVERNANCE ACTIONS
   // *************************************************************
 
+  function announceAction(TimeLockType _type) external {
+    require(isGovernance(msg.sender), NOT_GOVERNANCE);
+    require(govActionTimeLock[_type] == 0 && _type != TimeLockType.UNKNOWN, WRONG_INPUT);
+
+    govActionTimeLock[_type] = block.timestamp + GOV_ACTION_TIME_LOCK;
+    emit GovActionAnnounced(uint(_type), block.timestamp + GOV_ACTION_TIME_LOCK);
+  }
+
   /// @dev Whitelist address for transfers. Removing from whitelist should be forbidden.
   function whitelistTransferFor(address value) external {
     require(isGovernance(msg.sender), NOT_GOVERNANCE);
     require(value != address(0), WRONG_INPUT);
+    uint timeLock = govActionTimeLock[TimeLockType.WHITELIST_TRANSFER];
+    require(timeLock != 0 && timeLock < block.timestamp, TIME_LOCK);
+
     isWhitelistedTransfer[value] = true;
+    govActionTimeLock[TimeLockType.WHITELIST_TRANSFER] = 0;
+
     emit TransferWhitelisted(value);
   }
 
   function addToken(address token, uint weight) external {
     require(isGovernance(msg.sender), NOT_GOVERNANCE);
+    uint timeLock = govActionTimeLock[TimeLockType.ADD_TOKEN];
+    require(timeLock != 0 && timeLock < block.timestamp, TIME_LOCK);
+
     _addToken(token, weight);
+    govActionTimeLock[TimeLockType.ADD_TOKEN] = 0;
   }
 
   function _addToken(address token, uint weight) internal {
     require(token != address(0) && weight != 0, WRONG_INPUT);
     _requireERC20(token);
+
+    uint length = tokens.length;
+    for (uint i; i < length; ++i) {
+      require(token != tokens[i], DUPLICATE);
+    }
 
     tokens.push(token);
     tokenWeights[token] = weight;
@@ -630,7 +664,6 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   function _mint(address _to, uint _tokenId) internal returns (bool) {
     // Throws if `_to` is zero address
     require(_to != address(0), WRONG_INPUT);
-    // Add NFT. Throws if `_tokenId` is owned by someone
     _addTokenTo(_to, _tokenId);
     emit Transfer(address(0), _to, _tokenId);
     return true;
