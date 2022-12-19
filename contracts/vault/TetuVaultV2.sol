@@ -333,6 +333,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
     uint assets,
     uint shares
   ) internal override {
+    console.log('beforeWithdraw...', assets, shares);
     uint _withdrawFee = withdrawFee;
     uint fromSplitter;
     if (_withdrawFee != 0) {
