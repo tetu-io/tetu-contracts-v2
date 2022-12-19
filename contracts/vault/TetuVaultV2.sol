@@ -356,8 +356,9 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
       );
     }
     balance = _asset.balanceOf(address(this));
-    if (balance < assets)
-    console.log('SLIPPAGE %: ', balance * 100_000 / assets); // TODO remove
+    if (balance < assets) {
+      console.log('SLIPPAGE %: ', balance * 100_000 / assets); // TODO remove
+    }
     require(assets <= balance, "SLIPPAGE");
 
     // send fee amount to insurance for keep correct calculations
