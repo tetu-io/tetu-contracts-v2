@@ -19,9 +19,9 @@ contract MockStrategySimple is ControllableV3, IStrategyV2 {
 
   address[] private _rewardTokens;
 
-  uint slippage;
-  uint lastEarned;
-  uint lastLost;
+  uint internal slippage;
+  uint internal lastEarned;
+  uint internal lastLost;
 
   function init(
     address controller_,

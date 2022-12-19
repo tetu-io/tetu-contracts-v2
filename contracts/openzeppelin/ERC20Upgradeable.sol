@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.6.0) (token/ERC20/ERC20.sol)
+// OpenZeppelin Contracts (last updated v4.7.0) (token/ERC20/ERC20.sol)
 
-pragma solidity ^0.8.0;
+pragma solidity 0.8.17;
 
+import "../interfaces/IERC20.sol";
+import "../interfaces/IERC20Metadata.sol";
 import "./ContextUpgradeable.sol";
 import "./Initializable.sol";
-import "../interfaces/IERC20Metadata.sol";
 
 /**
- * https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/blob/release-v4.6/contracts/token/ERC20/ERC20Upgradeable.sol
  * @dev Implementation of the {IERC20} interface.
  *
  * This implementation is agnostic to the way tokens are created. This means
@@ -16,7 +16,7 @@ import "../interfaces/IERC20Metadata.sol";
  * For a generic mechanism see {ERC20PresetMinterPauser}.
  *
  * TIP: For a detailed writeup see our guide
- * https://forum.zeppelin.solutions/t/how-to-implement-erc20-supply-mechanisms/226[How
+ * https://forum.openzeppelin.com/t/how-to-implement-erc20-supply-mechanisms/226[How
  * to implement supply mechanisms].
  *
  * We have followed general OpenZeppelin Contracts guidelines: functions revert
@@ -33,26 +33,15 @@ import "../interfaces/IERC20Metadata.sol";
  * functions have been added to mitigate the well-known issues around setting
  * allowances. See {IERC20-approve}.
  */
-contract ERC20Upgradeable is Initializable, ContextUpgradeable, IERC20Metadata {
+contract ERC20Upgradeable is Initializable, ContextUpgradeable, IERC20, IERC20Metadata {
+  mapping(address => uint256) private _balances;
 
-  mapping(address => uint) internal _balances;
+  mapping(address => mapping(address => uint256)) internal _allowances;
 
-  mapping(address => mapping(address => uint)) internal _allowances;
-
-  uint internal _totalSupply;
+  uint256 private _totalSupply;
 
   string private _name;
   string private _symbol;
-
-  /*//////////////////////////////////////////////////////////////
-  //                   EIP-2612 STORAGE
-  //////////////////////////////////////////////////////////////*/
-
-  uint internal INITIAL_CHAIN_ID;
-
-  bytes32 internal INITIAL_DOMAIN_SEPARATOR;
-
-  mapping(address => uint) public nonces;
 
   /**
    * @dev Sets the values for {name} and {symbol}.
@@ -70,9 +59,6 @@ contract ERC20Upgradeable is Initializable, ContextUpgradeable, IERC20Metadata {
   function __ERC20_init_unchained(string memory name_, string memory symbol_) internal onlyInitializing {
     _name = name_;
     _symbol = symbol_;
-
-    INITIAL_CHAIN_ID = block.chainid;
-    INITIAL_DOMAIN_SEPARATOR = computeDomainSeparator();
   }
 
   /**
@@ -110,14 +96,14 @@ contract ERC20Upgradeable is Initializable, ContextUpgradeable, IERC20Metadata {
   /**
    * @dev See {IERC20-totalSupply}.
      */
-  function totalSupply() public view virtual override returns (uint) {
+  function totalSupply() public view virtual override returns (uint256) {
     return _totalSupply;
   }
 
   /**
    * @dev See {IERC20-balanceOf}.
      */
-  function balanceOf(address account) public view virtual override returns (uint) {
+  function balanceOf(address account) public view virtual override returns (uint256) {
     return _balances[account];
   }
 
@@ -129,7 +115,7 @@ contract ERC20Upgradeable is Initializable, ContextUpgradeable, IERC20Metadata {
      * - `to` cannot be the zero address.
      * - the caller must have a balance of at least `amount`.
      */
-  function transfer(address to, uint amount) public virtual override returns (bool) {
+  function transfer(address to, uint256 amount) public virtual override returns (bool) {
     address owner = _msgSender();
     _transfer(owner, to, amount);
     return true;
@@ -138,21 +124,21 @@ contract ERC20Upgradeable is Initializable, ContextUpgradeable, IERC20Metadata {
   /**
    * @dev See {IERC20-allowance}.
      */
-  function allowance(address owner, address spender) public view virtual override returns (uint) {
+  function allowance(address owner, address spender) public view virtual override returns (uint256) {
     return _allowances[owner][spender];
   }
 
   /**
    * @dev See {IERC20-approve}.
      *
-     * NOTE: If `amount` is the maximum `uint`, the allowance is not updated on
+     * NOTE: If `amount` is the maximum `uint256`, the allowance is not updated on
      * `transferFrom`. This is semantically equivalent to an infinite approval.
      *
      * Requirements:
      *
      * - `spender` cannot be the zero address.
      */
-  function approve(address spender, uint amount) public virtual override returns (bool) {
+  function approve(address spender, uint256 amount) public virtual override returns (bool) {
     address owner = _msgSender();
     _approve(owner, spender, amount);
     return true;
@@ -165,7 +151,7 @@ contract ERC20Upgradeable is Initializable, ContextUpgradeable, IERC20Metadata {
      * required by the EIP. See the note at the beginning of {ERC20}.
      *
      * NOTE: Does not update the allowance if the current allowance
-     * is the maximum `uint`.
+     * is the maximum `uint256`.
      *
      * Requirements:
      *
@@ -177,7 +163,7 @@ contract ERC20Upgradeable is Initializable, ContextUpgradeable, IERC20Metadata {
   function transferFrom(
     address from,
     address to,
-    uint amount
+    uint256 amount
   ) public virtual override returns (bool) {
     address spender = _msgSender();
     _spendAllowance(from, spender, amount);
@@ -197,7 +183,7 @@ contract ERC20Upgradeable is Initializable, ContextUpgradeable, IERC20Metadata {
      *
      * - `spender` cannot be the zero address.
      */
-  function increaseAllowance(address spender, uint addedValue) public virtual returns (bool) {
+  function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
     address owner = _msgSender();
     _approve(owner, spender, allowance(owner, spender) + addedValue);
     return true;
@@ -217,9 +203,9 @@ contract ERC20Upgradeable is Initializable, ContextUpgradeable, IERC20Metadata {
      * - `spender` must have allowance for the caller of at least
      * `subtractedValue`.
      */
-  function decreaseAllowance(address spender, uint subtractedValue) public virtual returns (bool) {
+  function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
     address owner = _msgSender();
-    uint currentAllowance = allowance(owner, spender);
+    uint256 currentAllowance = allowance(owner, spender);
     require(currentAllowance >= subtractedValue, "ERC20: decreased allowance below zero");
   unchecked {
     _approve(owner, spender, currentAllowance - subtractedValue);
@@ -229,7 +215,7 @@ contract ERC20Upgradeable is Initializable, ContextUpgradeable, IERC20Metadata {
   }
 
   /**
-   * @dev Moves `amount` of tokens from `sender` to `recipient`.
+   * @dev Moves `amount` of tokens from `from` to `to`.
      *
      * This internal function is equivalent to {transfer}, and can be used to
      * e.g. implement automatic token fees, slashing mechanisms, etc.
@@ -245,19 +231,21 @@ contract ERC20Upgradeable is Initializable, ContextUpgradeable, IERC20Metadata {
   function _transfer(
     address from,
     address to,
-    uint amount
+    uint256 amount
   ) internal virtual {
     require(from != address(0), "ERC20: transfer from the zero address");
     require(to != address(0), "ERC20: transfer to the zero address");
 
     _beforeTokenTransfer(from, to, amount);
 
-    uint fromBalance = _balances[from];
+    uint256 fromBalance = _balances[from];
     require(fromBalance >= amount, "ERC20: transfer amount exceeds balance");
   unchecked {
     _balances[from] = fromBalance - amount;
-  }
+    // Overflow not possible: the sum of all balances is capped by totalSupply, and the sum is preserved by
+    // decrementing then incrementing.
     _balances[to] += amount;
+  }
 
     emit Transfer(from, to, amount);
 
@@ -273,13 +261,16 @@ contract ERC20Upgradeable is Initializable, ContextUpgradeable, IERC20Metadata {
      *
      * - `account` cannot be the zero address.
      */
-  function _mint(address account, uint amount) internal virtual {
+  function _mint(address account, uint256 amount) internal virtual {
     require(account != address(0), "ERC20: mint to the zero address");
 
     _beforeTokenTransfer(address(0), account, amount);
 
     _totalSupply += amount;
+  unchecked {
+    // Overflow not possible: balance + amount is at most totalSupply + amount, which is checked above.
     _balances[account] += amount;
+  }
     emit Transfer(address(0), account, amount);
 
     _afterTokenTransfer(address(0), account, amount);
@@ -296,17 +287,18 @@ contract ERC20Upgradeable is Initializable, ContextUpgradeable, IERC20Metadata {
      * - `account` cannot be the zero address.
      * - `account` must have at least `amount` tokens.
      */
-  function _burn(address account, uint amount) internal virtual {
+  function _burn(address account, uint256 amount) internal virtual {
     require(account != address(0), "ERC20: burn from the zero address");
 
     _beforeTokenTransfer(account, address(0), amount);
 
-    uint accountBalance = _balances[account];
+    uint256 accountBalance = _balances[account];
     require(accountBalance >= amount, "ERC20: burn amount exceeds balance");
   unchecked {
     _balances[account] = accountBalance - amount;
-  }
+    // Overflow not possible: amount <= accountBalance <= totalSupply.
     _totalSupply -= amount;
+  }
 
     emit Transfer(account, address(0), amount);
 
@@ -329,7 +321,7 @@ contract ERC20Upgradeable is Initializable, ContextUpgradeable, IERC20Metadata {
   function _approve(
     address owner,
     address spender,
-    uint amount
+    uint256 amount
   ) internal virtual {
     require(owner != address(0), "ERC20: approve from the zero address");
     require(spender != address(0), "ERC20: approve to the zero address");
@@ -349,10 +341,10 @@ contract ERC20Upgradeable is Initializable, ContextUpgradeable, IERC20Metadata {
   function _spendAllowance(
     address owner,
     address spender,
-    uint amount
+    uint256 amount
   ) internal virtual {
-    uint currentAllowance = allowance(owner, spender);
-    if (currentAllowance != type(uint).max) {
+    uint256 currentAllowance = allowance(owner, spender);
+    if (currentAllowance != type(uint256).max) {
       require(currentAllowance >= amount, "ERC20: insufficient allowance");
     unchecked {
       _approve(owner, spender, currentAllowance - amount);
@@ -377,7 +369,7 @@ contract ERC20Upgradeable is Initializable, ContextUpgradeable, IERC20Metadata {
   function _beforeTokenTransfer(
     address from,
     address to,
-    uint amount
+    uint256 amount
   ) internal virtual {}
 
   /**
@@ -397,81 +389,13 @@ contract ERC20Upgradeable is Initializable, ContextUpgradeable, IERC20Metadata {
   function _afterTokenTransfer(
     address from,
     address to,
-    uint amount
+    uint256 amount
   ) internal virtual {}
-
-  /*//////////////////////////////////////////////////////////////
-  //                      EIP-2612 LOGIC
-  // https://github.com/Rari-Capital/solmate/blob/main/src/tokens/ERC20.sol
-  //////////////////////////////////////////////////////////////*/
-
-  function permit(
-    address owner,
-    address spender,
-    uint value,
-    uint deadline,
-    uint8 v,
-    bytes32 r,
-    bytes32 s
-  ) public virtual {
-    require(deadline >= block.timestamp, "PERMIT_DEADLINE_EXPIRED");
-
-    // Unchecked because the only math done is incrementing
-    // the owner's nonce which cannot realistically overflow.
-  unchecked {
-    address recoveredAddress = ecrecover(
-      keccak256(
-        abi.encodePacked(
-          "\x19\x01",
-          DOMAIN_SEPARATOR(),
-          keccak256(
-            abi.encode(
-              keccak256(
-                "Permit(address owner,address spender,uint value,uint nonce,uint deadline)"
-              ),
-              owner,
-              spender,
-              value,
-              nonces[owner]++,
-              deadline
-            )
-          )
-        )
-      ),
-      v,
-      r,
-      s
-    );
-
-    require(recoveredAddress != address(0) && recoveredAddress == owner, "INVALID_SIGNER");
-
-    _allowances[recoveredAddress][spender] = value;
-  }
-
-    emit Approval(owner, spender, value);
-  }
-
-  function DOMAIN_SEPARATOR() public view virtual returns (bytes32) {
-    return block.chainid == INITIAL_CHAIN_ID ? INITIAL_DOMAIN_SEPARATOR : computeDomainSeparator();
-  }
-
-  function computeDomainSeparator() internal view virtual returns (bytes32) {
-    return
-    keccak256(
-      abi.encode(
-        keccak256("EIP712Domain(string name,string version,uint chainId,address verifyingContract)"),
-        keccak256(bytes(_name)),
-        keccak256("1"),
-        block.chainid,
-        address(this)
-      )
-    );
-  }
 
   /**
    * @dev This empty reserved space is put in place to allow future versions to add new
      * variables without shifting down storage in the inheritance chain.
      * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
      */
-  uint[42] private __gap;
+  uint256[45] private __gap;
 }

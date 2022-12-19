@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.4;
+pragma solidity 0.8.17;
 
-import "../openzeppelin/ERC20Upgradeable.sol";
+import "../openzeppelin/ERC20PermitUpgradeable.sol";
 import "../openzeppelin/SafeERC20.sol";
 import "../openzeppelin/ReentrancyGuard.sol";
 import "../interfaces/IERC4626.sol";
@@ -10,26 +10,30 @@ import "../lib/FixedPointMathLib.sol";
 
 /// @notice Minimal ERC4626 tokenized Vault implementation.
 /// @author Solmate (https://github.com/Rari-Capital/solmate/blob/main/src/mixins/ERC4626.sol)
-/// @author belbix - adopted to proxy pattern + add ReentrancyGuard
-abstract contract ERC4626Upgradeable is ERC20Upgradeable, ReentrancyGuard, IERC4626 {
+/// @author belbix - adopted to proxy pattern + added ReentrancyGuard
+abstract contract ERC4626Upgradeable is ERC20PermitUpgradeable, ReentrancyGuard, IERC4626 {
   using SafeERC20 for IERC20;
   using FixedPointMathLib for uint;
 
   /// @dev The address of the underlying token used for the Vault uses for accounting,
   ///      depositing, and withdrawing
-  IERC20 public override asset;
+  IERC20 internal _asset;
 
   function __ERC4626_init(
-    IERC20 _asset,
+    IERC20 asset_,
     string memory _name,
     string memory _symbol
   ) internal onlyInitializing {
     __ERC20_init(_name, _symbol);
-    asset = _asset;
+    _asset = asset_;
   }
 
-  function decimals() public view override returns (uint8) {
-    return IERC20Metadata(address(asset)).decimals();
+  function decimals() public view override(IERC20Metadata, ERC20Upgradeable) returns (uint8) {
+    return IERC20Metadata(address(_asset)).decimals();
+  }
+
+  function asset() external view override returns (address) {
+    return address(_asset);
   }
 
   /*//////////////////////////////////////////////////////////////
@@ -48,7 +52,7 @@ abstract contract ERC4626Upgradeable is ERC20Upgradeable, ReentrancyGuard, IERC4
     require(shares != 0, "ZERO_SHARES");
 
     // Need to transfer before minting or ERC777s could reenter.
-    asset.safeTransferFrom(msg.sender, address(this), assets);
+    _asset.safeTransferFrom(msg.sender, address(this), assets);
 
     _mint(receiver, shares);
 
@@ -67,7 +71,7 @@ abstract contract ERC4626Upgradeable is ERC20Upgradeable, ReentrancyGuard, IERC4
     // No need to check for rounding error, previewMint rounds up.
 
     // Need to transfer before minting or ERC777s could reenter.
-    asset.safeTransferFrom(msg.sender, address(this), assets);
+    _asset.safeTransferFrom(msg.sender, address(this), assets);
 
     _mint(receiver, shares);
 
@@ -98,7 +102,7 @@ abstract contract ERC4626Upgradeable is ERC20Upgradeable, ReentrancyGuard, IERC4
 
     emit Withdraw(msg.sender, receiver, owner, assets, shares);
 
-    asset.safeTransfer(receiver, assets);
+    _asset.safeTransfer(receiver, assets);
   }
 
   /// @dev Redeems shares from owner and sends assets to receiver.
@@ -125,7 +129,7 @@ abstract contract ERC4626Upgradeable is ERC20Upgradeable, ReentrancyGuard, IERC4
 
     emit Withdraw(msg.sender, receiver, owner, assets, shares);
 
-    asset.safeTransfer(receiver, assets);
+    _asset.safeTransfer(receiver, assets);
   }
 
   /*//////////////////////////////////////////////////////////////
@@ -136,13 +140,13 @@ abstract contract ERC4626Upgradeable is ERC20Upgradeable, ReentrancyGuard, IERC4
   function totalAssets() public view virtual override returns (uint);
 
   function convertToShares(uint assets) public view virtual override returns (uint) {
-    uint supply = _totalSupply;
+    uint supply = totalSupply();
     // Saves an extra SLOAD if totalSupply is non-zero.
     return supply == 0 ? assets : assets.mulDivDown(supply, totalAssets());
   }
 
   function convertToAssets(uint shares) public view virtual override returns (uint) {
-    uint supply = _totalSupply;
+    uint supply = totalSupply();
     // Saves an extra SLOAD if totalSupply is non-zero.
     return supply == 0 ? shares : shares.mulDivDown(totalAssets(), supply);
   }
@@ -152,13 +156,13 @@ abstract contract ERC4626Upgradeable is ERC20Upgradeable, ReentrancyGuard, IERC4
   }
 
   function previewMint(uint shares) public view virtual override returns (uint) {
-    uint supply = _totalSupply;
+    uint supply = totalSupply();
     // Saves an extra SLOAD if totalSupply is non-zero.
     return supply == 0 ? shares : shares.mulDivUp(totalAssets(), supply);
   }
 
   function previewWithdraw(uint assets) public view virtual override returns (uint) {
-    uint supply = _totalSupply;
+    uint supply = totalSupply();
     // Saves an extra SLOAD if totalSupply is non-zero.
     return supply == 0 ? assets : assets.mulDivUp(supply, totalAssets());
   }
@@ -180,11 +184,11 @@ abstract contract ERC4626Upgradeable is ERC20Upgradeable, ReentrancyGuard, IERC4
   }
 
   function maxWithdraw(address owner) public view virtual override returns (uint) {
-    return convertToAssets(_balances[owner]);
+    return convertToAssets(balanceOf(owner));
   }
 
   function maxRedeem(address owner) public view virtual override returns (uint) {
-    return _balances[owner];
+    return balanceOf(owner);
   }
 
   ///////////////////////////////////////////////////////////////

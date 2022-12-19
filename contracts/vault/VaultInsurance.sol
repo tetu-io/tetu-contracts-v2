@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.4;
+pragma solidity 0.8.17;
 
 import "../openzeppelin/SafeERC20.sol";
 import "../tools/TetuERC165.sol";
@@ -24,8 +24,9 @@ contract VaultInsurance is TetuERC165, IVaultInsurance  {
   function init(address _vault, address _asset) external override {
     require(vault == address(0) && asset == address(0), "INITED");
     _requireInterface(_vault, InterfaceIds.I_TETU_VAULT_V2);
-    vault = _vault;
     _requireERC20(_asset);
+
+    vault = _vault;
     asset = _asset;
   }
 

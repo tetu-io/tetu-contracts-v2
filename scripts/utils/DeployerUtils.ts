@@ -1,5 +1,5 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
-import {ContractFactory} from "ethers";
+import {BigNumber, ContractFactory} from "ethers";
 import logSettings from "../../log_settings";
 import {Logger} from "tslog";
 import {parseUnits} from "ethers/lib/utils";
@@ -38,7 +38,7 @@ import path from "path";
 
 // tslint:disable-next-line:no-var-requires
 const hre = require("hardhat");
-const log: Logger = new Logger(logSettings);
+const log: Logger<unknown> = new Logger(logSettings);
 
 
 export class DeployerUtils {
@@ -101,12 +101,13 @@ export class DeployerUtils {
     return vault;
   }
 
-  public static async deployVeTetu(signer: SignerWithAddress, token: string, controller: string) {
+  public static async deployVeTetu(signer: SignerWithAddress, token: string, controller: string, weight = parseUnits('100')) {
     const logic = await DeployerUtils.deployContract(signer, 'VeTetu');
     const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
     await RunHelper.runAndWait(() => proxy.initProxy(logic.address));
     await RunHelper.runAndWait(() => VeTetu__factory.connect(proxy.address, signer).init(
       token,
+      weight,
       controller
     ));
     return VeTetu__factory.connect(proxy.address, signer);
@@ -306,7 +307,7 @@ export class DeployerUtils {
 
   public static createFolderAndWriteFileSync(targetFile: string, data: string) {
     const dir = path.dirname(targetFile)
-    mkdirSync(dir, { recursive: true });
+    mkdirSync(dir, {recursive: true});
     writeFileSync(targetFile, data, 'utf8');
     console.log('+Data written to', targetFile);
   }

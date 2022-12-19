@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.4;
+pragma solidity 0.8.17;
 
 import "../openzeppelin/ReentrancyGuard.sol";
 import "../openzeppelin/Math.sol";
@@ -58,7 +58,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   /// @dev Strategy => timestamp. Strategies scheduled for adding.
   EnumerableMap.AddressToUintMap internal _scheduledStrategies;
   /// @dev Changed to true after a strategy adding
-  bool inited;
+  bool internal inited;
   /// @dev How much underlying can be invested to the strategy
   mapping(address => uint) public strategyCapacity;
 
@@ -311,7 +311,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     for (uint i = length; i > 1; i--) {
       lowStrategy = strategies[i - 1];
       lowStrategyBalance = IStrategyV2(lowStrategy).totalAssets();
-      if(lowStrategyBalance == 0) {
+      if (lowStrategyBalance == 0) {
         continue;
       }
     }

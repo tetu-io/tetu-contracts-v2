@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.4;
+pragma solidity 0.8.17;
 
 ////// /nix/store/im7ll7dx8gsw2da9k5xwbf8pbjfli2hc-multicall-df1e59d/src/Multicall.sol
 /* pragma solidity >=0.5.0; */

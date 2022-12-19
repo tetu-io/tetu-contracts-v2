@@ -2,7 +2,16 @@ import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {ethers} from "hardhat";
 import chai from "chai";
 import {parseUnits} from "ethers/lib/utils";
-import {ForwarderV3, MockBribe, MockLiquidator, MockToken, MockVault, MockVoter, PlatformVoter} from "../../typechain";
+import {
+  ForwarderV3,
+  MockBribe,
+  MockBribe__factory,
+  MockLiquidator,
+  MockToken,
+  MockVault,
+  MockVoter,
+  PlatformVoter
+} from "../../typechain";
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {Misc} from "../../scripts/utils/Misc";
@@ -39,7 +48,8 @@ describe("forwarder tests", function () {
     tetu = await DeployerUtils.deployMockToken(signer, 'TETU');
     usdc = await DeployerUtils.deployMockToken(signer, 'USDC', 6);
 
-    bribe = await DeployerUtils.deployContract(signer, 'MockBribe', controller.address) as MockBribe;
+    bribe = MockBribe__factory.connect(await DeployerUtils.deployProxy(signer, 'MockBribe'), signer);
+    await bribe.init(controller.address);
     vault = await DeployerUtils.deployMockVault(signer, controller.address, tetu.address, 'test', strategy.address, 0);
     vault2 = await DeployerUtils.deployMockVault(signer, controller.address, usdc.address, 'test2', strategy.address, 0);
 

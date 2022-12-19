@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.4;
+pragma solidity 0.8.17;
 
 import "../openzeppelin/Math.sol";
 import "../openzeppelin/SafeERC20.sol";
@@ -9,7 +9,6 @@ import "../openzeppelin/Initializable.sol";
 import "../tools/TetuERC165.sol";
 import "../interfaces/IMultiPool.sol";
 import "../interfaces/IERC20.sol";
-import "../lib/CheckpointLib.sol";
 import "../lib/InterfaceIds.sol";
 import "../proxy/ControllableV3.sol";
 
@@ -18,7 +17,6 @@ import "../proxy/ControllableV3.sol";
 /// @author belbix
 abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiPool, ControllableV3 {
   using SafeERC20 for IERC20;
-  using CheckpointLib for mapping(uint => CheckpointLib.Checkpoint);
 
   // *************************************************************
   //                        CONSTANTS
@@ -27,7 +25,7 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
   /// @dev Version of this contract. Adjust manually on each code modification.
   string public constant MULTI_POOL_VERSION = "1.0.0";
   /// @dev Precision for internal calculations
-  uint internal constant _PRECISION = 10 ** 18;
+  uint internal constant _PRECISION = 10 ** 27;
   /// @dev Max reward tokens per 1 staking token
   uint internal constant _MAX_REWARD_TOKENS = 10;
 
@@ -51,7 +49,7 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
   /// @dev Staking token => Total amount of attached staking tokens
   mapping(address => uint) public override totalSupply;
 
-  /// @dev Staking token => Reward token => Reward rate with precision 1e18
+  /// @dev Staking token => Reward token => Reward rate with precision _PRECISION
   mapping(address => mapping(address => uint)) public rewardRate;
   /// @dev Staking token => Reward token => Reward finish period in timestamp.
   mapping(address => mapping(address => uint)) public periodFinish;
@@ -60,28 +58,15 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
   /// @dev Staking token => Reward token => Part of SNX pool logic. Internal snapshot of reward per token value.
   mapping(address => mapping(address => uint)) public rewardPerTokenStored;
 
-  /// @dev Timestamp of the last claim action.
-  mapping(address => mapping(address => mapping(address => uint))) public lastEarn;
-  /// @dev Snapshot of user's reward per token for internal calculations.
-  mapping(address => mapping(address => mapping(address => uint))) public userRewardPerTokenStored;
+  /// @dev Staking token => Reward token => Account => amount. Already paid reward amount for snapshot calculation.
+  mapping(address => mapping(address => mapping(address => uint))) public userRewardPerTokenPaid;
+  /// @dev Staking token => Reward token => Account => amount. Snapshot of user's reward per token.
+  mapping(address => mapping(address => mapping(address => uint))) public rewards;
 
   /// @dev Allowed reward tokens for staking token
   mapping(address => address[]) public override rewardTokens;
   /// @dev Allowed reward tokens for staking token stored in map for fast check.
   mapping(address => mapping(address => bool)) public override isRewardToken;
-
-  /// @notice A record of balance checkpoints for each account, by index
-  mapping(address => mapping(address => mapping(uint => CheckpointLib.Checkpoint))) public checkpoints;
-  /// @notice The number of checkpoints for each account
-  mapping(address => mapping(address => uint)) public numCheckpoints;
-  /// @notice A record of balance checkpoints for each token, by index
-  mapping(address => mapping(uint => CheckpointLib.Checkpoint)) public supplyCheckpoints;
-  /// @notice The number of checkpoints
-  mapping(address => uint) public supplyNumCheckpoints;
-  /// @notice A record of balance checkpoints for each token, by index
-  mapping(address => mapping(address => mapping(uint => CheckpointLib.Checkpoint))) public rewardPerTokenCheckpoints;
-  /// @notice The number of checkpoints for each token
-  mapping(address => mapping(address => uint)) public rewardPerTokenNumCheckpoints;
   /// @notice account => recipient. All rewards for this account will receive recipient
   mapping(address => address) public rewardsRedirect;
 
@@ -115,10 +100,10 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
   // *************************************************************
 
   modifier onlyAllowedContracts() {
-    IController controller = IController(controller());
+    IController _controller = IController(controller());
     require(
-      msg.sender == controller.governance()
-      || msg.sender == controller.forwarder()
+      msg.sender == _controller.governance()
+      || msg.sender == _controller.forwarder()
     , "Not allowed");
     _;
   }
@@ -127,7 +112,7 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
   //                            VIEWS
   // *************************************************************
 
-  /// @dev Should return true for whitelisted for rewards tokens
+  /// @dev Should return true for whitelisted reward tokens
   function isStakeToken(address token) public view override virtual returns (bool);
 
   /// @dev Length of rewards tokens array for given token
@@ -136,36 +121,46 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
   }
 
   /// @dev Reward paid for token for the current period.
-  function rewardPerToken(address stakeToken, address rewardToken) public view returns (uint) {
-    uint _derivedSupply = derivedSupply[stakeToken];
+  function rewardPerToken(address stakingToken, address rewardToken) public view returns (uint) {
+    uint _derivedSupply = derivedSupply[stakingToken];
     if (_derivedSupply == 0) {
-      return rewardPerTokenStored[stakeToken][rewardToken];
+      return rewardPerTokenStored[stakingToken][rewardToken];
     }
-    return rewardPerTokenStored[stakeToken][rewardToken]
-    + (
-    (_lastTimeRewardApplicable(stakeToken, rewardToken)
-    - Math.min(lastUpdateTime[stakeToken][rewardToken], periodFinish[stakeToken][rewardToken]))
-    * rewardRate[stakeToken][rewardToken]
-    / _derivedSupply
-    );
+
+    return rewardPerTokenStored[stakingToken][rewardToken]
+    +
+    (lastTimeRewardApplicable(stakingToken, rewardToken) - lastUpdateTime[stakingToken][rewardToken])
+    * rewardRate[stakingToken][rewardToken]
+    / _derivedSupply;
+  }
+
+  /// @dev Returns the last time the reward was modified or periodFinish if the reward has ended
+  function lastTimeRewardApplicable(address stakingToken, address rewardToken) public view returns (uint) {
+    uint _periodFinish = periodFinish[stakingToken][rewardToken];
+    return block.timestamp < _periodFinish ? block.timestamp : _periodFinish;
   }
 
   /// @dev Balance of holder adjusted with specific rules for boost calculation.
-  function derivedBalance(address token, address account) external view override returns (uint) {
-    return _derivedBalance(token, account);
+  ///      Supposed to be implemented in a parent contract
+  ///      Adjust user balance with some logic, like boost logic.
+  function derivedBalance(address stakingToken, address account) public view virtual override returns (uint) {
+    return balanceOf[stakingToken][account];
   }
 
   /// @dev Amount of reward tokens left for the current period
-  function left(address stakeToken, address rewardToken) public view override returns (uint) {
-    uint _periodFinish = periodFinish[stakeToken][rewardToken];
+  function left(address stakingToken, address rewardToken) public view override returns (uint) {
+    uint _periodFinish = periodFinish[stakingToken][rewardToken];
     if (block.timestamp >= _periodFinish) return 0;
     uint _remaining = _periodFinish - block.timestamp;
-    return _remaining * rewardRate[stakeToken][rewardToken] / _PRECISION;
+    return _remaining * rewardRate[stakingToken][rewardToken] / _PRECISION;
   }
 
   /// @dev Approximate of earned rewards ready to claim
-  function earned(address stakeToken, address rewardToken, address account) external view override returns (uint) {
-    return _earned(stakeToken, rewardToken, account);
+  function earned(address stakingToken, address rewardToken, address account) public view override returns (uint) {
+    return derivedBalance(stakingToken, account)
+    * (rewardPerToken(stakingToken, rewardToken) - userRewardPerTokenPaid[stakingToken][rewardToken][account])
+    / _PRECISION
+    + rewards[stakingToken][rewardToken][account];
   }
 
   /// @dev See {IERC165-supportsInterface}.
@@ -194,11 +189,9 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
     isRewardToken[stakeToken][rewardToken] = false;
     uint length = rewardTokens[stakeToken].length;
     uint i = 0;
-    bool found = false;
     for (; i < length; i++) {
       address t = rewardTokens[stakeToken][i];
       if (t == rewardToken) {
-        found = true;
         break;
       }
     }
@@ -215,7 +208,7 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
   }
 
   // *************************************************************
-  //                      USER ACTIONS
+  //                      BALANCE
   // *************************************************************
 
   /// @dev Assume to be called when linked token balance changes.
@@ -236,10 +229,10 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
     address account,
     uint amount
   ) internal virtual {
-    _updateRewardForAllTokens(stakingToken);
+    _updateRewardForAllTokens(stakingToken, account);
     totalSupply[stakingToken] += amount;
     balanceOf[stakingToken][account] += amount;
-    _updateDerivedBalanceAndWriteCheckpoints(stakingToken, account);
+    _updateDerivedBalance(stakingToken, account);
   }
 
   /// @dev Assume to be called when linked token balance changes.
@@ -258,13 +251,25 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
     address account,
     uint amount
   ) internal virtual {
-    _updateRewardForAllTokens(stakingToken);
+    _updateRewardForAllTokens(stakingToken, account);
     totalSupply[stakingToken] -= amount;
     balanceOf[stakingToken][account] -= amount;
-    _updateDerivedBalanceAndWriteCheckpoints(stakingToken, account);
+    _updateDerivedBalance(stakingToken, account);
   }
 
-  /// @dev Sender should be a recipient (or redirected recipient)
+  function _updateDerivedBalance(address stakingToken, address account) internal {
+    uint __derivedBalance = derivedBalances[stakingToken][account];
+    derivedSupply[stakingToken] -= __derivedBalance;
+    __derivedBalance = derivedBalance(stakingToken, account);
+    derivedBalances[stakingToken][account] = __derivedBalance;
+    derivedSupply[stakingToken] += __derivedBalance;
+  }
+
+  // *************************************************************
+  //                          CLAIM
+  // *************************************************************
+
+  /// @dev Caller should implement restriction checks
   function _getReward(
     address stakingToken,
     address account,
@@ -276,195 +281,44 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
       recipient = newRecipient;
     }
     require(recipient == msg.sender, "Not allowed");
-    for (uint i = 0; i < rewardTokens_.length; i++) {
-      (rewardPerTokenStored[stakingToken][rewardTokens_[i]], lastUpdateTime[stakingToken][rewardTokens_[i]])
-      = _updateRewardPerToken(stakingToken, rewardTokens_[i], type(uint).max, true);
 
-      uint _reward = _earned(stakingToken, rewardTokens_[i], account);
-      lastEarn[stakingToken][rewardTokens_[i]][account] = block.timestamp;
-      userRewardPerTokenStored[stakingToken][rewardTokens_[i]][account] = rewardPerTokenStored[stakingToken][rewardTokens_[i]];
+    _updateDerivedBalance(stakingToken, account);
+
+    for (uint i = 0; i < rewardTokens_.length; i++) {
+      address rewardToken = rewardTokens_[i];
+      _updateReward(stakingToken, rewardToken, account);
+
+      uint _reward = rewards[stakingToken][rewardToken][account];
       if (_reward > 0) {
-        IERC20(rewardTokens_[i]).safeTransfer(recipient, _reward);
+        rewards[stakingToken][rewardToken][account] = 0;
+        IERC20(rewardToken).safeTransfer(recipient, _reward);
       }
 
-      emit ClaimRewards(account, stakingToken, rewardTokens_[i], _reward, recipient);
+      emit ClaimRewards(account, stakingToken, rewardToken, _reward, recipient);
     }
-
-    _updateDerivedBalanceAndWriteCheckpoints(stakingToken, account);
-  }
-
-  function _updateDerivedBalanceAndWriteCheckpoints(address stakingToken, address account) internal {
-    uint __derivedBalance = derivedBalances[stakingToken][account];
-    derivedSupply[stakingToken] -= __derivedBalance;
-    __derivedBalance = _derivedBalance(stakingToken, account);
-    derivedBalances[stakingToken][account] = __derivedBalance;
-    derivedSupply[stakingToken] += __derivedBalance;
-
-    _writeCheckpoint(stakingToken, account, __derivedBalance);
-    _writeSupplyCheckpoint(stakingToken);
   }
 
   // *************************************************************
   //                    REWARDS CALCULATIONS
   // *************************************************************
 
-  /// @dev Earned is an estimation, it won't be exact till the supply > rewardPerToken calculations have run
-  function _earned(
-    address stakingToken,
-    address rewardToken,
-    address account
-  ) internal view returns (uint) {
-    // zero checkpoints means zero deposits
-    if (numCheckpoints[stakingToken][account] == 0) {
-      return 0;
-    }
-    // last claim rewards time
-    uint _startTimestamp = Math.max(
-      lastEarn[stakingToken][rewardToken][account],
-      rewardPerTokenCheckpoints[stakingToken][rewardToken][0].timestamp
-    );
-
-    // find an index of the balance that the user had on the last claim
-    uint _startIndex = getPriorBalanceIndex(stakingToken, account, _startTimestamp);
-    uint _endIndex = numCheckpoints[stakingToken][account] - 1;
-
-    uint reward = 0;
-
-    // calculate previous snapshots if exist
-    if (_endIndex > 0) {
-      for (uint i = _startIndex; i <= _endIndex - 1; i++) {
-        CheckpointLib.Checkpoint memory cp0 = checkpoints[stakingToken][account][i];
-        CheckpointLib.Checkpoint memory cp1 = checkpoints[stakingToken][account][i + 1];
-        (uint _rewardPerTokenStored0,) = getPriorRewardPerToken(stakingToken, rewardToken, cp0.timestamp);
-        (uint _rewardPerTokenStored1,) = getPriorRewardPerToken(stakingToken, rewardToken, cp1.timestamp);
-        reward += cp0.value * (_rewardPerTokenStored1 - _rewardPerTokenStored0) / _PRECISION;
-      }
-    }
-
-    CheckpointLib.Checkpoint memory cp = checkpoints[stakingToken][account][_endIndex];
-    (uint _rewardPerTokenStored,) = getPriorRewardPerToken(stakingToken, rewardToken, cp.timestamp);
-    reward += cp.value * (
-    rewardPerToken(stakingToken, rewardToken) - Math.max(
-      _rewardPerTokenStored,
-      userRewardPerTokenStored[stakingToken][rewardToken][account]
-    )
-    ) / _PRECISION;
-    return reward;
-  }
-
-  /// @dev Supposed to be implemented in a parent contract
-  ///      Adjust user balance with some logic, like boost logic.
-  function _derivedBalance(
-    address stakingToken,
-    address account
-  ) internal virtual view returns (uint) {
-    return balanceOf[stakingToken][account];
-  }
-
-  /// @dev Update stored rewardPerToken values without the last one snapshot
-  ///      If the contract will get "out of gas" error on users actions this will be helpful
-  function batchUpdateRewardPerToken(
-    address stakingToken,
-    address rewardToken,
-    uint maxRuns
-  ) external {
-    (rewardPerTokenStored[stakingToken][rewardToken], lastUpdateTime[stakingToken][rewardToken])
-    = _updateRewardPerToken(stakingToken, rewardToken, maxRuns, false);
-  }
-
-  function _updateRewardForAllTokens(address stakingToken) internal {
-    uint length = rewardTokens[stakingToken].length;
+  function _updateRewardForAllTokens(address stakingToken, address account) internal {
+    address[] memory rts = rewardTokens[stakingToken];
+    uint length = rts.length;
     for (uint i; i < length; i++) {
-      address rewardToken = rewardTokens[stakingToken][i];
-      (rewardPerTokenStored[stakingToken][rewardToken], lastUpdateTime[stakingToken][rewardToken])
-      = _updateRewardPerToken(stakingToken, rewardToken, type(uint).max, true);
+      _updateReward(stakingToken, rts[i], account);
     }
-    // update for default token
-    address _defaultRewardToken = defaultRewardToken;
-    (rewardPerTokenStored[stakingToken][_defaultRewardToken], lastUpdateTime[stakingToken][_defaultRewardToken])
-    = _updateRewardPerToken(stakingToken, _defaultRewardToken, type(uint).max, true);
+    _updateReward(stakingToken, defaultRewardToken, account);
   }
 
-  /// @dev Should be called only with properly updated snapshots, or with actualLast=false
-  function _updateRewardPerToken(
-    address stakingToken,
-    address rewardToken,
-    uint maxRuns,
-    bool actualLast
-  ) internal returns (uint, uint) {
-    uint _startTimestamp = lastUpdateTime[stakingToken][rewardToken];
-    uint reward = rewardPerTokenStored[stakingToken][rewardToken];
-
-    if (supplyNumCheckpoints[stakingToken] == 0) {
-      return (reward, _startTimestamp);
+  function _updateReward(address stakingToken, address rewardToken, address account) internal {
+    uint _rewardPerTokenStored = rewardPerToken(stakingToken, rewardToken);
+    rewardPerTokenStored[stakingToken][rewardToken] = _rewardPerTokenStored;
+    lastUpdateTime[stakingToken][rewardToken] = lastTimeRewardApplicable(stakingToken, rewardToken);
+    if (account != address(0)) {
+      rewards[stakingToken][rewardToken][account] = earned(stakingToken, rewardToken, account);
+      userRewardPerTokenPaid[stakingToken][rewardToken][account] = _rewardPerTokenStored;
     }
-
-    if (rewardRate[stakingToken][rewardToken] == 0) {
-      return (reward, block.timestamp);
-    }
-    uint _startIndex = getPriorSupplyIndex(stakingToken, _startTimestamp);
-    uint _endIndex = Math.min(supplyNumCheckpoints[stakingToken] - 1, maxRuns);
-
-    if (_endIndex > 0) {
-      for (uint i = _startIndex; i <= _endIndex - 1; i++) {
-        CheckpointLib.Checkpoint memory sp0 = supplyCheckpoints[stakingToken][i];
-        if (sp0.value > 0) {
-          CheckpointLib.Checkpoint memory sp1 = supplyCheckpoints[stakingToken][i + 1];
-          (uint _reward, uint _endTime) = _calcRewardPerToken(
-            stakingToken,
-            rewardToken,
-            sp1.timestamp,
-            sp0.timestamp,
-            sp0.value,
-            _startTimestamp
-          );
-          reward += _reward;
-          _writeRewardPerTokenCheckpoint(stakingToken, rewardToken, reward, _endTime);
-          _startTimestamp = _endTime;
-        }
-      }
-    }
-
-    // need to override the last value with actual numbers only on deposit/withdraw/claim/notify actions
-    if (actualLast) {
-      CheckpointLib.Checkpoint memory sp = supplyCheckpoints[stakingToken][_endIndex];
-      if (sp.value > 0) {
-        (uint _reward,) = _calcRewardPerToken(
-          stakingToken,
-          rewardToken,
-          _lastTimeRewardApplicable(stakingToken, rewardToken),
-          Math.max(sp.timestamp, _startTimestamp),
-          sp.value,
-          _startTimestamp
-        );
-        reward += _reward;
-        _writeRewardPerTokenCheckpoint(stakingToken, rewardToken, reward, block.timestamp);
-        _startTimestamp = block.timestamp;
-      }
-    }
-
-    return (reward, _startTimestamp);
-  }
-
-  function _calcRewardPerToken(
-    address stakingToken,
-    address token,
-    uint lastSupplyTs1,
-    uint lastSupplyTs0,
-    uint supply,
-    uint startTimestamp
-  ) internal view returns (uint, uint) {
-    uint endTime = Math.max(lastSupplyTs1, startTimestamp);
-    uint _periodFinish = periodFinish[stakingToken][token];
-    return (
-    (Math.min(endTime, _periodFinish) - Math.min(Math.max(lastSupplyTs0, startTimestamp), _periodFinish))
-    * rewardRate[stakingToken][token] / supply
-    , endTime);
-  }
-
-  /// @dev Returns the last time the reward was modified or periodFinish if the reward has ended
-  function _lastTimeRewardApplicable(address stakeToken, address rewardToken) internal view returns (uint) {
-    return Math.min(block.timestamp, periodFinish[stakeToken][rewardToken]);
   }
 
   // *************************************************************
@@ -478,121 +332,32 @@ abstract contract StakelessMultiPoolBase is TetuERC165, ReentrancyGuard, IMultiP
     bool transferRewards
   ) internal virtual {
     require(amount > 0, "Zero amount");
-    require(defaultRewardToken == rewardToken
-      || isRewardToken[stakingToken][rewardToken], "Token not allowed");
-    if (rewardRate[stakingToken][rewardToken] == 0) {
-      _writeRewardPerTokenCheckpoint(stakingToken, rewardToken, 0, block.timestamp);
-    }
-    (rewardPerTokenStored[stakingToken][rewardToken], lastUpdateTime[stakingToken][rewardToken])
-    = _updateRewardPerToken(stakingToken, rewardToken, type(uint).max, true);
+    require(defaultRewardToken == rewardToken || isRewardToken[stakingToken][rewardToken], "Token not allowed");
+
+    _updateReward(stakingToken, rewardToken, address(0));
+    uint _duration = duration;
 
     if (transferRewards) {
+      uint balanceBefore = IERC20(rewardToken).balanceOf(address(this));
       IERC20(rewardToken).safeTransferFrom(msg.sender, address(this), amount);
+      // refresh amount if token was taxable
+      amount = IERC20(rewardToken).balanceOf(address(this)) - balanceBefore;
     }
+    // if transferRewards=false need to wisely use it in implementation!
 
-    uint _duration = duration;
-    uint _periodFinish = periodFinish[stakingToken][rewardToken];
-    if (block.timestamp >= _periodFinish) {
+    if (block.timestamp >= periodFinish[stakingToken][rewardToken]) {
       rewardRate[stakingToken][rewardToken] = amount * _PRECISION / _duration;
     } else {
-      uint _remaining = _periodFinish - block.timestamp;
+      uint _remaining = periodFinish[stakingToken][rewardToken] - block.timestamp;
       uint _left = _remaining * rewardRate[stakingToken][rewardToken];
       // rewards should not extend period infinity, only higher amount allowed
       require(amount > _left / _PRECISION, "Amount should be higher than remaining rewards");
       rewardRate[stakingToken][rewardToken] = (amount * _PRECISION + _left) / _duration;
     }
 
+    lastUpdateTime[stakingToken][rewardToken] = block.timestamp;
     periodFinish[stakingToken][rewardToken] = block.timestamp + _duration;
     emit NotifyReward(msg.sender, stakingToken, rewardToken, amount);
-  }
-
-  // *************************************************************
-  //                          CHECKPOINTS
-  // *************************************************************
-
-  /// @notice Determine the prior balance for an account as of a block number
-  /// @dev Block number must be a finalized block or else this function will revert to prevent misinformation.
-  /// @param stakingToken The address of the staking token to check
-  /// @param account The address of the account to check
-  /// @param timestamp The timestamp to get the balance at
-  /// @return The balance the account had as of the given block
-  function getPriorBalanceIndex(
-    address stakingToken,
-    address account,
-    uint timestamp
-  ) public view returns (uint) {
-    uint nCheckpoints = numCheckpoints[stakingToken][account];
-    if (nCheckpoints == 0) {
-      return 0;
-    }
-    return checkpoints[stakingToken][account].findLowerIndex(nCheckpoints, timestamp);
-  }
-
-  function getPriorSupplyIndex(address stakingToken, uint timestamp) public view returns (uint) {
-    uint nCheckpoints = supplyNumCheckpoints[stakingToken];
-    if (nCheckpoints == 0) {
-      return 0;
-    }
-    return supplyCheckpoints[stakingToken].findLowerIndex(nCheckpoints, timestamp);
-  }
-
-  function getPriorRewardPerToken(
-    address stakingToken,
-    address rewardToken,
-    uint timestamp
-  ) public view returns (uint, uint) {
-    uint nCheckpoints = rewardPerTokenNumCheckpoints[stakingToken][rewardToken];
-    if (nCheckpoints == 0) {
-      return (0, 0);
-    }
-    mapping(uint => CheckpointLib.Checkpoint) storage cps =
-    rewardPerTokenCheckpoints[stakingToken][rewardToken];
-    uint lower = cps.findLowerIndex(nCheckpoints, timestamp);
-    CheckpointLib.Checkpoint memory cp = cps[lower];
-    return (cp.value, cp.timestamp);
-  }
-
-  function _writeCheckpoint(
-    address stakingToken,
-    address account,
-    uint balance
-  ) internal {
-    uint _timestamp = block.timestamp;
-    uint _nCheckPoints = numCheckpoints[stakingToken][account];
-
-    if (_nCheckPoints > 0 && checkpoints[stakingToken][account][_nCheckPoints - 1].timestamp == _timestamp) {
-      checkpoints[stakingToken][account][_nCheckPoints - 1].value = balance;
-    } else {
-      checkpoints[stakingToken][account][_nCheckPoints] = CheckpointLib.Checkpoint(_timestamp, balance);
-      numCheckpoints[stakingToken][account] = _nCheckPoints + 1;
-    }
-  }
-
-  function _writeRewardPerTokenCheckpoint(
-    address stakingToken,
-    address rewardToken,
-    uint reward,
-    uint timestamp
-  ) internal {
-    uint _nCheckPoints = rewardPerTokenNumCheckpoints[stakingToken][rewardToken];
-    if (_nCheckPoints > 0 && rewardPerTokenCheckpoints[stakingToken][rewardToken][_nCheckPoints - 1].timestamp == timestamp) {
-      rewardPerTokenCheckpoints[stakingToken][rewardToken][_nCheckPoints - 1].value = reward;
-    } else {
-      rewardPerTokenCheckpoints[stakingToken][rewardToken][_nCheckPoints] = CheckpointLib.Checkpoint(timestamp, reward);
-      rewardPerTokenNumCheckpoints[stakingToken][rewardToken] = _nCheckPoints + 1;
-    }
-  }
-
-  function _writeSupplyCheckpoint(address stakingToken) internal {
-    uint _nCheckPoints = supplyNumCheckpoints[stakingToken];
-    uint _timestamp = block.timestamp;
-
-    if (_nCheckPoints > 0 && supplyCheckpoints[stakingToken][_nCheckPoints - 1].timestamp == _timestamp) {
-      supplyCheckpoints[stakingToken][_nCheckPoints - 1].value = derivedSupply[stakingToken];
-    } else {
-      supplyCheckpoints[stakingToken][_nCheckPoints] = CheckpointLib.Checkpoint(_timestamp, derivedSupply[stakingToken]);
-      supplyNumCheckpoints[stakingToken] = _nCheckPoints + 1;
-    }
   }
 
   /**

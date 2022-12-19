@@ -3,8 +3,8 @@ import {ethers} from "hardhat";
 import chai from "chai";
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
-import {MockBribe, MockToken, MockVoter, TetuEmitter} from "../../typechain";
-import {MockVeDist} from "../../typechain/MockVeDist";
+import {MockBribe, MockBribe__factory, MockToken, MockVeDist, MockVoter, TetuEmitter} from "../../typechain";
+
 
 const {expect} = chai;
 
@@ -33,7 +33,8 @@ describe("TetuEmitterTest", function () {
     veDist = await DeployerUtils.deployContract(owner, 'MockVeDist') as MockVeDist;
     const ve = await DeployerUtils.deployVeTetu(owner, tetu.address, controller.address);
     voter = await DeployerUtils.deployMockVoter(owner, ve.address);
-    bribe = await DeployerUtils.deployContract(owner, 'MockBribe', controller.address) as MockBribe;
+    bribe = MockBribe__factory.connect(await DeployerUtils.deployProxy(owner, 'MockBribe'), owner);
+    await bribe.init(controller.address);
 
     await controller.setVeDistributor(veDist.address);
     await controller.setVoter(voter.address);

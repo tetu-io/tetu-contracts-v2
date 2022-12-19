@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.4;
+pragma solidity 0.8.17;
 
 import "../openzeppelin/SafeERC20.sol";
 import "../openzeppelin/EnumerableMap.sol";
@@ -110,6 +110,7 @@ contract ControllerV2 is ControllableV3, IController {
 
   /// @dev Proxy initialization. Call it after contract deploy.
   function init(address _governance) external initializer {
+    require(_governance != address(0), "WRONG_INPUT");
     governance = _governance;
     __Controllable_init(address(this));
     _operators.add(_governance);

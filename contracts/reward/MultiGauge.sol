@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.4;
+pragma solidity 0.8.17;
 
 import "../interfaces/IVoter.sol";
 import "../interfaces/IERC721.sol";
@@ -31,7 +31,7 @@ contract MultiGauge is StakelessMultiPoolBase, IGauge {
   /// @dev staking token => ve owner => veId
   mapping(address => mapping(address => uint)) public override veIds;
   /// @dev Staking token => whitelist status
-  mapping(address => bool) stakingTokens;
+  mapping(address => bool) public stakingTokens;
 
   // *************************************************************
   //                        EVENTS
@@ -123,10 +123,8 @@ contract MultiGauge is StakelessMultiPoolBase, IGauge {
   // *************************************************************
 
   function attachVe(address stakingToken, address account, uint veId) external override {
-    require(IERC721(ve).ownerOf(veId) == account, "Not ve token owner");
+    require(IERC721(ve).ownerOf(veId) == account && account == msg.sender, "Not ve token owner");
     require(isStakeToken(stakingToken), "Wrong staking token");
-
-    _updateRewardForAllTokens(stakingToken);
 
     if (veIds[stakingToken][account] == 0) {
       veIds[stakingToken][account] = veId;
@@ -134,19 +132,19 @@ contract MultiGauge is StakelessMultiPoolBase, IGauge {
     }
     require(veIds[stakingToken][account] == veId, "Wrong ve");
 
-    _updateDerivedBalanceAndWriteCheckpoints(stakingToken, account);
-
+    _updateDerivedBalance(stakingToken, account);
+    _updateRewardForAllTokens(stakingToken, account);
     emit VeTokenLocked(stakingToken, account, veId);
   }
 
   function detachVe(address stakingToken, address account, uint veId) external override {
-    require(IERC721(ve).ownerOf(veId) == account
+    require((IERC721(ve).ownerOf(veId) == account && msg.sender == account)
       || msg.sender == address(voter()), "Not ve token owner or voter");
     require(isStakeToken(stakingToken), "Wrong staking token");
 
-    _updateRewardForAllTokens(stakingToken);
     _unlockVeToken(stakingToken, account, veId);
-    _updateDerivedBalanceAndWriteCheckpoints(stakingToken, account);
+    _updateDerivedBalance(stakingToken, account);
+    _updateRewardForAllTokens(stakingToken, account);
   }
 
   /// @dev Must be called from stakingToken when user balance changed.
@@ -208,10 +206,10 @@ contract MultiGauge is StakelessMultiPoolBase, IGauge {
   // *************************************************************
 
   /// @dev Similar to Curve https://resources.curve.fi/reward-gauges/boosting-your-crv-rewards#formula
-  function _derivedBalance(
+  function derivedBalance(
     address stakingToken,
     address account
-  ) internal override view returns (uint) {
+  ) public override view returns (uint) {
     uint _tokenId = veIds[stakingToken][account];
     uint _balance = balanceOf[stakingToken][account];
     uint _derived = _balance * 40 / 100;

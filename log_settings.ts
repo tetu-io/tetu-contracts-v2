@@ -1,5 +1,6 @@
 import {ISettingsParam} from "tslog";
 
+// @ts-ignore
 const logSettings: ISettingsParam = {
   colorizePrettyLogs: false,
   dateTimeTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,

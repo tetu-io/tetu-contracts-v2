@@ -146,22 +146,6 @@ describe("multi pool tests", function () {
     expect(await pool.earned(wmatic.address, Misc.ZERO_ADDRESS, Misc.ZERO_ADDRESS)).is.eq(0);
   });
 
-  it("getPriorBalanceIndex test", async function () {
-    expect(await pool.getPriorBalanceIndex(wmatic.address, Misc.ZERO_ADDRESS, 0)).is.eq(0);
-  });
-
-  it("getPriorSupplyIndex test", async function () {
-    expect(await pool.getPriorSupplyIndex(wmatic.address, 0)).is.eq(0);
-  });
-
-  it("getPriorRewardPerToken test", async function () {
-    expect((await pool.getPriorRewardPerToken(wmatic.address, Misc.ZERO_ADDRESS, 0))[0]).is.eq(0);
-  });
-
-  it("batchRewardPerToken for empty tokens test", async function () {
-    await pool.batchUpdateRewardPerToken(wmatic.address, Misc.ZERO_ADDRESS, 100)
-  });
-
   it("batchRewardPerToken test", async function () {
     await pool.connect(rewarder).notifyRewardAmount(wmatic.address, rewardToken.address, FULL_REWARD);
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 24);
@@ -173,7 +157,6 @@ describe("multi pool tests", function () {
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 24);
     await pool.withdraw(wmatic.address, parseUnits('1'));
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 24);
-    await pool.batchUpdateRewardPerToken(wmatic.address, Misc.ZERO_ADDRESS, 100)
   });
 
   it("deposit zero amount should be reverted", async function () {
@@ -219,7 +202,7 @@ describe("multi pool tests", function () {
     await pool.connect(rewarder).notifyRewardAmount(wmatic.address, rewardToken.address, FULL_REWARD.div(4));
     // await expect(pool.connect(rewarder).notifyRewardAmount(wmatic.address, rewardToken.address, 10)).revertedWith('Amount should be higher than remaining rewards');
     await expect(pool.connect(rewarder).notifyRewardAmount(wmatic.address, wmatic.address, 10)).revertedWith("Token not allowed");
-    await pool.connect(rewarder).notifyRewardAmount(wmatic.address, rewardToken.address, BigNumber.from(Misc.MAX_UINT).div('10000000000000000000'));
+    await pool.connect(rewarder).notifyRewardAmount(wmatic.address, rewardToken.address, BigNumber.from(Misc.MAX_UINT).div(parseUnits('1', 28)));
   });
 
   it("notify with default token is fine", async function () {
@@ -242,8 +225,6 @@ describe("multi pool tests", function () {
     await pool.withdraw(wmatic.address, await pool.balanceOf(wmatic.address, owner.address));
 
     await pool.deposit(wmatic.address, parseUnits('0.1'));
-
-    await pool.batchUpdateRewardPerToken(wmatic.address, rewardToken.address, 200);
   });
 
   it("deposit and get rewards should receive all amount", async function () {
@@ -337,9 +318,6 @@ describe("multi pool tests", function () {
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 6);
     await pool.connect(user).deposit(wmatic.address, parseUnits('0.2'));
 
-    await pool.batchUpdateRewardPerToken(wmatic.address, rewardToken.address, 200);
-    await pool.batchUpdateRewardPerToken(wmatic.address, rewardToken2.address, 200);
-
     await pool.registerRewardToken(wmatic.address, rewardToken2.address);
     await pool.connect(rewarder).notifyRewardAmount(wmatic.address, rewardToken2.address, FULL_REWARD.div(4));
 
@@ -356,8 +334,6 @@ describe("multi pool tests", function () {
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 6);
     await pool.connect(user).testDoubleDeposit(wmatic.address, parseUnits('0.2'));
 
-    await pool.batchUpdateRewardPerToken(wmatic.address, rewardToken.address, 200);
-
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 6);
     await pool.connect(user).deposit(wmatic.address, parseUnits('0.2'));
 
@@ -367,9 +343,6 @@ describe("multi pool tests", function () {
     await pool.connect(rewarder).notifyRewardAmount(wmatic.address, rewardToken.address, FULL_REWARD.div(4));
     await TimeUtils.advanceBlocksOnTs(1);
     await pool.connect(rewarder).notifyRewardAmount(wmatic.address, rewardToken2.address, FULL_REWARD.div(4));
-
-    await pool.batchUpdateRewardPerToken(wmatic.address, rewardToken.address, 1);
-    await pool.batchUpdateRewardPerToken(wmatic.address, rewardToken2.address, 1);
 
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 6);
     await pool.connect(user).withdraw(wmatic.address, parseUnits('0.2'));
@@ -382,8 +355,6 @@ describe("multi pool tests", function () {
 
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 6);
     await pool.deposit(wmatic.address, parseUnits('0.5'));
-
-    await pool.batchUpdateRewardPerToken(wmatic.address, rewardToken2.address, 0);
 
     // *** GET REWARDS ***
 
@@ -403,8 +374,6 @@ describe("multi pool tests", function () {
 
     await pool.withdraw(wmatic.address, parseUnits('1'));
     await pool.deposit(wmatic.address, parseUnits('1'));
-
-    await pool.batchUpdateRewardPerToken(wmatic.address, rewardToken.address, 200);
   });
 
   it("deposit and get rewards should receive all amount with 1 sec period", async function () {

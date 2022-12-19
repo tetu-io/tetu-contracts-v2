@@ -20,6 +20,11 @@ export class PolygonAddresses {
     "0x0DB3F125a484F0019b91dD1897dcED4c02104fA5", // vaultFactory
   );
 
+  // PROTOCOL ADRS
+  public static DEPOSIT_HELPER_V1 = "0xb494af6c21cF90992E2161cffd79F47Cc7F46C4b".toLowerCase();
+  public static TETU_CONVERTER = "0x8190db4549E382dECD94aEe211eAeB5F3DbC6836".toLowerCase();
+  public static tUSDC = "0x0D397F4515007AE4822703b74b9922508837A04E".toLowerCase();
+
   public static TOOLS_ADDRESSES: IToolsAddresses = {
     liquidator: "0xC737eaB847Ae6A92028862fE38b828db41314772",
     converter: "0x049962a4c4A1D37251174a98CbE4D93306776Ee1",

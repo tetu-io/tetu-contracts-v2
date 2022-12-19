@@ -1,19 +1,15 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.4;
+pragma solidity 0.8.17;
 
 import "../proxy/ControllableV3.sol";
 
 contract MockBribe is ControllableV3 {
 
   uint public epoch;
-  mapping(address => mapping(address => bool)) rewardTokens;
+  mapping(address => mapping(address => bool)) internal rewardTokens;
 
-  constructor (address controller_) {
-    init(controller_);
-  }
-
-  function init(address controller_) internal initializer {
+  function init(address controller_) external initializer {
     __Controllable_init(controller_);
   }
 

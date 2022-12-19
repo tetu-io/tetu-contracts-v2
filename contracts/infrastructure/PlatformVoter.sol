@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.4;
+pragma solidity 0.8.17;
 
 import "../openzeppelin/SafeERC20.sol";
 import "../interfaces/IForwarder.sol";
@@ -164,13 +164,13 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
           }
         }
         if (found) {
-          if (i != 0) {
+          if (i != length - 1) {
             _votes[i] = _votes[length - 1];
           }
           _votes.pop();
         } else {
           // it is a new type of vote
-          // we should have restrictions for votes per user for reset votes on ve transfer
+          // need to check MAX votes in this case
           require(length < MAX_VOTES, "max");
         }
       }
@@ -253,7 +253,8 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
       if (found) {
         require(v.timestamp + VOTE_DELAY < block.timestamp, "delay");
         _removeVote(tokenId, v._type, v.target, v.weight, v.weightedValue);
-        _removeFromArray(tokenId, i - 1);
+        // with descent loop we remove one by one last elements
+        _votes.pop();
 
         IVeTetu(ve).abstain(tokenId);
         emit VoteReset(
@@ -266,14 +267,6 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
         );
       }
     }
-  }
-
-  function _removeFromArray(uint tokenId, uint index) internal {
-    Vote[] storage _votes = votes[tokenId];
-    if (index != 0) {
-      _votes[index] = _votes[_votes.length - 1];
-    }
-    _votes.pop();
   }
 
   function _removeVote(uint tokenId, AttributeType _type, address target, uint weight, uint veValue) internal {

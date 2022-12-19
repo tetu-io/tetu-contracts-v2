@@ -3,6 +3,7 @@ import {DeployerUtils} from "../utils/DeployerUtils";
 import {InvestFundV2__factory} from "../../typechain";
 import {RunHelper} from "../utils/RunHelper";
 import {Addresses} from "../addresses/addresses";
+import {BigNumber} from "ethers";
 
 async function main() {
   const signer = (await ethers.getSigners())[0];
@@ -10,7 +11,7 @@ async function main() {
 
   const tetu = core.tetu;
   const controller = await DeployerUtils.deployController(signer);
-  const ve = await DeployerUtils.deployVeTetu(signer, tetu, controller.address);
+  const ve = await DeployerUtils.deployVeTetu(signer, tetu, controller.address, BigNumber.from(1000));
   const veDist = await DeployerUtils.deployVeDistributor(signer, controller.address, ve.address, tetu);
   const gauge = await DeployerUtils.deployMultiGauge(signer, controller.address, ve.address, tetu);
   const bribe = await DeployerUtils.deployMultiBribe(signer, controller.address, ve.address, tetu);

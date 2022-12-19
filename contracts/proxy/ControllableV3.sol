@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.4;
+pragma solidity 0.8.17;
 
 import "../openzeppelin/Initializable.sol";
 import "../tools/TetuERC165.sol";
@@ -13,7 +13,7 @@ import "../lib/InterfaceIds.sol";
 /// @dev Can be used with upgradeable pattern.
 ///      Require call __Controllable_init() in any case.
 /// @author belbix
-abstract contract ControllableV3 is TetuERC165, Initializable, IControllable {
+abstract contract ControllableV3 is Initializable, TetuERC165, IControllable {
   using SlotsLib for bytes32;
 
   /// @notice Version of the contract
@@ -28,6 +28,11 @@ abstract contract ControllableV3 is TetuERC165, Initializable, IControllable {
 
   event ContractInitialized(address controller, uint ts, uint block);
   event RevisionIncreased(uint value, address oldLogic);
+
+  /// @dev Prevent implementation init
+  constructor() {
+    _disableInitializers();
+  }
 
   /// @notice Initialize contract after setup it as proxy implementation
   ///         Save block.timestamp in the "created" variable

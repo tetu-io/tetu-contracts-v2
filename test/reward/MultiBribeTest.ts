@@ -11,7 +11,7 @@ import {BigNumber} from "ethers";
 
 const {expect} = chai;
 
-const LOCK_PERIOD = 60 * 60 * 24 * 90;
+const LOCK_PERIOD = 60 * 60 * 24 * 7 * 16;
 
 describe("multi bribe tests", function () {
 
@@ -157,7 +157,7 @@ describe("multi bribe tests", function () {
 
     // check that all metrics are fine
     expect(await rewardToken.balanceOf(bribe.address)).eq(parseUnits('1'));
-    expect(+formatUnits(await bribe.rewardRate(vault.address, rewardToken.address), 36)).eq(1);
+    expect(+formatUnits(await bribe.rewardRate(vault.address, rewardToken.address), 18+27)).eq(1);
     expect(await bribe.left(vault.address, rewardToken.address)).eq(parseUnits('1'));
 
     // make sure that for second reward everything empty
@@ -170,7 +170,7 @@ describe("multi bribe tests", function () {
 
     // check second reward metrics
     expect(await rewardToken2.balanceOf(bribe.address)).eq(parseUnits('10'));
-    expect((+formatUnits(await bribe.rewardRate(vault.address, rewardToken2.address), 36)).toFixed(0)).eq('10');
+    expect((+formatUnits(await bribe.rewardRate(vault.address, rewardToken2.address), 18+27)).toFixed(0)).eq('10');
     expect(await bribe.left(vault.address, rewardToken2.address)).eq(parseUnits('10'));
   });
 

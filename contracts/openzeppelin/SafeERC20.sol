@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (token/ERC20/utils/SafeERC20.sol)
+// OpenZeppelin Contracts (last updated v4.8.0) (token/ERC20/utils/SafeERC20.sol)
 
-pragma solidity ^0.8.0;
+pragma solidity 0.8.17;
 
 import "../interfaces/IERC20.sol";
+import "../interfaces/IERC20Permit.sol";
 import "./Address.sol";
 
 /**
- * https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v4.6/contracts/token/ERC20/utils/SafeERC20.sol
  * @title SafeERC20
  * @dev Wrappers around ERC20 operations that throw on failure (when the token
  * contract returns false). Tokens that return no value (and instead revert or
@@ -22,7 +22,7 @@ library SafeERC20 {
   function safeTransfer(
     IERC20 token,
     address to,
-    uint value
+    uint256 value
   ) internal {
     _callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value));
   }
@@ -31,7 +31,7 @@ library SafeERC20 {
     IERC20 token,
     address from,
     address to,
-    uint value
+    uint256 value
   ) internal {
     _callOptionalReturn(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, value));
   }
@@ -46,7 +46,7 @@ library SafeERC20 {
   function safeApprove(
     IERC20 token,
     address spender,
-    uint value
+    uint256 value
   ) internal {
     // safeApprove should only be called when setting an initial allowance,
     // or when resetting it to zero. To increase and decrease it, use
@@ -61,23 +61,39 @@ library SafeERC20 {
   function safeIncreaseAllowance(
     IERC20 token,
     address spender,
-    uint value
+    uint256 value
   ) internal {
-    uint newAllowance = token.allowance(address(this), spender) + value;
+    uint256 newAllowance = token.allowance(address(this), spender) + value;
     _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
   }
 
   function safeDecreaseAllowance(
     IERC20 token,
     address spender,
-    uint value
+    uint256 value
   ) internal {
   unchecked {
-    uint oldAllowance = token.allowance(address(this), spender);
+    uint256 oldAllowance = token.allowance(address(this), spender);
     require(oldAllowance >= value, "SafeERC20: decreased allowance below zero");
-    uint newAllowance = oldAllowance - value;
+    uint256 newAllowance = oldAllowance - value;
     _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
   }
+  }
+
+  function safePermit(
+    IERC20Permit token,
+    address owner,
+    address spender,
+    uint256 value,
+    uint256 deadline,
+    uint8 v,
+    bytes32 r,
+    bytes32 s
+  ) internal {
+    uint256 nonceBefore = token.nonces(owner);
+    token.permit(owner, spender, value, deadline, v, r, s);
+    uint256 nonceAfter = token.nonces(owner);
+    require(nonceAfter == nonceBefore + 1, "SafeERC20: permit did not succeed");
   }
 
   /**
@@ -88,7 +104,7 @@ library SafeERC20 {
      */
   function _callOptionalReturn(IERC20 token, bytes memory data) private {
     // We need to perform a low level call here, to bypass Solidity's return data size checking mechanism, since
-    // we're implementing it ourselves. We use {Address.functionCall} to perform this call, which verifies that
+    // we're implementing it ourselves. We use {Address-functionCall} to perform this call, which verifies that
     // the target address contains contract code and also asserts for success in the low-level call.
 
     bytes memory returndata = address(token).functionCall(data, "SafeERC20: low-level call failed");

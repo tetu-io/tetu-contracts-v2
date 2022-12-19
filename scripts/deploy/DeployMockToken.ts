@@ -5,7 +5,7 @@ import {appendFileSync} from "fs";
 
 async function main() {
   const signer = (await ethers.getSigners())[0];
-  await DeployerUtils.deployMockToken(signer, 'TETU');
+  await DeployerUtils.deployMockToken(signer, 'WETH', 18);
 }
 
 main()

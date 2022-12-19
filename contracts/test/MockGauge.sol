@@ -1,16 +1,12 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.4;
+pragma solidity 0.8.17;
 
 import "../proxy/ControllableV3.sol";
 
 contract MockGauge is ControllableV3 {
 
-  constructor (address controller_) {
-    init(controller_);
-  }
-
-  function init(address controller_) internal initializer {
+  function init(address controller_) external initializer {
     __Controllable_init(controller_);
   }
 

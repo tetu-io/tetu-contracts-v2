@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.4;
+pragma solidity 0.8.17;
 
 import "../openzeppelin/SafeERC20.sol";
 import "../openzeppelin/ReentrancyGuard.sol";
@@ -94,8 +94,8 @@ contract ForwarderV3 is ReentrancyGuard, ControllableV3, IForwarder {
   /// @dev Proxy initialization. Call it after contract deploy.
   function init(address controller_, address _tetu, address _bribe) external initializer {
     _requireInterface(_bribe, InterfaceIds.I_BRIBE);
-    __Controllable_init(controller_);
     _requireERC20(_tetu);
+    __Controllable_init(controller_);
     tetu = _tetu;
     bribe = _bribe;
     // 10k TETU by default
@@ -321,7 +321,7 @@ contract ForwarderV3 is ReentrancyGuard, ControllableV3, IForwarder {
     uint amount
   ) internal returns (uint boughtTetu, uint tetuValue) {
 
-    if(tokenIn == _tetu) {
+    if (tokenIn == _tetu) {
       return (amount, amount);
     }
 

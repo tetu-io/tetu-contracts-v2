@@ -6,7 +6,7 @@ import {Logger} from "tslog";
 
 // tslint:disable-next-line:no-var-requires
 const hre = require("hardhat");
-const log: Logger = new Logger(logSettings);
+const log: Logger<unknown> = new Logger(logSettings);
 
 
 dotEnvConfig();
