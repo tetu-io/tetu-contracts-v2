@@ -1,6 +1,13 @@
 import {CoreAddresses} from "../models/CoreAddresses";
+import {IToolsAddresses} from "../models/ToolsAddresses";
 
 export class SepoliaAddresses {
+
+  public static TOOLS_ADDRESSES: IToolsAddresses = {
+    liquidator: "",
+    converter: "",
+    multicall: "",
+  };
 
   public static CORE_ADDRESSES = new CoreAddresses(
     "0x549aE613Bb492CCf68A6620848C80262709a1fb4", // tetu
