@@ -3,8 +3,9 @@ import {DeployerUtils} from "./DeployerUtils";
 
 export class Web3Utils {
 
+// TODO fix compilation errors
 
-  public static async parseLogs(contracts: string[], topics: string[], start: number, end: number, step = 3_000) {
+/*  public static async parseLogs(contracts: string[], topics: string[], start: number, end: number, step = 3_000) {
     const logs = [];
 
     console.log('parseLogs', start, end);
@@ -34,6 +35,6 @@ export class Web3Utils {
     }
 
     return logs;
-  }
+  }*/
 
 }

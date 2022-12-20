@@ -19,7 +19,6 @@ const WITHDRAW_FEE = 300; // 0.3%
 async function main() {
   const signer = (await ethers.getSigners())[0];
   console.log('signer ', signer.address);
-  console.log('network', hre.network.name);
 
   const core = Addresses.getCore();
 
