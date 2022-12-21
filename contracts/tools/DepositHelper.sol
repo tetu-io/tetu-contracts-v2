@@ -6,8 +6,9 @@ import "../interfaces/IERC4626.sol";
 import "../interfaces/IERC20.sol";
 import "../interfaces/IVeTetu.sol";
 import "../openzeppelin/SafeERC20.sol";
+import "../openzeppelin/ReentrancyGuard.sol";
 
-contract DepositHelper {
+contract DepositHelper is ReentrancyGuard{
   using SafeERC20 for IERC20;
 
   address public immutable oneInchRouter;
@@ -18,7 +19,7 @@ contract DepositHelper {
   }
 
   /// @dev Proxy deposit action for keep approves on this contract
-  function deposit(address vault, address asset, uint amount) public returns (uint){
+  function deposit(address vault, address asset, uint amount) public nonReentrant returns (uint){
     IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
     _approveIfNeeds(asset, amount, vault);
     return IERC4626(vault).deposit(amount, msg.sender);
@@ -31,7 +32,7 @@ contract DepositHelper {
     address tokenIn,
     uint amountIn,
     address vault
-  ) external returns (uint){
+  ) external nonReentrant returns (uint){
     IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
 
     _approveIfNeeds(tokenIn, amountIn, oneInchRouter);
@@ -53,7 +54,7 @@ contract DepositHelper {
     uint shareAmount,
     bytes memory swapData,
     address tokenOut
-  ) external returns (uint){
+  ) external nonReentrant returns (uint){
     _approveIfNeeds(vault, shareAmount, vault);
     uint amountIn = IERC4626(vault).redeem(shareAmount, address(this), msg.sender);
 
@@ -67,7 +68,7 @@ contract DepositHelper {
     return balance;
   }
 
-  function createLock(IVeTetu ve, address token, uint value, uint lockDuration) external returns (
+  function createLock(IVeTetu ve, address token, uint value, uint lockDuration) external nonReentrant returns (
     uint tokenId,
     uint lockedAmount,
     uint power,
@@ -82,7 +83,7 @@ contract DepositHelper {
     unlockDate = ve.lockedEnd(tokenId);
   }
 
-  function increaseAmount(IVeTetu ve, address token, uint tokenId, uint value) external returns (
+  function increaseAmount(IVeTetu ve, address token, uint tokenId, uint value) external nonReentrant returns (
     uint lockedAmount,
     uint power,
     uint unlockDate

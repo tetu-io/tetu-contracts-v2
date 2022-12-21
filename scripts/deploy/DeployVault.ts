@@ -11,7 +11,7 @@ import {RunHelper} from "../utils/RunHelper";
 import {PolygonAddresses} from "../addresses/polygon";
 
 
-const ASSET = "0x078b7c9304eBA754e916016E8A8939527076f991";
+const ASSET = '';
 const BUFFER = 1000; // 1%
 const DEPOSIT_FEE = 300; // 0.3%
 const WITHDRAW_FEE = 300; // 0.3%

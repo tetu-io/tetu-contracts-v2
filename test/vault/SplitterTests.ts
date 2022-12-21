@@ -400,13 +400,13 @@ describe("Splitter and base strategy tests", function () {
 
     it("rebalance slippage withdraw revert", async () => {
       await splitter.setAPRs([strategy.address], [200]);
-      await strategy2.setSlippage(10);
+      await strategy2.setSlippage(10_000);
       await expect(splitter.rebalance(100, 9_999)).revertedWith('SS: Slippage withdraw');
     });
 
     it("rebalance slippage deposit revert", async () => {
       await splitter.setAPRs([strategy.address], [200]);
-      await strategy.setSlippageDeposit(10);
+      await strategy.setSlippageDeposit(10_000);
       await expect(splitter.rebalance(100, 9_999)).revertedWith('SS: Slippage deposit');
     });
 
@@ -421,7 +421,7 @@ describe("Splitter and base strategy tests", function () {
 
     it("rebalance slippage test", async () => {
       await splitter.setAPRs([strategy.address], [200]);
-      await strategy2.setSlippage(10);
+      await strategy2.setSlippage(10_000);
       await splitter.rebalance(100, 10_001);
     });
 
@@ -430,24 +430,24 @@ describe("Splitter and base strategy tests", function () {
     });
 
     it("withdraw all with slippage revert", async () => {
-      await strategy2.setSlippage(10);
+      await strategy2.setSlippage(10_000);
       await expect(vault.withdrawAll()).revertedWith("SLIPPAGE");
     });
 
     it("withdraw all with slippage covering from insurance test", async () => {
-      await strategy2.setSlippage(1);
+      await strategy2.setSlippage(1_000);
       await vault.setFees(0, 1_000)
       await vault.withdrawAll()
     });
 
     it("withdraw all with slippage covering from insurance not enough revert", async () => {
-      await strategy2.setSlippage(2);
+      await strategy2.setSlippage(2_000);
       await vault.setFees(0, 1_000)
       await expect(vault.withdrawAll()).revertedWith("SLIPPAGE");
     });
 
     it("withdraw with 100% slippage covering from insurance test", async () => {
-      await strategy2.setSlippage(100);
+      await strategy2.setSlippage(100_000);
       await vault.setFees(1_000, 1_000)
       await vault.deposit(1000_000, signer.address)
       await vault.withdraw(10, signer.address, signer.address);
@@ -458,7 +458,7 @@ describe("Splitter and base strategy tests", function () {
       await vault.deposit(1000_000, signer.address)
       await vault.withdrawAll();
       await vault.deposit(100, signer.address)
-      await strategy2.setSlippage(100);
+      await strategy2.setSlippage(100_000);
       await vault.withdrawAll();
     });
 
@@ -483,7 +483,7 @@ describe("Splitter and base strategy tests", function () {
     });
 
     it("withdraw with slippage covering from insurance test", async () => {
-      await strategy2.setSlippage(1);
+      await strategy2.setSlippage(1_000);
       await vault.setFees(0, 1_000)
       await vault.withdraw(99, signer.address, signer.address,);
     });
@@ -524,7 +524,7 @@ describe("Splitter and base strategy tests", function () {
 
     it("deposit with loss without covering", async () => {
       expect(await vault.sharePrice()).eq(1000000);
-      await strategy2.setSlippageDeposit(50);
+      await strategy2.setSlippageDeposit(50_000);
       await vault.deposit(1000, signer.address);
       expect(await vault.totalAssets()).eq(600);
       expect(await vault.sharePrice()).eq(545454);
@@ -532,7 +532,7 @@ describe("Splitter and base strategy tests", function () {
 
     it("deposit with loss with covering", async () => {
       expect(await vault.sharePrice()).eq(1000000);
-      await strategy2.setSlippageDeposit(1);
+      await strategy2.setSlippageDeposit(1_000);
       await vault.setFees(1_000, 0);
       await vault.deposit(1000, signer.address);
       expect(await vault.sharePrice()).eq(1000000);
@@ -541,7 +541,7 @@ describe("Splitter and base strategy tests", function () {
 
     it("hardwork with loss with covering", async () => {
       expect(await vault.sharePrice()).eq(1000000);
-      await strategy2.setSlippageHardWork(1);
+      await strategy2.setSlippageHardWork(1_000);
       await vault.setFees(1_000, 0);
       await vault.deposit(1000, signer.address);
       await splitter.doHardWorkForStrategy(strategy2.address, true);
@@ -551,7 +551,7 @@ describe("Splitter and base strategy tests", function () {
 
     it("hardwork with loss without covering", async () => {
       expect(await vault.sharePrice()).eq(1000000);
-      await strategy2.setSlippageHardWork(100);
+      await strategy2.setSlippageHardWork(10_000);
       await vault.deposit(1000, signer.address);
       await splitter.doHardWorkForStrategy(strategy2.address, true);
       expect(await vault.sharePrice()).eq(900000);
@@ -564,7 +564,7 @@ describe("Splitter and base strategy tests", function () {
 
       await vault.deposit(1000, signer.address);
 
-      await strategy.setSlippageDeposit(1);
+      await strategy.setSlippageDeposit(1_000);
 
       await splitter.rebalance(100, 1_000);
 
@@ -579,7 +579,7 @@ describe("Splitter and base strategy tests", function () {
       await vault.setFees(1_000, 0);
       await vault.deposit(1000, signer.address);
 
-      await strategy.setSlippageDeposit(1);
+      await strategy.setSlippageDeposit(1_000);
 
       await splitter.rebalance(100, 1_000);
 

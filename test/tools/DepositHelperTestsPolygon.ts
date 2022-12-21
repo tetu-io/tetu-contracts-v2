@@ -63,8 +63,8 @@ describe("Deposit helper Tests poly", function () {
       return;
     }
 
-    const tokenIn = PolygonAddresses.DAI_TOKEN;
-    const amount = parseUnits('1');
+    const tokenIn = PolygonAddresses.USDC_TOKEN;
+    const amount = parseUnits('1', 6);
 
     const params = {
       fromTokenAddress: tokenIn,
@@ -112,7 +112,7 @@ describe("Deposit helper Tests poly", function () {
     const returnAmount = await vault.previewRedeem(vaultShareBalance)
 
 
-    const tokenOut = PolygonAddresses.DAI_TOKEN;
+    const tokenOut = PolygonAddresses.USDC_TOKEN;
 
     const params = {
       fromTokenAddress: vaultAsset,
@@ -157,25 +157,5 @@ async function buildTxForSwap(params: string) {
     // console.log('res', res)
     return res.json();
   }).then(res => res.tx);
-}
-
-
-async function buildTxForApproveTradeWithRouter(tokenAddress: string, amount: string, from: string) {
-  const url = apiRequestUrl(
-    '/approve/transaction',
-    JSON.stringify(amount ? {tokenAddress, amount} : {tokenAddress})
-  );
-
-  const transaction = await fetch(url).then(res => res.json());
-
-  const gasLimit = await web3.eth.estimateGas({
-    ...transaction,
-    from
-  });
-
-  return {
-    ...transaction,
-    gas: gasLimit
-  };
 }
 

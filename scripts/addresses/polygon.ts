@@ -20,7 +20,7 @@ export class PolygonAddresses {
   );
 
   // PROTOCOL ADRS
-  public static DEPOSIT_HELPER_V1 = "0xb494af6c21cF90992E2161cffd79F47Cc7F46C4b".toLowerCase();
+  public static DEPOSIT_HELPER_V1 = "0xBe866e2F1A292f37711a2A91A1B5C3CfB517C00d".toLowerCase();
   public static TETU_CONVERTER = "0x8190db4549E382dECD94aEe211eAeB5F3DbC6836".toLowerCase();
   public static tUSDC = "0x0D397F4515007AE4822703b74b9922508837A04E".toLowerCase();
 
