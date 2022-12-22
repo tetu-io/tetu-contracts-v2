@@ -689,6 +689,53 @@ describe("veTETU tests", function () {
     expect(await ve.lockedEnd(3)).eq(lock3);
   });
 
+  it("split without 2 und test", async function () {
+    await ve.announceAction(1);
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 30);
+    await ve.addToken(underlying2.address, parseUnits('10'));
+
+
+    expect(await ve.lockedAmounts(1, tetu.address)).eq(parseUnits('1'));
+    expect(await ve.lockedAmounts(1, underlying2.address)).eq(0);
+    expect(await ve.lockedDerivedAmount(1)).eq(parseUnits('1'));
+
+    await ve.split(1, parseUnits('50'));
+
+    expect(await ve.lockedDerivedAmount(1)).eq(parseUnits('0.5'));
+    expect(await ve.lockedDerivedAmount(3)).eq(parseUnits('0.5'));
+    expect(await ve.lockedAmounts(1, tetu.address)).eq(parseUnits('0.5'));
+    expect(await ve.lockedAmounts(1, underlying2.address)).eq(0);
+    expect(await ve.lockedAmounts(3, tetu.address)).eq(parseUnits('0.5'));
+    expect(await ve.lockedAmounts(3, underlying2.address)).eq(0);
+  });
+
+  it("merge without und2 test", async function () {
+    await ve.announceAction(1);
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 30);
+    await ve.addToken(underlying2.address, parseUnits('10'));
+
+    await ve.createLock(tetu.address, parseUnits('1'), LOCK_PERIOD);
+
+    const lock3 = await ve.lockedEnd(3);
+
+    expect(await ve.lockedDerivedAmount(1)).eq(parseUnits('1'));
+    expect(await ve.lockedDerivedAmount(3)).eq(parseUnits('1'));
+    expect(await ve.lockedAmounts(1, tetu.address)).eq(parseUnits('1'));
+    expect(await ve.lockedAmounts(1, underlying2.address)).eq(0);
+    expect(await ve.lockedAmounts(3, tetu.address)).eq(parseUnits('1'));
+
+    await ve.merge(1, 3);
+
+    expect(await ve.lockedDerivedAmount(1)).eq(parseUnits('0'));
+    expect(await ve.lockedDerivedAmount(3)).eq(parseUnits('2'));
+    expect(await ve.lockedAmounts(1, tetu.address)).eq(0);
+    expect(await ve.lockedAmounts(1, underlying2.address)).eq(0);
+    expect(await ve.lockedAmounts(3, tetu.address)).eq(parseUnits('2'));
+    expect(await ve.lockedAmounts(3, underlying2.address)).eq(0);
+    expect(await ve.lockedEnd(1)).eq(0);
+    expect(await ve.lockedEnd(3)).eq(lock3);
+  });
+
 });
 
 

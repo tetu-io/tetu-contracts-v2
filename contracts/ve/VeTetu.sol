@@ -83,7 +83,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant VE_VERSION = "1.0.2";
+  string public constant VE_VERSION = "1.0.3";
   uint internal constant WEEK = 1 weeks;
   uint internal constant MAX_TIME = 16 weeks;
   int128 internal constant I_MAX_TIME = 16 weeks;
@@ -1010,6 +1010,9 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     for (uint i; i < length; i++) {
       address stakingToken = tokens[i];
       uint _lockedAmountFrom = lockedAmounts[_from][stakingToken];
+      if (_lockedAmountFrom == 0) {
+        continue;
+      }
       lockedAmounts[_from][stakingToken] = 0;
 
       _depositFor(DepositInfo({
@@ -1064,6 +1067,9 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     for (uint i; i < length; ++i) {
       address stakingToken = tokens[i];
       uint _lockedAmount = lockedAmounts[_tokenId][stakingToken];
+      if (_lockedAmount == 0) {
+        continue;
+      }
       uint amountForNewNFT = _lockedAmount * percent / 100e18;
       require(amountForNewNFT != 0, LOW_PERCENT);
 
