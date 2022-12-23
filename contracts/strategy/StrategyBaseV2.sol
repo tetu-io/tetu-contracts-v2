@@ -6,6 +6,7 @@ import "../openzeppelin/Math.sol";
 import "../interfaces/IStrategyV2.sol";
 import "../interfaces/ISplitter.sol";
 import "../interfaces/IForwarder.sol";
+import "../interfaces/ITetuVaultV2.sol";
 import "../proxy/ControllableV3.sol";
 
 /// @title Abstract contract for base strategy functionality
@@ -18,9 +19,20 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant STRATEGY_BASE_VERSION = "2.0.0";
+  string public constant STRATEGY_BASE_VERSION = "2.0.1";
   /// @dev Denominator for compound ratio
-  uint public constant COMPOUND_DENOMINATOR = 100_000;
+  uint internal constant COMPOUND_DENOMINATOR = 100_000;
+  /// @dev Denominator for fee calculation.
+  uint internal constant FEE_DENOMINATOR = 100_000;
+
+  // *************************************************************
+  //                        ERRORS
+  // *************************************************************
+
+  string internal constant WRONG_CONTROLLER = "SB: Wrong controller";
+  string internal constant DENIED = "SB: Denied";
+  string internal constant TOO_HIGH = "SB: Too high";
+  string internal constant IMPACT_TOO_HIGH = "SB: Impact too high";
 
   // *************************************************************
   //                        VARIABLES
@@ -63,7 +75,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
     _requireInterface(_splitter, InterfaceIds.I_SPLITTER);
     __Controllable_init(controller_);
 
-    require(IControllable(_splitter).isController(controller_), "SB: Wrong controller");
+    require(IControllable(_splitter).isController(controller_), WRONG_CONTROLLER);
 
     asset = ISplitter(_splitter).asset();
     splitter = _splitter;
@@ -75,12 +87,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
 
   /// @dev Restrict access only for operators
   function _onlyOperators() internal view {
-    require(IController(controller()).isOperator(msg.sender), "SB: Denied");
-  }
-
-  /// @dev Restrict access only for splitter
-  function _onlySplitter() internal view {
-    require(msg.sender == splitter, "SB: Denied");
+    require(IController(controller()).isOperator(msg.sender), DENIED);
   }
 
   // *************************************************************
@@ -104,8 +111,8 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   /// @dev PlatformVoter can change compound ratio for some strategies.
   ///      A strategy can implement another logic for some uniq cases.
   function setCompoundRatio(uint value) external virtual override {
-    require(msg.sender == IController(controller()).platformVoter(), "SB: Denied");
-    require(value <= COMPOUND_DENOMINATOR, "SB: Too high");
+    require(msg.sender == IController(controller()).platformVoter(), DENIED);
+    require(value <= COMPOUND_DENOMINATOR, TOO_HIGH);
     emit CompoundRatioChanged(compoundRatio, value);
     compoundRatio = value;
   }
@@ -140,7 +147,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
 
   /// @dev Stakes everything the strategy holds into the reward pool.
   function investAll() external override {
-    _onlySplitter();
+    require(msg.sender == splitter, DENIED);
 
     uint balance = IERC20(asset).balanceOf(address(this));
     if (balance > 0) {
@@ -151,31 +158,49 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
 
   /// @dev Withdraws all underlying assets to the vault
   function withdrawAllToSplitter() external override {
-    _onlySplitter();
-
-    _withdrawAllFromPool();
-
+    address _splitter = splitter;
     address _asset = asset;
+    require(msg.sender == _splitter, DENIED);
+
     uint balance = IERC20(_asset).balanceOf(address(this));
-    IERC20(_asset).safeTransfer(splitter, balance);
+
+    (uint investedAssetsUSD, uint assetPrice) = _withdrawAllFromPool();
+
+    balance = _checkWithdrawImpact(
+      _asset,
+      balance,
+      investedAssetsUSD,
+      assetPrice,
+      _splitter
+    );
+
+    if (balance != 0) {
+      IERC20(_asset).safeTransfer(_splitter, balance);
+    }
     emit WithdrawAllToSplitter(balance);
   }
 
   /// @dev Withdraws some assets to the splitter
   function withdrawToSplitter(uint amount) external override {
-    _onlySplitter();
-
+    address _splitter = splitter;
     address _asset = asset;
+    require(msg.sender == _splitter, DENIED);
 
     uint balance = IERC20(_asset).balanceOf(address(this));
     if (amount > balance) {
-      _withdrawFromPool(amount - balance);
+      (uint investedAssetsUSD, uint assetPrice) = _withdrawFromPool(amount - balance);
+      balance = _checkWithdrawImpact(
+        _asset,
+        balance,
+        investedAssetsUSD,
+        assetPrice,
+        _splitter
+      );
     }
 
-    balance = IERC20(_asset).balanceOf(address(this));
     uint amountAdjusted = Math.min(amount, balance);
     if (amountAdjusted != 0) {
-      IERC20(_asset).safeTransfer(splitter, amountAdjusted);
+      IERC20(_asset).safeTransfer(_splitter, amountAdjusted);
     }
     emit WithdrawToSplitter(amount, amountAdjusted, balance);
   }
@@ -183,6 +208,25 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   // *************************************************************
   //                       HELPERS
   // *************************************************************
+
+  function _checkWithdrawImpact(
+    address _asset,
+    uint balanceBefore,
+    uint investedAssetsUSD,
+    uint assetPrice,
+    address _splitter
+  ) internal view returns (uint balance) {
+    balance = IERC20(_asset).balanceOf(address(this));
+    if (assetPrice != 0 || investedAssetsUSD != 0) {
+
+      uint withdrew = balance > balanceBefore ? balance - balanceBefore : 0;
+      uint withdrewUSD = withdrew * assetPrice / 1e18;
+      uint priceChangeTolerance = ITetuVaultV2(ISplitter(_splitter).vault()).withdrawFee();
+      uint difference = investedAssetsUSD > withdrewUSD ? investedAssetsUSD - withdrewUSD : 0;
+
+      require(difference * FEE_DENOMINATOR / investedAssetsUSD <= priceChangeTolerance, IMPACT_TOO_HIGH);
+    }
+  }
 
   /// @dev Must use this function for any transfers to Forwarder.
   function _sendToForwarder(address token, uint amount) internal {
@@ -204,12 +248,19 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   function _depositToPool(uint amount) internal virtual;
 
   /// @dev Withdraw given amount from the pool.
-  function _withdrawFromPool(uint amount) internal virtual;
+  /// @return investedAssetsUSD Sum of USD value of each asset in the pool that was withdrawn.
+  ///                           Should be calculated with PriceOracle.
+  /// @return assetPrice Price of the strategy asset.
+  function _withdrawFromPool(uint amount) internal virtual returns (uint investedAssetsUSD, uint assetPrice);
 
   /// @dev Withdraw all from the pool.
-  function _withdrawAllFromPool() internal virtual;
+  /// @return investedAssetsUSD Sum of USD value of each asset in the pool that was withdrawn.
+  ///                           Should be calculated with PriceOracle.
+  /// @return assetPrice Price of the strategy asset.
+  function _withdrawAllFromPool() internal virtual returns (uint investedAssetsUSD, uint assetPrice);
 
   /// @dev If pool support emergency withdraw need to call it for emergencyExit()
+  ///      Withdraw assets without impact checking.
   function _emergencyExitFromPool() internal virtual;
 
   /// @dev Claim all possible rewards.

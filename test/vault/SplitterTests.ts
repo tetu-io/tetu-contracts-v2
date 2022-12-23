@@ -260,7 +260,7 @@ describe("Splitter and base strategy tests", function () {
     const strategy2 = MockStrategy__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategy')), signer)
     await strategy2.init(controller.address, splitter.address);
     await splitter.addStrategies([strategy.address, strategy2.address], [50, 100]);
-    await vault.deposit(100, signer.address);
+    await vault.deposit(10_000_000, signer.address);
     await splitter.setAPRs([strategy.address], [200]);
     await splitter.rebalance(1, 1);
   });
@@ -447,10 +447,12 @@ describe("Splitter and base strategy tests", function () {
     });
 
     it("withdraw with 100% slippage covering from insurance test", async () => {
-      await strategy2.setSlippage(100_000);
+      await strategy2.setSlippage(1_100);
       await vault.setFees(1_000, 1_000)
-      await vault.deposit(1000_000, signer.address)
-      await vault.withdraw(10, signer.address, signer.address);
+      await vault.deposit(10_000_000, signer.address)
+      await expect(vault.withdraw(1000, signer.address, signer.address)).revertedWith('SB: Impact too high');
+      await strategy2.setSlippage(1_000);
+      await vault.withdraw(1000, signer.address, signer.address);
     });
 
     it("withdraw all with 100% slippage covering from insurance test", async () => {
