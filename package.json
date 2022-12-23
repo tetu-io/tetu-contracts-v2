@@ -9,6 +9,8 @@
     "dist": "dist"
   },
   "scripts": {
+    "build-module": "npm run build && tsc",
+    "prepare": "npm run build-module",
     "build": "npm run clean && npm run compile",
     "clean": "npx hardhat clean",
     "compile": "npx hardhat compile",
