@@ -22,7 +22,7 @@ export class PolygonAddresses {
 
   public static TOOLS_ADDRESSES = new ToolsAddresses(
     "0xC737eaB847Ae6A92028862fE38b828db41314772",
-    "0x049962a4c4A1D37251174a98CbE4D93306776Ee1",
+    "0x29Eead6Fd74F826dac9E0383abC990615AA62Fa7",
     "0x9e059EdB32FC27430CfC8c9025a55B7C0FcFAbda",
   );
 

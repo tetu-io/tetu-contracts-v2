@@ -67,4 +67,12 @@ contract MockLiquidator is ITetuLiquidator {
     IERC20(route[route.length - 1].tokenOut).transfer(msg.sender, amount);
   }
 
+  function addLargestPools(PoolData[] memory /*_pools*/, bool /*rewrite*/) external pure {
+    // noop
+  }
+
+  function addBlueChipsPools(PoolData[] memory /*_pools*/, bool /*rewrite*/) external pure {
+    // noop
+  }
+
 }
