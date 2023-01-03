@@ -2,6 +2,7 @@
 // noinspection JSUnusedGlobalSymbols
 
 import {CoreAddresses} from "../models/CoreAddresses";
+import {ToolsAddresses} from "../models/ToolsAddresses";
 
 // noinspection SpellCheckingInspection
 export class PolygonAddresses {
@@ -17,6 +18,12 @@ export class PolygonAddresses {
     "0x5576Fe01a9e6e0346c97E546919F5d15937Be92D", // platformVoter
     "0x88115b5eA38AF3ED6357a26D161307D7F28D2EC9", // forwarder
     "0xaAd7a2517b0d0d15E3Da5C37C5371F7283cCc074", // vaultFactory
+  );
+
+  public static TOOLS_ADDRESSES = new ToolsAddresses(
+    "0xC737eaB847Ae6A92028862fE38b828db41314772",
+    "0x29Eead6Fd74F826dac9E0383abC990615AA62Fa7",
+    "0x9e059EdB32FC27430CfC8c9025a55B7C0FcFAbda",
   );
 
   // PROTOCOL ADRS

@@ -52,9 +52,9 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   /// @dev Maximum amount for mint. Max UINT256 by default.
   uint public maxMintShares;
   /// @dev Fee for deposit/mint actions. Zero by default.
-  uint public depositFee;
+  uint public override depositFee;
   /// @dev Fee for withdraw/redeem actions. Zero by default.
-  uint public withdrawFee;
+  uint public override withdrawFee;
 
   /// @dev Trigger doHardwork on invest action. Enabled by default.
   bool public doHardWorkOnInvest;

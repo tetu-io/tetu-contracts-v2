@@ -1,5 +1,6 @@
 import {ISettingsParam} from "tslog";
 
+// tslint:disable-next-line:ban-ts-ignore
 // @ts-ignore
 const logSettings: ISettingsParam = {
   colorizePrettyLogs: false,
