@@ -125,4 +125,16 @@ contract MockStrategy is StrategyBaseV2 {
     compoundRatio = ratio;
   }
 
+  ////////////////////////////////////////////////////////
+  ///           Access to internal functions
+  ////////////////////////////////////////////////////////
+  function checkWithdrawImpactAccessForTests(
+    address _asset,
+    uint balanceBefore,
+    uint investedAssetsUSD,
+    uint assetPrice,
+    address _splitter
+  ) external view returns (uint balance) {
+    return _checkWithdrawImpact(_asset, balanceBefore, investedAssetsUSD, assetPrice, _splitter);
+  }
 }

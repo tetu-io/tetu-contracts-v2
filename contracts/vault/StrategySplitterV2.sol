@@ -314,6 +314,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
       if (lowStrategyBalance == 0) {
         continue;
       }
+      break;
     }
     require(lowStrategyBalance != 0, "SS: No strategies");
 
