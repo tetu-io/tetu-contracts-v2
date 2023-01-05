@@ -416,7 +416,6 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   function abstain(uint _tokenId) external override {
     _onlyVoters();
 
-    // todo possible underflow
     voted[_tokenId]--;
   }
 
@@ -435,7 +434,6 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     // only central voter
     require(msg.sender == voter(), NOT_VOTER);
 
-    // todo possible underflow
     attachments[_tokenId] = attachments[_tokenId] - 1;
   }
 
