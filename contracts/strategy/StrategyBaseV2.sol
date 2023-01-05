@@ -209,6 +209,12 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   //                       HELPERS
   // *************************************************************
 
+  /// @notice Calculate withdrawn amount in USD using the {assetPrice}.
+  ///         Revert if the amount is different from expected too much (high price impact)
+  /// @param balanceBefore Asset balance of the strategy before withdrawing
+  /// @param investedAssetsUSD Expected amount in USD, decimals are same to {_asset}
+  /// @param assetPrice Price of the asset, decimals 18
+  /// @return balance Current asset balance of the strategy
   function _checkWithdrawImpact(
     address _asset,
     uint balanceBefore,
@@ -248,15 +254,13 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   function _depositToPool(uint amount) internal virtual;
 
   /// @dev Withdraw given amount from the pool.
-  /// @return investedAssetsUSD Sum of USD value of each asset in the pool that was withdrawn.
-  ///                           Should be calculated with PriceOracle.
-  /// @return assetPrice Price of the strategy asset.
+  /// @return investedAssetsUSD Sum of USD value of each asset in the pool that was withdrawn, decimals of {asset}.
+  /// @return assetPrice Price of the strategy {asset}.
   function _withdrawFromPool(uint amount) internal virtual returns (uint investedAssetsUSD, uint assetPrice);
 
   /// @dev Withdraw all from the pool.
-  /// @return investedAssetsUSD Sum of USD value of each asset in the pool that was withdrawn.
-  ///                           Should be calculated with PriceOracle.
-  /// @return assetPrice Price of the strategy asset.
+  /// @return investedAssetsUSD Sum of USD value of each asset in the pool that was withdrawn, decimals of {asset}.
+  /// @return assetPrice Price of the strategy {asset}.
   function _withdrawAllFromPool() internal virtual returns (uint investedAssetsUSD, uint assetPrice);
 
   /// @dev If pool support emergency withdraw need to call it for emergencyExit()

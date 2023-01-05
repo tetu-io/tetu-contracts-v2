@@ -416,6 +416,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   function abstain(uint _tokenId) external override {
     _onlyVoters();
 
+    // todo possible underflow
     voted[_tokenId]--;
   }
 
@@ -434,6 +435,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     // only central voter
     require(msg.sender == voter(), NOT_VOTER);
 
+    // todo possible underflow
     attachments[_tokenId] = attachments[_tokenId] - 1;
   }
 
@@ -488,7 +490,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   }
 
   /// @dev Add a NFT to a given address
-  ///      Throws if `_tokenId` is owned by someone.
+  ///      Throws if `_tokenId` is owned by someone.    // todo This function doesn't throw.. there is assumption below and there is no require(..). Remove the comment(?)
   function _addTokenTo(address _to, uint _tokenId) internal {
     // assume always call on new tokenId or after _removeTokenFrom() call
     // Change the owner
