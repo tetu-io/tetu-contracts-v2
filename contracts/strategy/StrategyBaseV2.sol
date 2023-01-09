@@ -223,7 +223,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
     address _splitter
   ) internal view returns (uint balance) {
     balance = IERC20(_asset).balanceOf(address(this));
-    if (assetPrice != 0 || investedAssetsUSD != 0) {
+    if (assetPrice != 0 && investedAssetsUSD != 0) {
 
       uint withdrew = balance > balanceBefore ? balance - balanceBefore : 0;
       uint withdrewUSD = withdrew * assetPrice / 1e18;
