@@ -425,6 +425,17 @@ describe("Tetu Vault V2 tests", function () {
     expect(await vault.splitterAssets()).eq(0);
   });
 
+  it("maxWithdraw with fee test", async () => {
+    await vault.deposit(parseUnits('1', 6), signer.address)
+    const balanceBefore = await usdc.balanceOf(signer.address);
+    await vault.setFees(0, 1_000);
+    const expectWithdraw = parseUnits('1', 6).sub(parseUnits('0.01', 6));
+    expect(await vault.maxWithdraw(signer.address)).eq(expectWithdraw);
+    await vault.withdrawAll();
+    const balanceAfter = await usdc.balanceOf(signer.address);
+    expect(balanceBefore.add(expectWithdraw)).eq(balanceAfter);
+  });
+
   it("cover loss test", async () => {
     const bal = await usdc.balanceOf(signer.address);
     await vault.setFees(1_000, 0);

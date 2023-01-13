@@ -45,7 +45,7 @@ contract ControllerV2 is ControllableV3, IController {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant CONTROLLER_VERSION = "2.0.0";
+  string public constant CONTROLLER_VERSION = "2.0.1";
   uint public constant TIME_LOCK = 18 hours;
 
   // *************************************************************
@@ -277,6 +277,7 @@ contract ControllerV2 is ControllableV3, IController {
     address[] memory implementations
   ) external {
     _onlyGovernance();
+    require(proxies.length == implementations.length, "WRONG_INPUT");
 
     for (uint i; i < proxies.length; i++) {
       address proxy = proxies[i];

@@ -83,7 +83,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant VE_VERSION = "1.0.3";
+  string public constant VE_VERSION = "1.0.4";
   uint internal constant WEEK = 1 weeks;
   uint internal constant MAX_TIME = 16 weeks;
   int128 internal constant I_MAX_TIME = 16 weeks;
@@ -585,20 +585,40 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     require(isWhitelistedTransfer[_to] || isWhitelistedTransfer[_from], FORBIDDEN);
 
     _transferFrom(_from, _to, _tokenId, msg.sender);
+    require(_checkOnERC721Received(_from, _to, _tokenId, _data), "ERC721: transfer to non ERC721Receiver implementer");
+  }
 
+
+  /// @dev Internal function to invoke {IERC721Receiver-onERC721Received} on a target address.
+  /// The call is not executed if the target address is not a contract.
+  ///
+  /// @param _from address representing the previous owner of the given token ID
+  /// @param _to target address that will receive the tokens
+  /// @param _tokenId uint256 ID of the token to be transferred
+  /// @param _data bytes optional data to send along with the call
+  /// @return bool whether the call correctly returned the expected magic value
+  ///
+  function _checkOnERC721Received(
+    address _from,
+    address _to,
+    uint256 _tokenId,
+    bytes memory _data
+  ) private returns (bool) {
     if (_isContract(_to)) {
-      // Throws if transfer destination is a contract which does not implement 'onERC721Received'
-      try IERC721Receiver(_to).onERC721Received(msg.sender, _from, _tokenId, _data) returns (bytes4) {} catch (
-        bytes memory reason
-      ) {
+      try IERC721Receiver(_to).onERC721Received(msg.sender, _from, _tokenId, _data) returns (bytes4 retval) {
+        return retval == IERC721Receiver.onERC721Received.selector;
+      } catch (bytes memory reason) {
         if (reason.length == 0) {
           revert("ERC721: transfer to non ERC721Receiver implementer");
         } else {
+          /// @solidity memory-safe-assembly
           assembly {
             revert(add(32, reason), mload(reason))
           }
         }
       }
+    } else {
+      return true;
     }
   }
 
@@ -665,6 +685,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     // Throws if `_to` is zero address
     require(_to != address(0), WRONG_INPUT);
     _addTokenTo(_to, _tokenId);
+    require(_checkOnERC721Received(address(0), _to, _tokenId, ''), "ERC721: transfer to non ERC721Receiver implementer");
     emit Transfer(address(0), _to, _tokenId);
     return true;
   }
@@ -1118,7 +1139,10 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   function withdrawAll(uint _tokenId) external {
     uint length = tokens.length;
     for (uint i; i < length; ++i) {
-      withdraw(tokens[i], _tokenId);
+      address token = tokens[i];
+      if (lockedAmounts[_tokenId][token] != 0) {
+        withdraw(token, _tokenId);
+      }
     }
   }
 
@@ -1213,6 +1237,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
       return 0;
     } else {
       Point memory lastPoint = _userPointHistory[_tokenId][_epoch];
+      require(_t >= lastPoint.ts, WRONG_INPUT);
       lastPoint.bias -= lastPoint.slope * int128(int256(_t) - int256(lastPoint.ts));
       if (lastPoint.bias < 0) {
         lastPoint.bias = 0;
@@ -1230,9 +1255,9 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     return
     VeTetuLogo.tokenURI(
       _tokenId,
-      _balanceOfNFT(_tokenId, block.timestamp),
-      block.timestamp > _lockedEnd ? block.timestamp - _lockedEnd : 0,
-      uint(int256(lockedDerivedAmount[_tokenId]))
+      uint(int256(lockedDerivedAmount[_tokenId])),
+      block.timestamp < _lockedEnd ? _lockedEnd - block.timestamp : 0,
+      _balanceOfNFT(_tokenId, block.timestamp)
     );
   }
 

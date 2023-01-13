@@ -437,11 +437,25 @@ describe("veTETU tests", function () {
   });
 
   it("tokenURI test", async function () {
-    console.log(await ve.tokenURI(1));
+    await ve.createLock(tetu.address, parseUnits('333'), LOCK_PERIOD);
+    const uri = (await ve.tokenURI(3))
+    console.log(uri);
+    const base64 = uri.replace('data:application/json;base64,','');
+    console.log(base64);
+
+    const uriJson = Buffer.from(base64, 'base64').toString('binary');
+    console.log(uriJson);
+    const imgBase64 = JSON.parse(uriJson).image.replace('data:image/svg+xml;base64,','');
+    console.log(imgBase64);
+    const svg = Buffer.from(imgBase64, 'base64').toString('binary');
+    console.log(svg);
+    expect(svg).contains('333')
+    expect(svg).contains('88 days')
   });
 
   it("balanceOfNFTAt test", async function () {
-    await ve.balanceOfNFTAt(1, 0);
+    await expect(ve.balanceOfNFTAt(1, 0)).revertedWith('WRONG_INPUT');
+    await ve.balanceOfNFTAt(1, 999_999_999_999);
   });
 
   it("ve flesh transfer + supply checks", async function () {
