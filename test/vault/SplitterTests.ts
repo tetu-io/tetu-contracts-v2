@@ -36,6 +36,7 @@ describe("Splitter and base strategy tests", function () {
   let mockGauge: MockGauge;
   let strategy: MockStrategy;
 
+//region begin, after
   before(async function () {
     [signer, signer1, signer2] = await ethers.getSigners()
     snapshotBefore = await TimeUtils.snapshot();
@@ -83,6 +84,7 @@ describe("Splitter and base strategy tests", function () {
   afterEach(async function () {
     await TimeUtils.rollback(snapshot);
   });
+//endregion begin, after
 
   it("totalAssets without strategies test", async () => {
     await vault.deposit(100, signer.address);
@@ -665,5 +667,4 @@ describe("Splitter and base strategy tests", function () {
       expect(await strategy.supportsInterface(await interfaceIds.I_STRATEGY_V2())).eq(true);
     });
   });
-
 });
