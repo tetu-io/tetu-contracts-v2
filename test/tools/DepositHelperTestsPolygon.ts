@@ -24,7 +24,7 @@ describe("Deposit helper Tests poly", function () {
   let vault: MockVault;
   let helper: DepositHelper;
   let ve: VeTetu;
-  const vaultAsset = PolygonAddresses.WETH_TOKEN;
+  const vaultAsset = PolygonAddresses.TETU_TOKEN;
 
   before(async function () {
     snapshotBefore = await TimeUtils.snapshot();
@@ -33,6 +33,8 @@ describe("Deposit helper Tests poly", function () {
     }
     signer = await Misc.impersonate('0xbbbbb8C4364eC2ce52c59D2Ed3E56F307E529a94');
     [strategy, referrer] = await ethers.getSigners();
+
+    // await IERC20__factory.connect(vaultAsset, await Misc.impersonate('0x28424507fefb6f7f8e9d3860f56504e4e5f5f390')).transfer(signer.address, parseUnits('1000'));
 
     tetu = await DeployerUtils.deployMockToken(signer);
     const controller = await DeployerUtils.deployMockController(signer);
