@@ -57,7 +57,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant VE_VERSION = "1.1.0";
+  string public constant VE_VERSION = "1.1.1";
   uint internal constant WEEK = 1 weeks;
   uint internal constant MAX_TIME = 16 weeks;
   int128 internal constant I_MAX_TIME = 16 weeks;
@@ -1070,6 +1070,8 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     uint oldDerivedAmount = lockedDerivedAmount[_from];
 
     uint length = tokens.length;
+    // we should use the old one for properly calculate checkpoint for the new ve
+    uint newLockedEndTo = lockedEndTo;
     for (uint i; i < length; i++) {
       address stakingToken = tokens[i];
       uint _lockedAmountFrom = lockedAmounts[_from][stakingToken];
@@ -1085,9 +1087,12 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
       unlockTime : end,
       lockedAmount : lockedAmounts[_to][stakingToken],
       lockedDerivedAmount : lockedDerivedAmount[_to],
-      lockedEnd : end,
+      lockedEnd : newLockedEndTo,
       depositType : DepositType.MERGE_TYPE
       }));
+
+      // set new lock time to the current end lock
+      newLockedEndTo = end;
 
       emit Merged(stakingToken, msg.sender, _from, _to);
     }
