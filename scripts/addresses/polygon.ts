@@ -30,6 +30,7 @@ export class PolygonAddresses {
   public static DEPOSIT_HELPER_V1 = "0xBe866e2F1A292f37711a2A91A1B5C3CfB517C00d".toLowerCase();
   public static TETU_CONVERTER = "0x8190db4549E382dECD94aEe211eAeB5F3DbC6836".toLowerCase();
   public static tUSDC = "0x0D397F4515007AE4822703b74b9922508837A04E".toLowerCase();
+  public static TETU_USDC_BPT_VAULT = "0x6922201f0d25Aba8368e7806642625879B35aB84".toLowerCase();
 
   public static ONE_INCH_ROUTER = "0x1111111254fb6c44bAC0beD2854e76F90643097d".toLowerCase();
 

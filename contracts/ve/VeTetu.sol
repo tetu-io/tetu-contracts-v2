@@ -12,6 +12,7 @@ import "../interfaces/IERC721Receiver.sol";
 import "../interfaces/IController.sol";
 import "../interfaces/IVoter.sol";
 import "../interfaces/IPlatformVoter.sol";
+import "../interfaces/ISmartVault.sol";
 import "../lib/FixedPointMathLib.sol";
 import "../proxy/ControllableV3.sol";
 import "./VeTetuLogo.sol";
@@ -52,38 +53,11 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   }
 
   // *************************************************************
-  //                          ERRORS
-  // *************************************************************
-  // we do not use custom errors (yet) for the reason of lack support from off-chain frameworks
-
-  string internal constant WRONG_INPUT = "WRONG_INPUT";
-  string internal constant WRONG_DECIMALS = "WRONG_DECIMALS";
-  string internal constant NOT_GOVERNANCE = "NOT_GOVERNANCE";
-  string internal constant NOT_VOTER = "NOT_VOTER";
-  string internal constant TOO_MANY_ATTACHMENTS = "TOO_MANY_ATTACHMENTS";
-  string internal constant NOT_OWNER = "NOT_OWNER";
-  string internal constant FORBIDDEN = "FORBIDDEN";
-  string internal constant IDENTICAL_ADDRESS = "IDENTICAL_ADDRESS";
-  string internal constant LOW_LOCK_PERIOD = "LOW_LOCK_PERIOD";
-  string internal constant HIGH_LOCK_PERIOD = "HIGH_LOCK_PERIOD";
-  string internal constant INVALID_TOKEN = "INVALID_TOKEN";
-  string internal constant NFT_WITHOUT_POWER = "NFT_WITHOUT_POWER";
-  string internal constant EXPIRED = "EXPIRED";
-  string internal constant LOW_UNLOCK_TIME = "LOW_UNLOCK_TIME";
-  string internal constant ATTACHED = "ATTACHED";
-  string internal constant LOW_PERCENT = "LOW_PERCENT";
-  string internal constant NOT_EXPIRED = "NOT_EXPIRED";
-  string internal constant ZERO_LOCKED = "ZERO_LOCKED";
-  string internal constant TOKEN_NOT_EXIST = "TOKEN_NOT_EXIST";
-  string internal constant DUPLICATE = "DUPLICATE";
-  string internal constant TIME_LOCK = "TIME_LOCK";
-
-  // *************************************************************
   //                        CONSTANTS
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant VE_VERSION = "1.0.3";
+  string public constant VE_VERSION = "1.1.1";
   uint internal constant WEEK = 1 weeks;
   uint internal constant MAX_TIME = 16 weeks;
   int128 internal constant I_MAX_TIME = 16 weeks;
@@ -101,6 +75,9 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   bytes4 internal constant _ERC721_INTERFACE_ID = 0x80ac58cd;
   /// @dev ERC165 interface ID of ERC721Metadata
   bytes4 internal constant _ERC721_METADATA_INTERFACE_ID = 0x5b5e139f;
+
+  address internal constant _TETU_USDC_BPT = 0xE2f706EF1f7240b803AAe877C9C762644bb808d8;
+  address internal constant _TETU_USDC_BPT_VAULT = 0x6922201f0d25Aba8368e7806642625879B35aB84;
 
   // *************************************************************
   //                        VARIABLES
@@ -169,6 +146,8 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   mapping(address => bool) public isWhitelistedTransfer;
   /// @dev Time-locks for governance actions. Zero means not announced and should not processed.
   mapping(TimeLockType => uint) public govActionTimeLock;
+  /// @dev underlying token => true if we can stake token to some place, false if paused
+  mapping(address => bool) internal tokenFarmingStatus;
 
   // *************************************************************
   //                        EVENTS
@@ -201,7 +180,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     __Controllable_init(controller_);
 
     // the first token should have 18 decimals
-    require(IERC20Metadata(token_).decimals() == uint8(18), WRONG_DECIMALS);
+    require(IERC20Metadata(token_).decimals() == uint8(18));
     _addToken(token_, weight);
 
     _pointHistory[0].blk = block.number;
@@ -222,8 +201,8 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   // *************************************************************
 
   function announceAction(TimeLockType _type) external {
-    require(isGovernance(msg.sender), NOT_GOVERNANCE);
-    require(govActionTimeLock[_type] == 0 && _type != TimeLockType.UNKNOWN, WRONG_INPUT);
+    require(isGovernance(msg.sender), "FORBIDDEN");
+    require(govActionTimeLock[_type] == 0 && _type != TimeLockType.UNKNOWN, "WRONG_INPUT");
 
     govActionTimeLock[_type] = block.timestamp + GOV_ACTION_TIME_LOCK;
     emit GovActionAnnounced(uint(_type), block.timestamp + GOV_ACTION_TIME_LOCK);
@@ -231,10 +210,10 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
 
   /// @dev Whitelist address for transfers. Removing from whitelist should be forbidden.
   function whitelistTransferFor(address value) external {
-    require(isGovernance(msg.sender), NOT_GOVERNANCE);
-    require(value != address(0), WRONG_INPUT);
+    require(isGovernance(msg.sender), "FORBIDDEN");
+    require(value != address(0), "WRONG_INPUT");
     uint timeLock = govActionTimeLock[TimeLockType.WHITELIST_TRANSFER];
-    require(timeLock != 0 && timeLock < block.timestamp, TIME_LOCK);
+    require(timeLock != 0 && timeLock < block.timestamp, "TIME_LOCK");
 
     isWhitelistedTransfer[value] = true;
     govActionTimeLock[TimeLockType.WHITELIST_TRANSFER] = 0;
@@ -243,21 +222,21 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   }
 
   function addToken(address token, uint weight) external {
-    require(isGovernance(msg.sender), NOT_GOVERNANCE);
+    require(isGovernance(msg.sender), "FORBIDDEN");
     uint timeLock = govActionTimeLock[TimeLockType.ADD_TOKEN];
-    require(timeLock != 0 && timeLock < block.timestamp, TIME_LOCK);
+    require(timeLock != 0 && timeLock < block.timestamp, "TIME_LOCK");
 
     _addToken(token, weight);
     govActionTimeLock[TimeLockType.ADD_TOKEN] = 0;
   }
 
   function _addToken(address token, uint weight) internal {
-    require(token != address(0) && weight != 0, WRONG_INPUT);
+    require(token != address(0) && weight != 0, "WRONG_INPUT");
     _requireERC20(token);
 
     uint length = tokens.length;
     for (uint i; i < length; ++i) {
-      require(token != tokens[i], DUPLICATE);
+      require(token != tokens[i], "WRONG_INPUT");
     }
 
     tokens.push(token);
@@ -265,6 +244,12 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     isValidToken[token] = true;
 
     emit StakingTokenAdded(token, weight);
+  }
+
+  function changeTokenFarmingAllowanceStatus(address _token, bool status) external {
+    require(isGovernance(msg.sender), "FORBIDDEN");
+    require(tokenFarmingStatus[_token] != status);
+    tokenFarmingStatus[_token] = status;
   }
 
   // *************************************************************
@@ -399,7 +384,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   // *************************************************************
 
   function _onlyVoters() internal view {
-    require(msg.sender == voter() || msg.sender == platformVoter(), NOT_VOTER);
+    require(msg.sender == voter() || msg.sender == platformVoter(), "NOT_VOTER");
   }
 
   /// @dev Increment the votes counter.
@@ -422,17 +407,17 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   /// @dev Increment attach counter. Call it for each boosted gauge position.
   function attachToken(uint _tokenId) external override {
     // only central voter
-    require(msg.sender == voter(), NOT_VOTER);
+    require(msg.sender == voter(), "NOT_VOTER");
 
     uint count = attachments[_tokenId];
-    require(count < MAX_ATTACHMENTS, TOO_MANY_ATTACHMENTS);
+    require(count < MAX_ATTACHMENTS, "TOO_MANY_ATTACHMENTS");
     attachments[_tokenId] = count + 1;
   }
 
   /// @dev Decrement attach counter. Call it for each boosted gauge position.
   function detachToken(uint _tokenId) external override {
     // only central voter
-    require(msg.sender == voter(), NOT_VOTER);
+    require(msg.sender == voter(), "NOT_VOTER");
 
     attachments[_tokenId] = attachments[_tokenId] - 1;
   }
@@ -501,7 +486,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   /// @dev Remove a NFT from a given address
   ///      Throws if `_from` is not the current owner.
   function _removeTokenFrom(address _from, uint _tokenId) internal {
-    require(_idToOwner[_tokenId] == _from, NOT_OWNER);
+    require(_idToOwner[_tokenId] == _from, "NOT_OWNER");
     // Change the owner
     _idToOwner[_tokenId] = address(0);
     // Update owner token index tracking
@@ -522,8 +507,8 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     uint _tokenId,
     address _sender
   ) internal {
-    require(isApprovedOrOwner(_sender, _tokenId), NOT_OWNER);
-    require(_to != address(0), WRONG_INPUT);
+    require(isApprovedOrOwner(_sender, _tokenId), "NOT_OWNER");
+    require(_to != address(0), "WRONG_INPUT");
     // from address will be checked in _removeTokenFrom()
 
     if (attachments[_tokenId] != 0 || voted[_tokenId] != 0) {
@@ -548,7 +533,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     address,
     uint
   ) external pure override {
-    revert(FORBIDDEN);
+    revert("FORBIDDEN");
     //    _transferFrom(_from, _to, _tokenId, msg.sender);
   }
 
@@ -581,23 +566,43 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     uint _tokenId,
     bytes memory _data
   ) public override {
-    require(isWhitelistedTransfer[_to] || isWhitelistedTransfer[_from], FORBIDDEN);
+    require(isWhitelistedTransfer[_to] || isWhitelistedTransfer[_from], "FORBIDDEN");
 
     _transferFrom(_from, _to, _tokenId, msg.sender);
+    require(_checkOnERC721Received(_from, _to, _tokenId, _data), "ERC721: transfer to non ERC721Receiver implementer");
+  }
 
+
+  /// @dev Internal function to invoke {IERC721Receiver-onERC721Received} on a target address.
+  /// The call is not executed if the target address is not a contract.
+  ///
+  /// @param _from address representing the previous owner of the given token ID
+  /// @param _to target address that will receive the tokens
+  /// @param _tokenId uint256 ID of the token to be transferred
+  /// @param _data bytes optional data to send along with the call
+  /// @return bool whether the call correctly returned the expected magic value
+  ///
+  function _checkOnERC721Received(
+    address _from,
+    address _to,
+    uint256 _tokenId,
+    bytes memory _data
+  ) private returns (bool) {
     if (_isContract(_to)) {
-      // Throws if transfer destination is a contract which does not implement 'onERC721Received'
-      try IERC721Receiver(_to).onERC721Received(msg.sender, _from, _tokenId, _data) returns (bytes4) {} catch (
-        bytes memory reason
-      ) {
+      try IERC721Receiver(_to).onERC721Received(msg.sender, _from, _tokenId, _data) returns (bytes4 retval) {
+        return retval == IERC721Receiver.onERC721Received.selector;
+      } catch (bytes memory reason) {
         if (reason.length == 0) {
           revert("ERC721: transfer to non ERC721Receiver implementer");
         } else {
+          /// @solidity memory-safe-assembly
           assembly {
             revert(add(32, reason), mload(reason))
           }
         }
       }
+    } else {
+      return true;
     }
   }
 
@@ -629,13 +634,13 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   function approve(address _approved, uint _tokenId) public override {
     address owner = _idToOwner[_tokenId];
     // Throws if `_tokenId` is not a valid NFT
-    require(owner != address(0), WRONG_INPUT);
+    require(owner != address(0), "WRONG_INPUT");
     // Throws if `_approved` is the current owner
-    require(_approved != owner, IDENTICAL_ADDRESS);
+    require(_approved != owner, "IDENTICAL_ADDRESS");
     // Check requirements
     bool senderIsOwner = (owner == msg.sender);
     bool senderIsApprovedForAll = (ownerToOperators[owner])[msg.sender];
-    require(senderIsOwner || senderIsApprovedForAll, NOT_OWNER);
+    require(senderIsOwner || senderIsApprovedForAll, "NOT_OWNER");
     // Set the approval
     _idToApprovals[_tokenId] = _approved;
     emit Approval(owner, _approved, _tokenId);
@@ -649,7 +654,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   /// @param _approved True if the operators is approved, false to revoke approval.
   function setApprovalForAll(address _operator, bool _approved) external override {
     // Throws if `_operator` is the `msg.sender`
-    require(_operator != msg.sender, IDENTICAL_ADDRESS);
+    require(_operator != msg.sender, "IDENTICAL_ADDRESS");
     ownerToOperators[msg.sender][_operator] = _approved;
     emit ApprovalForAll(msg.sender, _operator, _approved);
   }
@@ -662,8 +667,9 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   /// @return A boolean that indicates if the operation was successful.
   function _mint(address _to, uint _tokenId) internal returns (bool) {
     // Throws if `_to` is zero address
-    require(_to != address(0), WRONG_INPUT);
+    require(_to != address(0), "WRONG_INPUT");
     _addTokenTo(_to, _tokenId);
+    require(_checkOnERC721Received(address(0), _to, _tokenId, ''), "ERC721: transfer to non ERC721Receiver implementer");
     emit Transfer(address(0), _to, _tokenId);
     return true;
   }
@@ -795,6 +801,64 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   //                  DEPOSIT/WITHDRAW LOGIC
   // *************************************************************
 
+  /// @dev Pull tokens to this contract and try to stake
+  function _pullStakingToken(address _token, address _from, uint amount) internal {
+    IERC20(_token).safeTransferFrom(_from, address(this), amount);
+
+    // try to stake tokens if possible
+    _stakeAvailableTokens(_token);
+  }
+
+  /// @dev Anyone can stake whitelisted tokens if they exist on this contract.
+  function stakeAvailableTokens(address _token) external {
+    _stakeAvailableTokens(_token);
+  }
+
+  /// @dev If allowed, stake given token available balance to suitable place for earn some profit
+  function _stakeAvailableTokens(address _token) internal {
+    if (tokenFarmingStatus[_token]) {
+      if (_token == _TETU_USDC_BPT) {
+        uint balance = IERC20(_token).balanceOf(address(this));
+        if (balance != 0) {
+          IERC20(_token).safeApprove(_TETU_USDC_BPT_VAULT, balance);
+          ISmartVault(_TETU_USDC_BPT_VAULT).depositAndInvest(balance);
+        }
+      }
+    }
+  }
+
+  /// @dev Unstake necessary amount, if possible
+  function _unstakeTokens(address _token, uint amount) internal {
+    uint tokenBalance = IERC20(_token).balanceOf(address(this));
+    if (amount != 0 && amount > tokenBalance) {
+      // withdraw only required amount
+      amount -= tokenBalance;
+      // no need to check whitelisting for withdraw
+      if (_token == _TETU_USDC_BPT) {
+        // add gap value for avoid rounding issues
+        uint shares = amount * 1e18 / ISmartVault(_TETU_USDC_BPT_VAULT).getPricePerFullShare() + 1e18;
+        uint sharesBalance = IERC20(_TETU_USDC_BPT_VAULT).balanceOf(address(this));
+        shares = shares > sharesBalance ? sharesBalance : shares;
+        ISmartVault(_TETU_USDC_BPT_VAULT).withdraw(shares);
+      }
+    }
+  }
+
+  /// @dev Anyone can withdraw all staked tokens if farming status = false
+  function emergencyWithdrawStakedTokens(address _token) external {
+    if (!tokenFarmingStatus[_token]) {
+      if (_token == _TETU_USDC_BPT) {
+        ISmartVault(_TETU_USDC_BPT_VAULT).exit();
+      }
+    }
+  }
+
+  /// @dev Transfer underlying token to recipient, unstake if need required amount
+  function _transferUnderlyingToken(address _token, address recipient, uint amount) internal {
+    _unstakeTokens(_token, amount);
+    IERC20(_token).safeTransfer(recipient, amount);
+  }
+
   /// @notice Deposit and lock tokens for a user
   function _depositFor(DepositInfo memory info) internal {
 
@@ -834,7 +898,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     // move tokens to this contract, if necessary
     address from = msg.sender;
     if (info.value != 0 && info.depositType != DepositType.MERGE_TYPE) {
-      IERC20(info.stakingToken).safeTransferFrom(from, address(this), info.value);
+      _pullStakingToken(info.stakingToken, from, info.value);
     }
 
     emit Deposit(info.stakingToken, from, info.tokenId, info.value, newLockedEnd, info.depositType, block.timestamp);
@@ -896,12 +960,12 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   /// @param _lockDuration Number of seconds to lock tokens for (rounded down to nearest week)
   /// @param _to Address to deposit
   function _createLock(address _token, uint _value, uint _lockDuration, address _to) internal returns (uint) {
-    require(_value > 0, WRONG_INPUT);
+    require(_value > 0, "WRONG_INPUT");
     // Lock time is rounded down to weeks
     uint unlockTime = (block.timestamp + _lockDuration) / WEEK * WEEK;
-    require(unlockTime > block.timestamp, LOW_LOCK_PERIOD);
-    require(unlockTime <= block.timestamp + MAX_TIME, HIGH_LOCK_PERIOD);
-    require(isValidToken[_token], INVALID_TOKEN);
+    require(unlockTime > block.timestamp, "LOW_LOCK_PERIOD");
+    require(unlockTime <= block.timestamp + MAX_TIME, "HIGH_LOCK_PERIOD");
+    require(isValidToken[_token], "INVALID_TOKEN");
 
     uint _tokenId = _incrementTokenIdAndGet();
     _mint(_to, _tokenId);
@@ -943,12 +1007,12 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   /// @param _tokenId ve token ID
   /// @param _value Amount of tokens to deposit and add to the lock
   function increaseAmount(address _token, uint _tokenId, uint _value) external nonReentrant override {
-    require(_value > 0, WRONG_INPUT);
+    require(_value > 0, "WRONG_INPUT");
     (uint _lockedAmount, uint _lockedDerivedAmount, uint _lockedEnd) = _lockInfo(_token, _tokenId);
 
-    require(_lockedDerivedAmount > 0, NFT_WITHOUT_POWER);
-    require(_lockedEnd > block.timestamp, EXPIRED);
-    require(isValidToken[_token], INVALID_TOKEN);
+    require(_lockedDerivedAmount > 0, "NFT_WITHOUT_POWER");
+    require(_lockedEnd > block.timestamp, "EXPIRED");
+    require(isValidToken[_token], "INVALID_TOKEN");
 
     _depositFor(DepositInfo({
     stakingToken : _token,
@@ -973,11 +1037,11 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     uint _lockedEnd = lockedEnd[_tokenId];
     // Lock time is rounded down to weeks
     uint unlockTime = (block.timestamp + _lockDuration) / WEEK * WEEK;
-    require(_lockedDerivedAmount > 0, NFT_WITHOUT_POWER);
-    require(_lockedEnd > block.timestamp, EXPIRED);
-    require(unlockTime > _lockedEnd, LOW_UNLOCK_TIME);
-    require(unlockTime <= block.timestamp + MAX_TIME, HIGH_LOCK_PERIOD);
-    require(isApprovedOrOwner(msg.sender, _tokenId), NOT_OWNER);
+    require(_lockedDerivedAmount > 0, "NFT_WITHOUT_POWER");
+    require(_lockedEnd > block.timestamp, "EXPIRED");
+    require(unlockTime > _lockedEnd, "LOW_UNLOCK_TIME");
+    require(unlockTime <= block.timestamp + MAX_TIME, "HIGH_LOCK_PERIOD");
+    require(isApprovedOrOwner(msg.sender, _tokenId), "NOT_OWNER");
 
     _depositFor(DepositInfo({
     stakingToken : address(0),
@@ -996,9 +1060,9 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
 
   /// @dev Merge two NFTs union their balances and keep the biggest lock time.
   function merge(uint _from, uint _to) external nonReentrant {
-    require(attachments[_from] == 0 && voted[_from] == 0, ATTACHED);
-    require(_from != _to, IDENTICAL_ADDRESS);
-    require(_idToOwner[_from] == msg.sender && _idToOwner[_to] == msg.sender, NOT_OWNER);
+    require(attachments[_from] == 0 && voted[_from] == 0, "ATTACHED");
+    require(_from != _to, "IDENTICAL_ADDRESS");
+    require(_idToOwner[_from] == msg.sender && _idToOwner[_to] == msg.sender, "NOT_OWNER");
 
     uint lockedEndFrom = lockedEnd[_from];
     uint lockedEndTo = lockedEnd[_to];
@@ -1006,6 +1070,8 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     uint oldDerivedAmount = lockedDerivedAmount[_from];
 
     uint length = tokens.length;
+    // we should use the old one for properly calculate checkpoint for the new ve
+    uint newLockedEndTo = lockedEndTo;
     for (uint i; i < length; i++) {
       address stakingToken = tokens[i];
       uint _lockedAmountFrom = lockedAmounts[_from][stakingToken];
@@ -1021,9 +1087,12 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
       unlockTime : end,
       lockedAmount : lockedAmounts[_to][stakingToken],
       lockedDerivedAmount : lockedDerivedAmount[_to],
-      lockedEnd : end,
+      lockedEnd : newLockedEndTo,
       depositType : DepositType.MERGE_TYPE
       }));
+
+      // set new lock time to the current end lock
+      newLockedEndTo = end;
 
       emit Merged(stakingToken, msg.sender, _from, _to);
     }
@@ -1047,15 +1116,15 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   /// @param _tokenId ve token ID
   /// @param percent percent of underlying tokens for new NFT with denominator 1e18 (1-(100e18-1)).
   function split(uint _tokenId, uint percent) external nonReentrant {
-    require(attachments[_tokenId] == 0 && voted[_tokenId] == 0, ATTACHED);
-    require(_idToOwner[_tokenId] == msg.sender, NOT_OWNER);
-    require(percent != 0 && percent < 100e18, WRONG_INPUT);
+    require(attachments[_tokenId] == 0 && voted[_tokenId] == 0, "ATTACHED");
+    require(_idToOwner[_tokenId] == msg.sender, "NOT_OWNER");
+    require(percent != 0 && percent < 100e18, "WRONG_INPUT");
 
     uint _lockedDerivedAmount = lockedDerivedAmount[_tokenId];
     uint oldLockedDerivedAmount = _lockedDerivedAmount;
     uint _lockedEnd = lockedEnd[_tokenId];
 
-    require(_lockedEnd > block.timestamp, EXPIRED);
+    require(_lockedEnd > block.timestamp, "EXPIRED");
 
     // crete new NFT
     uint _newTokenId = _incrementTokenIdAndGet();
@@ -1070,7 +1139,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
         continue;
       }
       uint amountForNewNFT = _lockedAmount * percent / 100e18;
-      require(amountForNewNFT != 0, LOW_PERCENT);
+      require(amountForNewNFT != 0, "LOW_PERCENT");
 
       uint newLockedDerivedAmount = _calculateDerivedAmount(
         _lockedAmount,
@@ -1117,20 +1186,23 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   function withdrawAll(uint _tokenId) external {
     uint length = tokens.length;
     for (uint i; i < length; ++i) {
-      withdraw(tokens[i], _tokenId);
+      address token = tokens[i];
+      if (lockedAmounts[_tokenId][token] != 0) {
+        withdraw(token, _tokenId);
+      }
     }
   }
 
   /// @notice Withdraw given staking token for `_tokenId`
   /// @dev Only possible if the lock has expired
   function withdraw(address stakingToken, uint _tokenId) public nonReentrant {
-    require(isApprovedOrOwner(msg.sender, _tokenId), NOT_OWNER);
-    require(attachments[_tokenId] == 0 && voted[_tokenId] == 0, ATTACHED);
+    require(isApprovedOrOwner(msg.sender, _tokenId), "NOT_OWNER");
+    require(attachments[_tokenId] == 0 && voted[_tokenId] == 0, "ATTACHED");
 
     (uint oldLockedAmount, uint oldLockedDerivedAmount, uint oldLockedEnd) =
     _lockInfo(stakingToken, _tokenId);
-    require(block.timestamp >= oldLockedEnd, NOT_EXPIRED);
-    require(oldLockedAmount > 0, ZERO_LOCKED);
+    require(block.timestamp >= oldLockedEnd, "NOT_EXPIRED");
+    require(oldLockedAmount > 0, "ZERO_LOCKED");
 
 
     uint newLockedDerivedAmount = _calculateDerivedAmount(
@@ -1168,8 +1240,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
       _burn(_tokenId);
     }
 
-    IERC20(stakingToken).safeTransfer(msg.sender, oldLockedAmount);
-
+    _transferUnderlyingToken(stakingToken, msg.sender, oldLockedAmount);
 
     emit Withdraw(stakingToken, msg.sender, _tokenId, oldLockedAmount, block.timestamp);
   }
@@ -1212,6 +1283,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
       return 0;
     } else {
       Point memory lastPoint = _userPointHistory[_tokenId][_epoch];
+      require(_t >= lastPoint.ts, "WRONG_INPUT");
       lastPoint.bias -= lastPoint.slope * int128(int256(_t) - int256(lastPoint.ts));
       if (lastPoint.bias < 0) {
         lastPoint.bias = 0;
@@ -1223,15 +1295,15 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   /// @dev Returns current token URI metadata
   /// @param _tokenId Token ID to fetch URI for.
   function tokenURI(uint _tokenId) external view override returns (string memory) {
-    require(_idToOwner[_tokenId] != address(0), TOKEN_NOT_EXIST);
+    require(_idToOwner[_tokenId] != address(0), "TOKEN_NOT_EXIST");
 
     uint _lockedEnd = lockedEnd[_tokenId];
     return
     VeTetuLogo.tokenURI(
       _tokenId,
-      _balanceOfNFT(_tokenId, block.timestamp),
-      block.timestamp > _lockedEnd ? block.timestamp - _lockedEnd : 0,
-      uint(int256(lockedDerivedAmount[_tokenId]))
+      uint(int256(lockedDerivedAmount[_tokenId])),
+      block.timestamp < _lockedEnd ? _lockedEnd - block.timestamp : 0,
+      _balanceOfNFT(_tokenId, block.timestamp)
     );
   }
 
@@ -1243,7 +1315,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   function _balanceOfAtNFT(uint _tokenId, uint _block) internal view returns (uint) {
     // Copying and pasting totalSupply code because Vyper cannot pass by
     // reference yet
-    require(_block <= block.number, WRONG_INPUT);
+    require(_block <= block.number, "WRONG_INPUT");
 
     // Binary search
     uint _min = 0;
@@ -1325,7 +1397,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   /// @param _block Block to calculate the total voting power at
   /// @return Total voting power at `_block`
   function totalSupplyAt(uint _block) external view override returns (uint) {
-    require(_block <= block.number, WRONG_INPUT);
+    require(_block <= block.number, "WRONG_INPUT");
     uint _epoch = epoch;
     uint targetEpoch = _findBlockEpoch(_block, _epoch);
 

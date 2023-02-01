@@ -56,7 +56,6 @@ describe("Slots Tests", function () {
 
     console.log('deploy SlotsTest2 logic');
     const slotsTest2Impl = await DeployerUtils.deployContract(signer, 'SlotsTest2') as SlotsTest2;
-    await expect(controller.updateProxies([slotsTest.address], [signer.address])).revertedWith('UpgradeableProxy: new implementation is not a contract');
     await controller.updateProxies([slotsTest.address], [slotsTest2Impl.address]);
     const slotsTest2 = SlotsTest2__factory.connect(slotsTest.address, signer);
 

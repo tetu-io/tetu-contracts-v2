@@ -1,4 +1,4 @@
-import hre, {ethers} from "hardhat";
+import {ethers} from "hardhat";
 import {Logger} from "tslog";
 import Common from "ethereumjs-common";
 import logSettings from "../../log_settings";
@@ -22,6 +22,9 @@ const FANTOM_CHAIN = Common.forCustomChain(
   },
   'petersburg'
 );
+
+// tslint:disable-next-line:no-var-requires
+const hre = require("hardhat");
 
 export class Misc {
   public static readonly SECONDS_OF_DAY = 60 * 60 * 24;
@@ -70,8 +73,8 @@ export class Misc {
     return ethers.getSigner(address);
   }
 
-  public static async isNetwork(id: number) {
-    return (await ethers.provider.getNetwork()).chainId === id;
+  public static isNotNetwork(id: number) {
+    return hre.network.config.chainId !== id;
   }
 
   public static async getStorageAt(address: string, index: string) {

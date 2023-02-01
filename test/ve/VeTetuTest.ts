@@ -3,6 +3,8 @@ import {ethers} from "hardhat";
 import chai from "chai";
 import {formatUnits, parseUnits} from "ethers/lib/utils";
 import {
+  IERC20,
+  IERC20__factory,
   IERC20Metadata__factory,
   MockPawnshop,
   MockToken,
@@ -437,11 +439,25 @@ describe("veTETU tests", function () {
   });
 
   it("tokenURI test", async function () {
-    console.log(await ve.tokenURI(1));
+    await ve.createLock(tetu.address, parseUnits('333'), LOCK_PERIOD);
+    const uri = (await ve.tokenURI(3))
+    console.log(uri);
+    const base64 = uri.replace('data:application/json;base64,','');
+    console.log(base64);
+
+    const uriJson = Buffer.from(base64, 'base64').toString('binary');
+    console.log(uriJson);
+    const imgBase64 = JSON.parse(uriJson).image.replace('data:image/svg+xml;base64,','');
+    console.log(imgBase64);
+    const svg = Buffer.from(imgBase64, 'base64').toString('binary');
+    console.log(svg);
+    expect(svg).contains('333')
+    // expect(svg).contains('88 days')
   });
 
   it("balanceOfNFTAt test", async function () {
-    await ve.balanceOfNFTAt(1, 0);
+    await expect(ve.balanceOfNFTAt(1, 0)).revertedWith('WRONG_INPUT');
+    await ve.balanceOfNFTAt(1, 999_999_999_999);
   });
 
   it("ve flesh transfer + supply checks", async function () {
@@ -453,7 +469,7 @@ describe("veTETU tests", function () {
   });
 
   it("whitelist transfer not gov revert", async function () {
-    await expect(ve.connect(owner2).whitelistTransferFor(underlying2.address)).revertedWith('NOT_GOVERNANCE');
+    await expect(ve.connect(owner2).whitelistTransferFor(underlying2.address)).revertedWith('FORBIDDEN');
   });
 
   it("whitelist transfer zero adr revert", async function () {
@@ -467,11 +483,11 @@ describe("veTETU tests", function () {
   });
 
   it("add token from non gov revert", async function () {
-    await expect(ve.connect(owner2).addToken(underlying2.address, parseUnits('1'))).revertedWith('NOT_GOVERNANCE');
+    await expect(ve.connect(owner2).addToken(underlying2.address, parseUnits('1'))).revertedWith('FORBIDDEN');
   });
 
   it("announce from non gov revert", async function () {
-    await expect(ve.connect(owner2).announceAction(1)).revertedWith('NOT_GOVERNANCE');
+    await expect(ve.connect(owner2).announceAction(1)).revertedWith('FORBIDDEN');
   });
 
   it("announce from wrong input revert", async function () {
@@ -483,7 +499,7 @@ describe("veTETU tests", function () {
   it("add token twice revert", async function () {
     await ve.announceAction(1);
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 18);
-    await expect(ve.addToken(tetu.address, parseUnits('1'))).revertedWith('DUPLICATE');
+    await expect(ve.addToken(tetu.address, parseUnits('1'))).revertedWith('WRONG_INPUT');
   });
 
   it("add token time-lock revert", async function () {
@@ -508,7 +524,7 @@ describe("veTETU tests", function () {
       underlying2.address,
       parseUnits('1'),
       controller.address
-    )).revertedWith('WRONG_DECIMALS')
+    )).revertedWith('Transaction reverted without a reason string')
   });
 
   it("deposit/withdraw test", async function () {

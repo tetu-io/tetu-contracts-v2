@@ -20,7 +20,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant VAULT_VERSION = "2.0.0";
+  string public constant VAULT_VERSION = "2.0.1";
   /// @dev Denominator for buffer calculation. 100% of the buffer amount.
   uint constant public BUFFER_DENOMINATOR = 100_000;
   /// @dev Denominator for fee calculation.
@@ -290,6 +290,8 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   //                 WITHDRAW LOGIC
   // *************************************************************
 
+  /// @dev Withdraw all available shares for tx sender.
+  ///      The revert is expected if the balance is higher than `maxRedeem`
   function withdrawAll() external {
     redeem(balanceOf(msg.sender), msg.sender, msg.sender);
   }
@@ -319,7 +321,9 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   }
 
   function maxWithdraw(address owner) public view override returns (uint) {
-    return Math.min(maxWithdrawAssets, convertToAssets(balanceOf(owner)));
+    uint assets = convertToAssets(balanceOf(owner));
+    assets -= assets * withdrawFee / FEE_DENOMINATOR;
+    return Math.min(maxWithdrawAssets, assets);
   }
 
   function maxRedeem(address owner) public view override returns (uint) {
@@ -384,15 +388,16 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
       _splitter.withdrawAllToVault();
     } else {
       uint assetsInSplitter = _splitter.totalAssets();
+
       // we should always have buffer amount inside the vault
-      uint missing = (assetsInSplitter + assetsInVault)
-      * _buffer / BUFFER_DENOMINATOR
-      + assetsNeed;
-      missing = Math.min(missing, assetsInSplitter);
+      // assume `assetsNeed` can not be higher than entire balance
+      uint expectedBuffer = (assetsInSplitter + assetsInVault - assetsNeed) * _buffer / BUFFER_DENOMINATOR;
+
+      // this code should not be called if `assetsInVault` higher than `assetsNeed`
+      uint missing = Math.min(expectedBuffer + assetsNeed - assetsInVault, assetsInSplitter);
       // if zero should be resolved on splitter side
       _splitter.withdrawToVault(missing);
     }
-
   }
 
   // *************************************************************

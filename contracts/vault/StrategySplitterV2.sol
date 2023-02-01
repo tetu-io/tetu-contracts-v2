@@ -217,6 +217,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   function addStrategies(address[] memory _strategies, uint[] memory expectedAPR) external {
     // only initial action will require strict access
     // already scheduled strategies can be added by anyone
+    require(_strategies.length == expectedAPR.length, "WRONG_INPUT");
 
     bool _inited = inited;
     address[] memory existStrategies = strategies;
@@ -362,6 +363,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
   function setAPRs(address[] memory _strategies, uint[] memory aprs) external {
     _onlyOperators();
+    require(_strategies.length == aprs.length, "WRONG_INPUT");
     for (uint i; i < aprs.length; i++) {
       address strategy = _strategies[i];
       require(!pausedStrategies[strategy], "SS: Paused");
@@ -375,6 +377,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   /// @dev Pause investing. For withdraw need to call emergencyExit() on the strategy.
   function pauseInvesting(address strategy) external {
     _onlyOperators();
+    require(!pausedStrategies[strategy], "SS: Paused");
 
     pausedStrategies[strategy] = true;
     uint oldAPR = strategiesAPR[strategy];
@@ -464,12 +467,11 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
     address _asset = asset;
     uint balance = IERC20(_asset).balanceOf(address(this));
-    uint remainingAmount = amount;
     if (balance < amount) {
+      uint remainingAmount = amount - balance;
       uint length = strategies.length;
       for (uint i = length; i > 0; i--) {
         IStrategyV2 strategy = IStrategyV2(strategies[i - 1]);
-
 
         uint strategyBalance = strategy.totalAssets();
         uint balanceBefore = strategyBalance + balance;
@@ -569,8 +571,9 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
         if (earned > lost) {
           apr = computeApr(tvl, earned - lost, sinceLastHardWork);
         }
-        if (lost > 0) {
-          ITetuVaultV2(vault).coverLoss(lost);
+        uint lostForCovering = lost > earned ? lost - earned : 0;
+        if (lostForCovering > 0) {
+          ITetuVaultV2(vault).coverLoss(lostForCovering);
         }
 
         strategiesAPRHistory[strategy].push(apr);
@@ -656,27 +659,30 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     address strategy;
     address _asset = asset;
     uint balance = IERC20(_asset).balanceOf(address(this));
-    uint length = strategies.length;
-    for (uint i; i < length; ++i) {
-      strategy = strategies[i];
-      if (pausedStrategies[strategy]) {
-        continue;
-      }
-      uint capacity = strategyCapacity[strategy];
-      // zero means no capacity
-      if (capacity == 0) {
-        capacity = type(uint).max;
-      }
-      uint strategyBalance = IStrategyV2(strategy).totalAssets();
-      uint toInvest;
-      if (capacity > strategyBalance) {
-        toInvest = Math.min(capacity - strategyBalance, balance);
-      }
+    // no actions for zero balance, return empty strategy
+    if (balance != 0) {
+      uint length = strategies.length;
+      for (uint i; i < length; ++i) {
+        strategy = strategies[i];
+        if (pausedStrategies[strategy]) {
+          continue;
+        }
+        uint capacity = strategyCapacity[strategy];
+        // zero means no capacity
+        if (capacity == 0) {
+          capacity = type(uint).max;
+        }
+        uint strategyBalance = IStrategyV2(strategy).totalAssets();
+        uint toInvest;
+        if (capacity > strategyBalance) {
+          toInvest = Math.min(capacity - strategyBalance, balance);
+        }
 
-      IERC20(_asset).safeTransfer(strategy, toInvest);
-      IStrategyV2(strategy).investAll(toInvest);
-      balance -= toInvest;
-      emit Invested(strategy, toInvest);
+        IERC20(_asset).safeTransfer(strategy, toInvest);
+        IStrategyV2(strategy).investAll(toInvest);
+        balance -= toInvest;
+        emit Invested(strategy, toInvest);
+      }
     }
     return strategy;
   }
