@@ -134,9 +134,9 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
 
     _emergencyExitFromPool();
 
-    address _asset = asset;
+    address _asset = asset; // gas saving
     uint balance = IERC20(_asset).balanceOf(address(this));
-    _decreaseBaseAmount(balance); // TODO probably we should reset base-amount here?
+    _decreaseBaseAmount(_asset, balance); // TODO probably we should reset base-amount here?
     IERC20(_asset).safeTransfer(splitter, balance);
     emit EmergencyExit(msg.sender, balance);
   }
@@ -158,11 +158,10 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   function investAll(uint amount_) external override {
     require(msg.sender == splitter, DENIED);
 
-    uint balance = IERC20(asset).balanceOf(address(this));
+    address _asset = asset; // gas saving
+    uint balance = IERC20(_asset).balanceOf(address(this));
 
-    baseAmounts[asset] += amount_;
-    emit UpdateBaseAmounts(asset, int(amount_));
-    require(balance >= amount_, WRONG_AMOUNT);
+    _increaseBaseAmount(_asset, amount_, balance);
 
     if (balance > 0) {
       _depositToPool(balance);
@@ -173,7 +172,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   /// @dev Withdraws all underlying assets to the vault
   function withdrawAllToSplitter() external override {
     address _splitter = splitter;
-    address _asset = asset;
+    address _asset = asset; // gas saving
     require(msg.sender == _splitter, DENIED);
 
     uint balance = IERC20(_asset).balanceOf(address(this));
@@ -189,7 +188,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
     );
 
     if (balance != 0) {
-      _decreaseBaseAmount(balance);
+      _decreaseBaseAmount(_asset, balance);
       IERC20(_asset).safeTransfer(_splitter, balance);
     }
     emit WithdrawAllToSplitter(balance);
@@ -198,7 +197,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   /// @dev Withdraws some assets to the splitter
   function withdrawToSplitter(uint amount) external override {
     address _splitter = splitter;
-    address _asset = asset;
+    address _asset = asset; // gas saving
     require(msg.sender == _splitter, DENIED);
 
     uint balance = IERC20(_asset).balanceOf(address(this));
@@ -215,22 +214,35 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
 
     uint amountAdjusted = Math.min(amount, balance);
     if (amountAdjusted != 0) {
-      _decreaseBaseAmount(amountAdjusted);
+      _decreaseBaseAmount(_asset, amountAdjusted);
       IERC20(_asset).safeTransfer(_splitter, amountAdjusted);
     }
     emit WithdrawToSplitter(amount, amountAdjusted, balance);
   }
 
+
+  // *************************************************************
+  //                  baseAmounts modifications
+  // *************************************************************
+
   /// @notice Decrease {baseAmounts} of the {asset} on {amount_}
   ///         The {amount_} can be greater then total base amount value because it can includes rewards.
   ///         We assume here, that base amounts are spent first, then rewards and any other profit-amounts
-  function _decreaseBaseAmount(uint amount_) internal {
-    uint baseAmount = baseAmounts[asset];
+  function _decreaseBaseAmount(address asset_, uint amount_) internal {
+    uint baseAmount = baseAmounts[asset_];
     baseAmount = baseAmount > amount_
       ? baseAmount - amount_
       : 0;
-    baseAmounts[asset] = baseAmount;
-    emit UpdateBaseAmounts(asset, -int(baseAmount));
+    baseAmounts[asset_] = baseAmount;
+    emit UpdateBaseAmounts(asset_, -int(baseAmount));
+  }
+
+  /// @notice Increase {baseAmounts} of the {asset} on {amount_}, ensure that current {assetBalance_} >= {amount_}
+  /// @param assetBalance_ Current balance of the {asset} to check if {amount_} > the balance. Pass 0 to skip the check
+  function _increaseBaseAmount(address asset_, uint amount_, uint assetBalance_) internal {
+    baseAmounts[asset_] += amount_;
+    emit UpdateBaseAmounts(asset_, int(amount_));
+    require(assetBalance_ >= amount_, WRONG_AMOUNT);
   }
 
   // *************************************************************
