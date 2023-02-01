@@ -627,7 +627,7 @@ describe("Splitter and base strategy tests", function () {
     });
 
     it("strategy invest from 3rd party revert", async () => {
-      await expect(strategy.investAll()).revertedWith("SB: Denied");
+      await expect(strategy.investAll(0)).revertedWith("SB: Denied");
     });
 
     it("claim from 3d party revert", async () => {
@@ -639,7 +639,7 @@ describe("Splitter and base strategy tests", function () {
     });
 
     it("invest all with zero balance test", async () => {
-      await strategy.connect(await Misc.impersonate(splitter.address)).investAll();
+      await strategy.connect(await Misc.impersonate(splitter.address)).investAll(0);
     });
 
     it("withdraw to splitter when enough balance test", async () => {

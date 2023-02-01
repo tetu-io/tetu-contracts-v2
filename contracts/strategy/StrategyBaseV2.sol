@@ -19,7 +19,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant STRATEGY_BASE_VERSION = "2.0.1";
+  string public constant STRATEGY_BASE_VERSION = "2.0.2";
   /// @dev Denominator for compound ratio
   uint internal constant COMPOUND_DENOMINATOR = 100_000;
   /// @dev Denominator for fee calculation.
@@ -33,6 +33,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   string internal constant DENIED = "SB: Denied";
   string internal constant TOO_HIGH = "SB: Too high";
   string internal constant IMPACT_TOO_HIGH = "SB: Impact too high";
+  string internal constant WRONG_AMOUNT = "SB: Wrong amount";
 
   // *************************************************************
   //                        VARIABLES
@@ -46,6 +47,10 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   address public override splitter;
   /// @dev Percent of profit for autocompound inside this strategy.
   uint public override compoundRatio;
+  /// @notice Balances of not-reward amounts
+  /// @dev Any amounts transferred to the strategy for investing or withdrawn back are registered here
+  ///      As result it's possible to distinct invested amounts from rewards, airdrops and other profits
+  mapping(address => uint) public baseAmounts;
 
   // *************************************************************
   //                        EVENTS
@@ -62,6 +67,8 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   event Claimed(address token, uint amount);
   event CompoundRatioChanged(uint oldValue, uint newValue);
   event SentToForwarder(address forwarder, address token, uint amount);
+  /// @notice {baseAmounts} of {asset} is changed on the {amount} value
+  event UpdateBaseAmounts(address asset, int amount);
 
   // *************************************************************
   //                        INIT
@@ -129,6 +136,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
 
     address _asset = asset;
     uint balance = IERC20(_asset).balanceOf(address(this));
+    _decreaseBaseAmount(balance); // TODO probably we should reset base-amount here?
     IERC20(_asset).safeTransfer(splitter, balance);
     emit EmergencyExit(msg.sender, balance);
   }
@@ -146,10 +154,16 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   // *************************************************************
 
   /// @dev Stakes everything the strategy holds into the reward pool.
-  function investAll() external override {
+  /// @param amount_ Amount transferred to the strategy balance just before calling this function
+  function investAll(uint amount_) external override {
     require(msg.sender == splitter, DENIED);
 
     uint balance = IERC20(asset).balanceOf(address(this));
+
+    baseAmounts[asset] += amount_;
+    emit UpdateBaseAmounts(asset, int(amount_));
+    require(balance >= amount_, WRONG_AMOUNT);
+
     if (balance > 0) {
       _depositToPool(balance);
     }
@@ -175,6 +189,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
     );
 
     if (balance != 0) {
+      _decreaseBaseAmount(balance);
       IERC20(_asset).safeTransfer(_splitter, balance);
     }
     emit WithdrawAllToSplitter(balance);
@@ -200,9 +215,22 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
 
     uint amountAdjusted = Math.min(amount, balance);
     if (amountAdjusted != 0) {
+      _decreaseBaseAmount(amountAdjusted);
       IERC20(_asset).safeTransfer(_splitter, amountAdjusted);
     }
     emit WithdrawToSplitter(amount, amountAdjusted, balance);
+  }
+
+  /// @notice Decrease {baseAmounts} of the {asset} on {amount_}
+  ///         The {amount_} can be greater then total base amount value because it can includes rewards.
+  ///         We assume here, that base amounts are spent first, then rewards and any other profit-amounts
+  function _decreaseBaseAmount(uint amount_) internal {
+    uint baseAmount = baseAmounts[asset];
+    baseAmount = baseAmount > amount_
+      ? baseAmount - amount_
+      : 0;
+    baseAmounts[asset] = baseAmount;
+    emit UpdateBaseAmounts(asset, -int(baseAmount));
   }
 
   // *************************************************************
