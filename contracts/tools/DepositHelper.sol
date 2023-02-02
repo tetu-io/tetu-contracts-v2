@@ -8,7 +8,7 @@ import "../interfaces/IVeTetu.sol";
 import "../openzeppelin/SafeERC20.sol";
 import "../openzeppelin/ReentrancyGuard.sol";
 
-contract DepositHelper is ReentrancyGuard{
+contract DepositHelper is ReentrancyGuard {
   using SafeERC20 for IERC20;
 
   address public immutable oneInchRouter;
@@ -19,12 +19,22 @@ contract DepositHelper is ReentrancyGuard{
   }
 
   /// @dev Proxy deposit action for keep approves on this contract
-  function deposit(address vault, address asset, uint amount, uint minSharesOut) public nonReentrant returns (uint){
+  function deposit(address vault, address asset, uint amount, uint minSharesOut) public nonReentrant returns (uint) {
     IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
     _approveIfNeeds(asset, amount, vault);
     uint sharesOut = IERC4626(vault).deposit(amount, msg.sender);
     require (sharesOut >= minSharesOut, "SLIPPAGE");
     return sharesOut;
+  }
+
+  function withdraw(
+    address vault,
+    uint shareAmount,
+    uint minAmountOut
+  ) external nonReentrant returns (uint) {
+    uint amountOut = IERC4626(vault).redeem(shareAmount, msg.sender, msg.sender);
+    require(amountOut >= minAmountOut, "SLIPPAGE");
+    return amountOut;
   }
 
   /// @dev Convert input token to output token and deposit.
@@ -33,8 +43,9 @@ contract DepositHelper is ReentrancyGuard{
     bytes memory swapData,
     address tokenIn,
     uint amountIn,
-    address vault
-  ) external nonReentrant returns (uint){
+    address vault,
+    uint minSharesOut
+  ) external nonReentrant returns (uint) {
     IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
 
     _approveIfNeeds(tokenIn, amountIn, oneInchRouter);
@@ -46,7 +57,9 @@ contract DepositHelper is ReentrancyGuard{
 
     require(balance != 0, "Zero result balance");
     _approveIfNeeds(asset, balance, vault);
-    return IERC4626(vault).deposit(balance, msg.sender);
+    uint sharesOut = IERC4626(vault).deposit(balance, msg.sender);
+    require (sharesOut >= minSharesOut, "SLIPPAGE");
+    return sharesOut;
   }
 
   /// @dev Withdraw from given vault and convert assets to tokenOut
@@ -55,9 +68,9 @@ contract DepositHelper is ReentrancyGuard{
     address vault,
     uint shareAmount,
     bytes memory swapData,
-    address tokenOut
-  ) external nonReentrant returns (uint){
-    _approveIfNeeds(vault, shareAmount, vault);
+    address tokenOut,
+    uint minAmountOut
+  ) external nonReentrant returns (uint) {
     uint amountIn = IERC4626(vault).redeem(shareAmount, address(this), msg.sender);
 
     _approveIfNeeds(address(IERC4626(vault).asset()), amountIn, oneInchRouter);
@@ -66,6 +79,7 @@ contract DepositHelper is ReentrancyGuard{
 
     uint balance = IERC20(tokenOut).balanceOf(address(this));
     require(balance != 0, "Zero result balance");
+    require(balance >= minAmountOut, "SLIPPAGE");
     IERC20(tokenOut).safeTransfer(msg.sender, balance);
     return balance;
   }
@@ -105,5 +119,4 @@ contract DepositHelper is ReentrancyGuard{
       IERC20(token).safeApprove(spender, type(uint).max);
     }
   }
-
 }

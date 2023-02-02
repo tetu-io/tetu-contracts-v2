@@ -1,7 +1,7 @@
 import {ethers} from "hardhat";
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
-import {DepositHelper, MockToken, MockVault, VeTetu} from "../../typechain";
+import {DepositHelper, IERC20__factory, MockToken, MockVault, VeTetu} from "../../typechain";
 import {TimeUtils} from "../TimeUtils";
 import {expect} from "chai";
 import {Misc} from "../../scripts/utils/Misc";
@@ -59,6 +59,13 @@ describe("Deposit helper Tests", function () {
     await token.approve(helper.address, 100)
     await helper.deposit(vault.address, token.address, 100, 99)
     expect(await vault.balanceOf(signer.address)).eq(198);
+
+    await IERC20__factory.connect(vault.address, signer).approve(helper.address, 198)
+    await expect(helper.withdraw(vault.address, 198, 199)).to.be.revertedWith('SLIPPAGE')
+
+    const balanceBefore = await token.balanceOf(signer.address)
+    await helper.withdraw(vault.address, 198, 198)
+    expect((await token.balanceOf(signer.address)).sub(balanceBefore)).eq(198);
   });
 
   it("test create lock", async () => {

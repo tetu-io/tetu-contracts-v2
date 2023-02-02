@@ -67,6 +67,7 @@ describe("Deposit helper Tests poly", function () {
 
     const tokenIn = PolygonAddresses.USDC_TOKEN;
     const amount = parseUnits('1', 6);
+    await TokenUtils.getToken(tokenIn, signer.address, amount)
 
     const params = {
       fromTokenAddress: tokenIn,
@@ -74,7 +75,7 @@ describe("Deposit helper Tests poly", function () {
       amount: amount.toString(),
       fromAddress: signer.address,
       slippage: 1,
-      disableEstimate: false,
+      disableEstimate: true,
       allowPartialFill: false,
       destReceiver: helper.address,
       referrerAddress: referrer.address,
@@ -87,15 +88,24 @@ describe("Deposit helper Tests poly", function () {
     // ethers.utils.defaultAbiCoder.decode()
 
     const balance = await IERC20__factory.connect(tokenIn, signer).balanceOf(signer.address)
-    console.log('token in balance', formatUnits(balance))
+    console.log('token in balance', formatUnits(balance, 6))
     expect(balance.gte(amount)).eq(true);
 
     await IERC20__factory.connect(tokenIn, signer).approve(helper.address, Misc.MAX_UINT)
+    await expect(helper.convertAndDeposit(
+      swapTransaction.data,
+      tokenIn,
+      amount,
+      vault.address,
+      parseUnits('100000')
+    )).to.be.revertedWith('SLIPPAGE')
+
     await helper.convertAndDeposit(
       swapTransaction.data,
       tokenIn,
       amount,
       vault.address,
+      0
     )
     expect((await vault.balanceOf(signer.address)).isZero()).eq(false);
     expect((await IERC20__factory.connect(tokenIn, signer).balanceOf(referrer.address)).isZero()).eq(false);
@@ -106,13 +116,13 @@ describe("Deposit helper Tests poly", function () {
       return;
     }
 
+    await TokenUtils.getToken(vaultAsset, signer.address, parseUnits('1', 18))
     const vaultAssetBalance = await IERC20__factory.connect(vaultAsset, signer).balanceOf(signer.address);
     await IERC20__factory.connect(vaultAsset, signer).approve(helper.address, Misc.MAX_UINT)
     await helper.deposit(vault.address, vaultAsset, vaultAssetBalance, 0);
 
     const vaultShareBalance = await IERC20__factory.connect(vault.address, signer).balanceOf(signer.address);
     const returnAmount = await vault.previewRedeem(vaultShareBalance)
-
 
     const tokenOut = PolygonAddresses.USDC_TOKEN;
 
@@ -122,7 +132,7 @@ describe("Deposit helper Tests poly", function () {
       amount: returnAmount.toString(),
       fromAddress: signer.address,
       slippage: 1,
-      disableEstimate: false,
+      disableEstimate: true,
       allowPartialFill: false,
       destReceiver: helper.address,
       referrerAddress: referrer.address,
@@ -134,11 +144,19 @@ describe("Deposit helper Tests poly", function () {
 
 
     await vault.approve(helper.address, Misc.MAX_UINT)
+    await expect(helper.withdrawAndConvert(
+      vault.address,
+      vaultShareBalance,
+      swapTransaction.data,
+      tokenOut,
+      parseUnits('100000')
+    )).to.be.revertedWith('SLIPPAGE')
     await helper.withdrawAndConvert(
       vault.address,
       vaultShareBalance,
       swapTransaction.data,
-      tokenOut
+      tokenOut,
+      0
     )
     expect((await IERC20__factory.connect(tokenOut, signer).balanceOf(signer.address)).isZero()).eq(false);
   });
