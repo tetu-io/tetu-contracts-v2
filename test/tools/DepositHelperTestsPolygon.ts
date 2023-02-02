@@ -108,7 +108,7 @@ describe("Deposit helper Tests poly", function () {
 
     const vaultAssetBalance = await IERC20__factory.connect(vaultAsset, signer).balanceOf(signer.address);
     await IERC20__factory.connect(vaultAsset, signer).approve(helper.address, Misc.MAX_UINT)
-    await helper.deposit(vault.address, vaultAsset, vaultAssetBalance);
+    await helper.deposit(vault.address, vaultAsset, vaultAssetBalance, 0);
 
     const vaultShareBalance = await IERC20__factory.connect(vault.address, signer).balanceOf(signer.address);
     const returnAmount = await vault.previewRedeem(vaultShareBalance)

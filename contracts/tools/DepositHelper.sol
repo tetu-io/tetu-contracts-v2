@@ -19,10 +19,12 @@ contract DepositHelper is ReentrancyGuard{
   }
 
   /// @dev Proxy deposit action for keep approves on this contract
-  function deposit(address vault, address asset, uint amount) public nonReentrant returns (uint){
+  function deposit(address vault, address asset, uint amount, uint minSharesOut) public nonReentrant returns (uint){
     IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
     _approveIfNeeds(asset, amount, vault);
-    return IERC4626(vault).deposit(amount, msg.sender);
+    uint sharesOut = IERC4626(vault).deposit(amount, msg.sender);
+    require (sharesOut >= minSharesOut, "SLIPPAGE");
+    return sharesOut;
   }
 
   /// @dev Convert input token to output token and deposit.
