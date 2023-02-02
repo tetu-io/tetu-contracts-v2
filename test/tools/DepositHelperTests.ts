@@ -50,13 +50,14 @@ describe("Deposit helper Tests", function () {
 
   it("test deposit", async () => {
     await token.approve(helper.address, 100)
-    await helper.deposit(vault.address, token.address, 100, 100)
+    await helper.deposit(vault.address, token.address, 100, 99)
     expect(await vault.balanceOf(signer.address)).eq(99);
 
+    await token.approve(helper.address, 100)
     await expect(helper.deposit(vault.address, token.address, 100, 101)).to.be.revertedWith('SLIPPAGE')
 
     await token.approve(helper.address, 100)
-    await helper.deposit(vault.address, token.address, 100, 100)
+    await helper.deposit(vault.address, token.address, 100, 99)
     expect(await vault.balanceOf(signer.address)).eq(198);
   });
 
