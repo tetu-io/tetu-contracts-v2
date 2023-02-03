@@ -136,7 +136,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
 
     address _asset = asset; // gas saving
     uint balance = IERC20(_asset).balanceOf(address(this));
-    _decreaseBaseAmount(_asset, balance); // TODO probably we should reset base-amount here?
+    _decreaseBaseAmount(_asset, baseAmounts[_asset]); // reset base amount
     IERC20(_asset).safeTransfer(splitter, balance);
     emit EmergencyExit(msg.sender, balance);
   }
@@ -187,6 +187,16 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
       _splitter
     );
 
+    {
+      // we cannot withdraw more than the base amount value
+      // if any additional amount exist on the balance (i.e. airdrops)
+      // it should be processed by hardwork at first (split on compound/forwarder)
+      uint baseAmount = baseAmounts[_asset];
+      if (balance > baseAmount) {
+        balance = baseAmount;
+      }
+    }
+
     if (balance != 0) {
       _decreaseBaseAmount(_asset, balance);
       IERC20(_asset).safeTransfer(_splitter, balance);
@@ -230,10 +240,8 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   ///         We assume here, that base amounts are spent first, then rewards and any other profit-amounts
   function _decreaseBaseAmount(address asset_, uint amount_) internal {
     uint baseAmount = baseAmounts[asset_];
-    baseAmount = baseAmount > amount_
-      ? baseAmount - amount_
-      : 0;
-    baseAmounts[asset_] = baseAmount;
+    require(baseAmount >= amount_, WRONG_AMOUNT);
+    baseAmounts[asset_] = baseAmount - amount_;
     emit UpdateBaseAmounts(asset_, -int(baseAmount));
   }
 

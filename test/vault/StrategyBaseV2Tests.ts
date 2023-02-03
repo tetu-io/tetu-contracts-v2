@@ -1,6 +1,6 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {
-  ControllerMinimal,
+  ControllerMinimal, IERC20__factory,
   MockGauge,
   MockGauge__factory,
   MockStrategy, MockStrategy__factory,
@@ -118,125 +118,113 @@ describe("StrategyBaseV2Tests", function () {
         });
       });
     });
-    describe("withdrawAllToSplitter", () => {
-      it("should unregister invested amount, no rewards", async () => {
-        const amount = parseUnits('1', 6);
-        await usdc.transfer(strategyAsSplitter.address, amount);
-        await strategyAsSplitter.investAll(amount);
-        const before = await strategyAsSplitter.baseAmounts(usdc.address);
-        await strategyAsSplitter.connect(await Misc.impersonate(splitter.address)).withdrawAllToSplitter();
-        const after = await strategyAsSplitter.baseAmounts(usdc.address);
+    describe("withdrawToSplitter", () => {
+      describe("Good paths", () => {
+        it("should unregister invested amount, withdrawn amount == base amount", async () => {
+          const amount = parseUnits('1', 6);
+          const amountToWithdraw = parseUnits('0.3', 6);
 
-        const ret = [
-          +formatUnits(before, 6),
-          +formatUnits(after, 6)
-        ].join();
-        const expected = [
-          +formatUnits(amount, 6),
-          +formatUnits(0, 6)
-        ].join();
-        expect(ret).eq(expected);
+          await usdc.transfer(strategyAsSplitter.address, amount);
+          await strategyAsSplitter.investAll(amount);
+          const before = await strategyAsSplitter.baseAmounts(usdc.address);
+          await strategyAsSplitter.connect(await Misc.impersonate(splitter.address)).withdrawToSplitter(amountToWithdraw);
+          const after = await strategyAsSplitter.baseAmounts(usdc.address);
+
+          const ret = [
+            +formatUnits(before, 6),
+            +formatUnits(after, 6)
+          ].join();
+          const expected = [
+            +formatUnits(amount, 6),
+            +formatUnits(amount.sub(amountToWithdraw), 6)
+          ].join();
+          expect(ret).eq(expected);
+        });
+        it("should emit UpdateBaseAmounts, withdrawn amount == base amount", async () => {
+          const amount = parseUnits('5.5', 6);
+          const amountToWithdraw = parseUnits('5.5', 6);
+
+          await usdc.transfer(strategyAsSplitter.address, amount);
+          await strategyAsSplitter.investAll(amount);
+
+          // todo Replace by await expect( after migration to hardhat-chai-matchers
+          expect(await strategyAsSplitter.withdrawToSplitter(amountToWithdraw))
+            .to.emit(strategyAsSplitter.address, "UpdateBaseAmounts")
+            .withArgs(usdc.address, amountToWithdraw.mul(-1));
+        });
       });
-      it("should unregister invested amount, rewards", async () => {
-        const amount = parseUnits('1', 6);
-        const rewardsAmount = parseUnits('5', 6);
-        await usdc.transfer(strategyAsSplitter.address, amount);
-        await strategyAsSplitter.investAll(amount);
+      describe("Bad paths", () => {
+        it("should revert if withdrawn amount > base amount", async () => {
+          const amount = parseUnits('1', 6);
+          const amountToWithdraw = parseUnits('5.5', 6);
+          const rewardsAmount = parseUnits('5', 6);
+          await usdc.transfer(strategyAsSplitter.address, amount);
+          await strategyAsSplitter.investAll(amount);
 
-        // add "rewards" to the strategy
-        // now, the total amount on strategy balance is more then the base amount
-        await usdc.transfer(strategyAsSplitter.address, rewardsAmount);
-        const before = await strategyAsSplitter.baseAmounts(usdc.address);
-        await strategyAsSplitter.withdrawAllToSplitter();
-        const after = await strategyAsSplitter.baseAmounts(usdc.address);
+          // add "rewards" to the strategy
+          // now, the total amount on strategy balance is more than the base amount
+          await usdc.transfer(strategyAsSplitter.address, rewardsAmount);
 
-        const ret = [
-          +formatUnits(before, 6),
-          +formatUnits(after, 6)
-        ].join();
-        const expected = [
-          +formatUnits(amount, 6),
-          +formatUnits(0, 6)
-        ].join();
-        expect(ret).eq(expected);
-      });
-      it("should emit UpdateBaseAmounts, rewards", async () => {
-        const amount = parseUnits('1', 6);
-        const rewardsAmount = parseUnits('5', 6);
-        await usdc.transfer(strategyAsSplitter.address, amount);
-        await strategyAsSplitter.investAll(amount);
-
-        // add "rewards" to the strategy
-        // now, the total amount on strategy balance is more than the base amount
-        await usdc.transfer(strategyAsSplitter.address, rewardsAmount);
-
-        // todo Replace by await expect( after migration to hardhat-chai-matchers
-        expect(await strategyAsSplitter.withdrawAllToSplitter())
-          .to.emit(strategyAsSplitter.address, "UpdateBaseAmounts")
-          .withArgs(usdc.address, amount.mul(-1));
+          await expect(strategyAsSplitter.withdrawToSplitter(amountToWithdraw))
+            .revertedWith("SB: Wrong amount");
+        });
       });
     });
-    describe("withdrawToSplitter", () => {
-      it("should unregister invested amount, no rewards", async () => {
-        const amount = parseUnits('1', 6);
-        const amountToWithdraw = parseUnits('0.3', 6);
+    describe("withdrawAllToSplitter", () => {
+      describe("Good paths", () => {
+        it("should unregister invested amount", async () => {
+          const amount = parseUnits('1', 6);
+          await usdc.transfer(strategyAsSplitter.address, amount);
+          await strategyAsSplitter.investAll(amount);
+          const before = await strategyAsSplitter.baseAmounts(usdc.address);
+          await strategyAsSplitter.connect(await Misc.impersonate(splitter.address)).withdrawAllToSplitter();
+          const after = await strategyAsSplitter.baseAmounts(usdc.address);
 
-        await usdc.transfer(strategyAsSplitter.address, amount);
-        await strategyAsSplitter.investAll(amount);
-        const before = await strategyAsSplitter.baseAmounts(usdc.address);
-        await strategyAsSplitter.connect(await Misc.impersonate(splitter.address)).withdrawToSplitter(amountToWithdraw);
-        const after = await strategyAsSplitter.baseAmounts(usdc.address);
+          const ret = [
+            +formatUnits(before, 6),
+            +formatUnits(after, 6)
+          ].join();
+          const expected = [
+            +formatUnits(amount, 6),
+            +formatUnits(0, 6)
+          ].join();
+          expect(ret).eq(expected);
+        });
+        it("should emit UpdateBaseAmounts", async () => {
+          const amount = parseUnits('1', 6);
+          await usdc.transfer(strategyAsSplitter.address, amount);
+          await strategyAsSplitter.investAll(amount);
+          // todo Replace by await expect( after migration to hardhat-chai-matchers
+          expect(await strategyAsSplitter.withdrawAllToSplitter())
+            .to.emit(strategyAsSplitter.address, "UpdateBaseAmounts")
+            .withArgs(usdc.address, amount.mul(-1));
+        });
+        it("should unregister base amount when balance > base amount", async () => {
+          const amount = parseUnits('1', 6);
+          await usdc.transfer(strategyAsSplitter.address, amount);
+          await strategyAsSplitter.investAll(amount);
 
-        const ret = [
-          +formatUnits(before, 6),
-          +formatUnits(after, 6)
-        ].join();
-        const expected = [
-          +formatUnits(amount, 6),
-          +formatUnits(amount.sub(amountToWithdraw), 6)
-        ].join();
-        expect(ret).eq(expected);
-      });
-      it("should unregister invested amount, withdrawn amount > base amount", async () => {
-        const amount = parseUnits('1', 6);
-        const amountToWithdraw = parseUnits('5.5', 6);
-        const rewardsAmount = parseUnits('5', 6);
-        await usdc.transfer(strategyAsSplitter.address, amount);
-        await strategyAsSplitter.investAll(amount);
+          // make the total amount on strategy balance more than the base amount (i.e. airdrops)
+          const additionalAmount = parseUnits('777', 6);
+          await usdc.transfer(strategyAsSplitter.address, additionalAmount);
 
-        // add "rewards" to the strategy
-        // now, the total amount on strategy balance is more than the base amount
-        await usdc.transfer(strategyAsSplitter.address, rewardsAmount);
-        const before = await strategyAsSplitter.baseAmounts(usdc.address);
-        await strategyAsSplitter.withdrawToSplitter(amountToWithdraw);
-        const after = await strategyAsSplitter.baseAmounts(usdc.address);
+          const before = await strategyAsSplitter.baseAmounts(usdc.address);
+          await strategyAsSplitter.withdrawAllToSplitter();
+          const baseAmountAfter = await strategyAsSplitter.baseAmounts(usdc.address);
+          const balanceAfter = await usdc.balanceOf(strategyAsSplitter.address);
 
-        const ret = [
-          +formatUnits(before, 6),
-          +formatUnits(after, 6)
-        ].join();
-        const expected = [
-          +formatUnits(amount, 6),
-          +formatUnits(0, 6)
-        ].join();
-        expect(ret).eq(expected);
-      });
-      it("should emit UpdateBaseAmounts, withdrawn amount > base amount", async () => {
-        const amount = parseUnits('1', 6);
-        const amountToWithdraw = parseUnits('5.5', 6);
-        const rewardsAmount = parseUnits('5', 6);
-
-        await usdc.transfer(strategyAsSplitter.address, amount);
-        await strategyAsSplitter.investAll(amount);
-
-        // add "rewards" to the strategy
-        // now, the total amount on strategy balance is more than the base amount
-        await usdc.transfer(strategyAsSplitter.address, rewardsAmount);
-
-        // todo Replace by await expect( after migration to hardhat-chai-matchers
-        expect(await strategyAsSplitter.withdrawToSplitter(amountToWithdraw))
-          .to.emit(strategyAsSplitter.address, "UpdateBaseAmounts")
-          .withArgs(usdc.address, amountToWithdraw.mul(-1));
+          const ret = [
+            +formatUnits(before, 6),
+            +formatUnits(baseAmountAfter, 6),
+            +formatUnits(balanceAfter, 6),
+          ].join();
+          const expected = [
+            +formatUnits(amount, 6),
+            +formatUnits(0, 6),
+            +formatUnits(additionalAmount, 6),
+          ].join();
+          expect(ret).eq(expected);
+        });
       });
     });
   });
