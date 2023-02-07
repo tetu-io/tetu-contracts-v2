@@ -130,6 +130,10 @@ contract MockStrategy is StrategyBaseV2 {
     compoundRatio = ratio;
   }
 
+  function setBaseAmount(address asset_, uint amount_) external {
+    baseAmounts[asset_] = amount_;
+  }
+
   ////////////////////////////////////////////////////////
   ///           Access to internal functions
   ////////////////////////////////////////////////////////

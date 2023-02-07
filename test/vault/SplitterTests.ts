@@ -642,9 +642,19 @@ describe("Splitter and base strategy tests", function () {
       await strategy.connect(await Misc.impersonate(splitter.address)).investAll(0);
     });
 
-    it("withdraw to splitter when enough balance test", async () => {
-      await usdc.transfer(strategy.address, parseUnits('1', 6));
-      await strategy.connect(await Misc.impersonate(splitter.address)).withdrawToSplitter(parseUnits('1', 6));
+    describe("withdraw to splitter when enough balance test", () => {
+      it("withdraw to splitter when the amount on balance is registered in baseAmounts", async () => {
+        await usdc.transfer(strategy.address, parseUnits('1', 6));
+        await strategy.setBaseAmount(await strategy.asset(), parseUnits('1', 6));
+        await strategy.connect(await Misc.impersonate(splitter.address)).withdrawToSplitter(parseUnits('1', 6));
+      });
+      it("revert when the amount on balance is partly not registered in baseAmounts", async () => {
+        await usdc.transfer(strategy.address, parseUnits('1', 6));
+        await strategy.setBaseAmount(await strategy.asset(), parseUnits('0.5', 6));
+        await expect(
+          strategy.connect(await Misc.impersonate(splitter.address)).withdrawToSplitter(parseUnits('1', 6))
+        ).revertedWith("SB: Wrong amount"); // WRONG_AMOUNT
+      });
     });
 
     it("set compound ratio test", async () => {
