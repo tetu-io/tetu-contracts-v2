@@ -19,7 +19,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant STRATEGY_BASE_VERSION = "2.0.1";
+  string public constant STRATEGY_BASE_VERSION = "2.0.2";
   /// @dev Denominator for compound ratio
   uint internal constant COMPOUND_DENOMINATOR = 100_000;
   /// @dev Denominator for fee calculation.
@@ -33,6 +33,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   string internal constant DENIED = "SB: Denied";
   string internal constant TOO_HIGH = "SB: Too high";
   string internal constant IMPACT_TOO_HIGH = "SB: Impact too high";
+  string internal constant WRONG_AMOUNT = "SB: Wrong amount";
 
   // *************************************************************
   //                        VARIABLES
@@ -46,6 +47,10 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   address public override splitter;
   /// @dev Percent of profit for autocompound inside this strategy.
   uint public override compoundRatio;
+  /// @notice Balances of not-reward amounts
+  /// @dev Any amounts transferred to the strategy for investing or withdrawn back are registered here
+  ///      As result it's possible to distinct invested amounts from rewards, airdrops and other profits
+  mapping(address => uint) public baseAmounts;
 
   // *************************************************************
   //                        EVENTS
@@ -61,7 +66,8 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   event WithdrawAllFromPool(uint amount);
   event Claimed(address token, uint amount);
   event CompoundRatioChanged(uint oldValue, uint newValue);
-  event SentToForwarder(address forwarder, address token, uint amount);
+  /// @notice {baseAmounts} of {asset} is changed on the {amount} value
+  event UpdateBaseAmounts(address asset, int amount);
 
   // *************************************************************
   //                        INIT
@@ -127,8 +133,9 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
 
     _emergencyExitFromPool();
 
-    address _asset = asset;
+    address _asset = asset; // gas saving
     uint balance = IERC20(_asset).balanceOf(address(this));
+    _decreaseBaseAmount(_asset, baseAmounts[_asset]); // reset base amount
     IERC20(_asset).safeTransfer(splitter, balance);
     emit EmergencyExit(msg.sender, balance);
   }
@@ -146,10 +153,15 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   // *************************************************************
 
   /// @dev Stakes everything the strategy holds into the reward pool.
-  function investAll() external override {
+  /// @param amount_ Amount transferred to the strategy balance just before calling this function
+  function investAll(uint amount_) external override {
     require(msg.sender == splitter, DENIED);
 
-    uint balance = IERC20(asset).balanceOf(address(this));
+    address _asset = asset; // gas saving
+    uint balance = IERC20(_asset).balanceOf(address(this));
+
+    _increaseBaseAmount(_asset, amount_, balance);
+
     if (balance > 0) {
       _depositToPool(balance);
     }
@@ -159,7 +171,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   /// @dev Withdraws all underlying assets to the vault
   function withdrawAllToSplitter() external override {
     address _splitter = splitter;
-    address _asset = asset;
+    address _asset = asset; // gas saving
     require(msg.sender == _splitter, DENIED);
 
     uint balance = IERC20(_asset).balanceOf(address(this));
@@ -174,7 +186,18 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
       _splitter
     );
 
+    {
+      // we cannot withdraw more than the base amount value
+      // if any additional amount exist on the balance (i.e. airdrops)
+      // it should be processed by hardwork at first (split on compound/forwarder)
+      uint baseAmount = baseAmounts[_asset];
+      if (balance > baseAmount) {
+        balance = baseAmount;
+      }
+    }
+
     if (balance != 0) {
+      _decreaseBaseAmount(_asset, balance);
       IERC20(_asset).safeTransfer(_splitter, balance);
     }
     emit WithdrawAllToSplitter(balance);
@@ -183,7 +206,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   /// @dev Withdraws some assets to the splitter
   function withdrawToSplitter(uint amount) external override {
     address _splitter = splitter;
-    address _asset = asset;
+    address _asset = asset; // gas saving
     require(msg.sender == _splitter, DENIED);
 
     uint balance = IERC20(_asset).balanceOf(address(this));
@@ -200,9 +223,33 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
 
     uint amountAdjusted = Math.min(amount, balance);
     if (amountAdjusted != 0) {
+      _decreaseBaseAmount(_asset, amountAdjusted);
       IERC20(_asset).safeTransfer(_splitter, amountAdjusted);
     }
     emit WithdrawToSplitter(amount, amountAdjusted, balance);
+  }
+
+
+  // *************************************************************
+  //                  baseAmounts modifications
+  // *************************************************************
+
+  /// @notice Decrease {baseAmounts} of the {asset} on {amount_}
+  ///         The {amount_} can be greater then total base amount value because it can includes rewards.
+  ///         We assume here, that base amounts are spent first, then rewards and any other profit-amounts
+  function _decreaseBaseAmount(address asset_, uint amount_) internal {
+    uint baseAmount = baseAmounts[asset_];
+    require(baseAmount >= amount_, WRONG_AMOUNT);
+    baseAmounts[asset_] = baseAmount - amount_;
+    emit UpdateBaseAmounts(asset_, -int(baseAmount));
+  }
+
+  /// @notice Increase {baseAmounts} of the {asset} on {amount_}, ensure that current {assetBalance_} >= {amount_}
+  /// @param assetBalance_ Current balance of the {asset} to check if {amount_} > the balance. Pass 0 to skip the check
+  function _increaseBaseAmount(address asset_, uint amount_, uint assetBalance_) internal {
+    baseAmounts[asset_] += amount_;
+    emit UpdateBaseAmounts(asset_, int(amount_));
+    require(assetBalance_ >= amount_, WRONG_AMOUNT);
   }
 
   // *************************************************************
@@ -223,7 +270,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
     address _splitter
   ) internal view returns (uint balance) {
     balance = IERC20(_asset).balanceOf(address(this));
-    if (assetPrice != 0 || investedAssetsUSD != 0) {
+    if (assetPrice != 0 && investedAssetsUSD != 0) {
 
       uint withdrew = balance > balanceBefore ? balance - balanceBefore : 0;
       uint withdrewUSD = withdrew * assetPrice / 1e18;
@@ -232,14 +279,6 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
 
       require(difference * FEE_DENOMINATOR / investedAssetsUSD <= priceChangeTolerance, IMPACT_TOO_HIGH);
     }
-  }
-
-  /// @dev Must use this function for any transfers to Forwarder.
-  function _sendToForwarder(address token, uint amount) internal {
-    address forwarder = IController(controller()).forwarder();
-    IERC20(token).safeTransfer(forwarder, amount);
-    IForwarder(forwarder).distribute(token);
-    emit SentToForwarder(forwarder, token, amount);
   }
 
   // *************************************************************

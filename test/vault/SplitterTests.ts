@@ -627,7 +627,7 @@ describe("Splitter and base strategy tests", function () {
     });
 
     it("strategy invest from 3rd party revert", async () => {
-      await expect(strategy.investAll()).revertedWith("SB: Denied");
+      await expect(strategy.investAll(0)).revertedWith("SB: Denied");
     });
 
     it("claim from 3d party revert", async () => {
@@ -639,12 +639,22 @@ describe("Splitter and base strategy tests", function () {
     });
 
     it("invest all with zero balance test", async () => {
-      await strategy.connect(await Misc.impersonate(splitter.address)).investAll();
+      await strategy.connect(await Misc.impersonate(splitter.address)).investAll(0);
     });
 
-    it("withdraw to splitter when enough balance test", async () => {
-      await usdc.transfer(strategy.address, parseUnits('1', 6));
-      await strategy.connect(await Misc.impersonate(splitter.address)).withdrawToSplitter(parseUnits('1', 6));
+    describe("withdraw to splitter when enough balance test", () => {
+      it("withdraw to splitter when the amount on balance is registered in baseAmounts", async () => {
+        await usdc.transfer(strategy.address, parseUnits('1', 6));
+        await strategy.setBaseAmount(await strategy.asset(), parseUnits('1', 6));
+        await strategy.connect(await Misc.impersonate(splitter.address)).withdrawToSplitter(parseUnits('1', 6));
+      });
+      it("revert when the amount on balance is partly not registered in baseAmounts", async () => {
+        await usdc.transfer(strategy.address, parseUnits('1', 6));
+        await strategy.setBaseAmount(await strategy.asset(), parseUnits('0.5', 6));
+        await expect(
+          strategy.connect(await Misc.impersonate(splitter.address)).withdrawToSplitter(parseUnits('1', 6))
+        ).revertedWith("SB: Wrong amount"); // WRONG_AMOUNT
+      });
     });
 
     it("set compound ratio test", async () => {

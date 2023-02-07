@@ -655,7 +655,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     }
   }
 
-  function _investToTopStrategy() internal returns (address){
+  function _investToTopStrategy() internal returns (address) {
     address strategy;
     address _asset = asset;
     uint balance = IERC20(_asset).balanceOf(address(this));
@@ -679,7 +679,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
         }
 
         IERC20(_asset).safeTransfer(strategy, toInvest);
-        IStrategyV2(strategy).investAll();
+        IStrategyV2(strategy).investAll(toInvest);
         balance -= toInvest;
         emit Invested(strategy, toInvest);
       }

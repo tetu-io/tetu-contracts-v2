@@ -24,7 +24,9 @@ interface IStrategyV2 {
 
   function withdrawToSplitter(uint amount) external;
 
-  function investAll() external;
+  /// @notice Stakes everything the strategy holds into the reward pool.
+  /// @param amount_ Amount transferred to the strategy balance just before calling this function
+  function investAll(uint amount_) external;
 
   function doHardWork() external returns (uint earned, uint lost);
 

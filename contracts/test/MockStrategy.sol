@@ -44,7 +44,12 @@ contract MockStrategy is StrategyBaseV2 {
       address forwarder = IController(controller()).forwarder();
       if (forwarder != address(0)) {
         MockToken(asset).mint(address(this), lastEarned - toCompound);
-        _sendToForwarder(asset, lastEarned - toCompound);
+
+        address[] memory tokens = new address[](1);
+        tokens[0] = asset;
+        uint[] memory amounts = new uint[](1);
+        amounts[0] = lastEarned - toCompound;
+        IForwarder(forwarder).registerIncome(tokens, amounts, ISplitter(splitter).vault(), true);
       }
     }
     IERC20(asset).transfer(address(pool), IERC20(asset).balanceOf(address(this)));
@@ -123,6 +128,10 @@ contract MockStrategy is StrategyBaseV2 {
 
   function setCompoundRatioManual(uint ratio) external {
     compoundRatio = ratio;
+  }
+
+  function setBaseAmount(address asset_, uint amount_) external {
+    baseAmounts[asset_] = amount_;
   }
 
   ////////////////////////////////////////////////////////
