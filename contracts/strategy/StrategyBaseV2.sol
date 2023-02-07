@@ -66,7 +66,6 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   event WithdrawAllFromPool(uint amount);
   event Claimed(address token, uint amount);
   event CompoundRatioChanged(uint oldValue, uint newValue);
-  event SentToForwarder(address forwarder, address token, uint amount);
   /// @notice {baseAmounts} of {asset} is changed on the {amount} value
   event UpdateBaseAmounts(address asset, int amount);
 
@@ -280,14 +279,6 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
 
       require(difference * FEE_DENOMINATOR / investedAssetsUSD <= priceChangeTolerance, IMPACT_TOO_HIGH);
     }
-  }
-
-  /// @dev Must use this function for any transfers to Forwarder.
-  function _sendToForwarder(address token, uint amount) internal {
-    address forwarder = IController(controller()).forwarder();
-    IERC20(token).safeTransfer(forwarder, amount);
-    IForwarder(forwarder).distribute(token);
-    emit SentToForwarder(forwarder, token, amount);
   }
 
   // *************************************************************
