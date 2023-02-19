@@ -5,7 +5,7 @@ import {Logger} from "tslog";
 import logSettings from "../../log_settings";
 import {formatUnits} from "ethers/lib/utils";
 
-const log: Logger<unknown> = new Logger(logSettings);
+const log: Logger = new Logger(logSettings);
 
 export const WAIT_BLOCKS_BETWEEN_DEPLOY = 5;
 

@@ -6,7 +6,7 @@ import {parseUnits} from "ethers/lib/utils";
 import {
   ControllerMinimal,
   ControllerV2,
-  ControllerV2__factory,
+  ControllerV2__factory, ERC4626Strict,
   ForwarderV3,
   ForwarderV3__factory,
   MockStakingToken,
@@ -38,7 +38,7 @@ import path from "path";
 
 // tslint:disable-next-line:no-var-requires
 const hre = require("hardhat");
-const log: Logger<unknown> = new Logger(logSettings);
+const log: Logger = new Logger(logSettings);
 
 
 export class DeployerUtils {

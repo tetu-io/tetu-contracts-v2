@@ -2,11 +2,11 @@
 
 pragma solidity 0.8.17;
 
-import "./ERC4626Upgradeable.sol";
+import "./ERC4626.sol";
 import "../interfaces/IStrategyStrict.sol";
 import "../tools/TetuERC165.sol";
 
-contract ERC4626Strict is ERC4626Upgradeable, TetuERC165 {
+contract ERC4626Strict is ERC4626, TetuERC165 {
   using SafeERC20 for IERC20;
   using FixedPointMathLib for uint;
 
@@ -24,7 +24,7 @@ contract ERC4626Strict is ERC4626Upgradeable, TetuERC165 {
   // *************************************************************
 
   /// @dev Connected strategy. Can not be changed.
-  IStrategyStrict public immutable strategy;
+  IStrategyStrict public strategy;
   /// @dev Percent of assets that will always stay in this vault.
   uint public immutable buffer;
 
@@ -42,18 +42,21 @@ contract ERC4626Strict is ERC4626Upgradeable, TetuERC165 {
     IERC20 asset_,
     string memory _name,
     string memory _symbol,
-    address _strategy,
     uint _buffer
-  ) {
+  ) ERC4626(asset_, _name, _symbol){
     // buffer is 5% max
     require(_buffer <= BUFFER_DENOMINATOR / 20, "!BUFFER");
-
     _requireERC20(address(asset_));
-    _requireInterface(_strategy, InterfaceIds.I_STRATEGY_STRICT);
-    __ERC4626_init(asset_, _name, _symbol);
-
-    strategy = IStrategyStrict(_strategy);
     buffer = _buffer;
+  }
+
+
+  //todo: think about permissions
+  function setStrategy(address _strategy) external {
+    require(address(strategy) == address(0), "strategy already set");
+    _requireInterface(_strategy, InterfaceIds.I_STRATEGY_STRICT);
+    require(IStrategyStrict(_strategy).asset() == address(_asset), "wrong asset");
+    strategy = IStrategyStrict(_strategy);
   }
 
   // *************************************************************
