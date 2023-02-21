@@ -29,6 +29,7 @@ describe("StrategyStrictBaseTests", function () {
     usdc = await DeployerUtils.deployMockToken(signer, 'USDC', 6);
     tetu = await DeployerUtils.deployMockToken(signer, 'TETU');
     await usdc.transfer(signer2.address, parseUnits('1', 6));
+    const strategy = await DeployerUtils.deployContract(signer, 'MockStrategyStrict') as MockStrategyStrict;
 
     vault = await DeployerUtils.deployContract(
       signer,
@@ -36,11 +37,10 @@ describe("StrategyStrictBaseTests", function () {
       usdc.address,
       'USDC',
       'USDC',
+      strategy.address,
       0) as ERC4626Strict;
 
-    const strategy = await DeployerUtils.deployContract(signer, 'MockStrategyStrict', vault.address) as MockStrategyStrict;
-
-    await vault.setStrategy(strategy.address);
+    await strategy.init(vault.address);
 
     strategyAsVault = MockStrategyStrict__factory.connect(
       strategy.address,

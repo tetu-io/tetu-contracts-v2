@@ -21,7 +21,7 @@ contract MockStrategyStrict is StrategyStrictBase {
 
   MockPool public pool;
 
-  constructor(address vault_) StrategyStrictBase(vault_) {
+  constructor() {
     isReadyToHardWork = true;
     pool = new MockPool();
   }
@@ -79,11 +79,6 @@ contract MockStrategyStrict is StrategyStrictBase {
     // noop
   }
 
-//  function setLast(uint earned, uint lost) external {
-//    lastEarned = earned;
-//    lastLost = lost;
-//  }
-//
   function setSlippage(uint value) external {
     slippage = value;
   }
@@ -91,9 +86,5 @@ contract MockStrategyStrict is StrategyStrictBase {
   function setSlippageDeposit(uint value) external {
     slippageDeposit = value;
   }
-//
-//  function setCompoundRatio(uint value) external override {
-//    compoundRatio = value;
-//  }
 
 }

@@ -24,7 +24,7 @@ contract ERC4626Strict is ERC4626, TetuERC165 {
   // *************************************************************
 
   /// @dev Connected strategy. Can not be changed.
-  IStrategyStrict public strategy;
+  IStrategyStrict public immutable strategy;
   /// @dev Percent of assets that will always stay in this vault.
   uint public immutable buffer;
 
@@ -42,20 +42,14 @@ contract ERC4626Strict is ERC4626, TetuERC165 {
     IERC20 asset_,
     string memory _name,
     string memory _symbol,
+    address _strategy,
     uint _buffer
   ) ERC4626(asset_, _name, _symbol){
     // buffer is 5% max
     require(_buffer <= BUFFER_DENOMINATOR / 20, "!BUFFER");
     _requireERC20(address(asset_));
     buffer = _buffer;
-  }
-
-
-  //todo: think about permissions
-  function setStrategy(address _strategy) external {
-    require(address(strategy) == address(0), "strategy already set");
     _requireInterface(_strategy, InterfaceIds.I_STRATEGY_STRICT);
-    require(IStrategyStrict(_strategy).asset() == address(_asset), "wrong asset");
     strategy = IStrategyStrict(_strategy);
   }
 

@@ -5,15 +5,11 @@ import {ethers} from "hardhat";
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {
-  ControllerMinimal, ERC4626Strict,
-  MockGauge, MockGauge__factory,
-  MockSplitter, MockSplitter__factory, MockStrategyStrict,
+  ERC4626Strict,
+  MockStrategyStrict,
   MockToken,
   ProxyControlled,
-  TetuVaultV2,
-  TetuVaultV2__factory,
-  VaultInsurance,
-  VaultInsurance__factory
+  TetuVaultV2
 } from "../../typechain";
 import {Misc} from "../../scripts/utils/Misc";
 import {parseUnits} from "ethers/lib/utils";
@@ -31,6 +27,7 @@ describe("ERC4626Strict tests", function () {
   let usdc: MockToken;
   let tetu: MockToken;
   let vault: ERC4626Strict;
+  let strategy: MockStrategyStrict;
 
   before(async function () {
     [signer, signer1, signer2] = await ethers.getSigners()
@@ -40,17 +37,17 @@ describe("ERC4626Strict tests", function () {
     tetu = await DeployerUtils.deployMockToken(signer, 'TETU');
     await usdc.transfer(signer2.address, parseUnits('1', 6));
 
+    strategy = await DeployerUtils.deployContract(signer, 'MockStrategyStrict') as MockStrategyStrict;
     vault = await DeployerUtils.deployContract(
       signer,
       'ERC4626Strict',
       usdc.address,
       'USDC',
       'USDC',
+      strategy.address,
       0) as ERC4626Strict;
 
-    const strategy = await DeployerUtils.deployContract(signer, 'MockStrategyStrict', vault.address) as MockStrategyStrict;
-
-    await vault.setStrategy(strategy.address);
+    await strategy.init(vault.address);
 
     await usdc.connect(signer2).approve(vault.address, Misc.MAX_UINT);
     await usdc.connect(signer1).approve(vault.address, Misc.MAX_UINT);
@@ -164,19 +161,21 @@ describe("ERC4626Strict tests", function () {
       usdc.address,
       'USDC',
       'USDC',
+      strategy.address,
       10000000)).revertedWith("!BUFFER");
   });
 
   it("set buffer test", async () => {
+    const s = await DeployerUtils.deployContract(signer, 'MockStrategyStrict') as MockStrategyStrict;
     const v = await DeployerUtils.deployContract(
       signer,
       'ERC4626Strict',
       usdc.address,
       'USDC',
       'USDC',
+      s.address,
       1_000);
-    const strategy = await DeployerUtils.deployContract(signer, 'MockStrategyStrict', v.address) as MockStrategyStrict;
-    await v.setStrategy(strategy.address);
+    await s.init(v.address);
     await usdc.approve(v.address, Misc.MAX_UINT);
     await v.deposit(parseUnits('1', 6), signer.address)
     expect(await usdc.balanceOf(v.address)).eq(10_000);
@@ -185,15 +184,16 @@ describe("ERC4626Strict tests", function () {
   });
 
   it("not invest on deposit", async () => {
+    const s = await DeployerUtils.deployContract(signer, 'MockStrategyStrict') as MockStrategyStrict;
     const v = await DeployerUtils.deployContract(
       signer,
       'ERC4626Strict',
       usdc.address,
       'USDC',
       'USDC',
+      s.address,
       1_000);
-    const strategy = await DeployerUtils.deployContract(signer, 'MockStrategyStrict', v.address) as MockStrategyStrict;
-    await v.setStrategy(strategy.address);
+    await s.init(v.address);
     await usdc.approve(v.address, Misc.MAX_UINT);
     await v.deposit(parseUnits('1', 6), signer.address)
     expect(await usdc.balanceOf(v.address)).eq(10_000);

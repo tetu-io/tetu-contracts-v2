@@ -5,7 +5,7 @@ import "../openzeppelin/SafeERC20.sol";
 import "../openzeppelin/Math.sol";
 import "../interfaces/IStrategyV2.sol";
 import "../interfaces/IForwarder.sol";
-import "../interfaces/IERC4626Strict.sol";
+import "../interfaces/IERC4626.sol";
 import "../interfaces/IStrategyStrict.sol";
 import "../tools/TetuERC165.sol";
 
@@ -19,11 +19,7 @@ abstract contract StrategyStrictBase is IStrategyStrict, TetuERC165 {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant STRATEGY_BASE_VERSION = "1.0.0";
-  /// @dev Denominator for compound ratio
-  uint internal constant COMPOUND_DENOMINATOR = 100_000;
-  /// @dev Denominator for fee calculation.
-  uint internal constant FEE_DENOMINATOR = 100_000;
+  string public constant STRICT_STRATEGY_BASE_VERSION = "1.0.0";
 
   // *************************************************************
   //                        ERRORS
@@ -34,6 +30,7 @@ abstract contract StrategyStrictBase is IStrategyStrict, TetuERC165 {
   string internal constant TOO_HIGH = "SB: Too high";
   string internal constant IMPACT_TOO_HIGH = "SB: Impact too high";
   string internal constant WRONG_AMOUNT = "SB: Wrong amount";
+  string internal constant ALREADY_INITIALIZED = "SB: Already initialized";
 
   // *************************************************************
   //                        VARIABLES
@@ -73,9 +70,11 @@ abstract contract StrategyStrictBase is IStrategyStrict, TetuERC165 {
   //                        INIT
   // *************************************************************
 
-  constructor(address _vault) {
+  /// @dev Initialize with the vault. Can be called only once.
+  function init(address _vault) external {
+    require(vault == address(0), ALREADY_INITIALIZED);
     _requireInterface(_vault, InterfaceIds.I_ERC4626);
-    asset = IERC4626Strict(_vault).asset();
+    asset = IERC4626(_vault).asset();
     vault = _vault;
   }
 
@@ -213,17 +212,9 @@ abstract contract StrategyStrictBase is IStrategyStrict, TetuERC165 {
     if (assetPrice != 0 && investedAssetsUSD != 0) {
       uint withdrew = balance > balanceBefore ? balance - balanceBefore : 0;
       uint withdrewUSD = withdrew * assetPrice / 1e18;
-      uint priceChangeTolerance = 0;
       uint difference = investedAssetsUSD > withdrewUSD ? investedAssetsUSD - withdrewUSD : 0;
-      require(difference * FEE_DENOMINATOR / investedAssetsUSD <= priceChangeTolerance, IMPACT_TOO_HIGH);
+      require(difference == 0, IMPACT_TOO_HIGH);
     }
-  }
-
-  //todo: refactor think on permissions
-  function setVault(address _vault) external {
-    _requireInterface(_vault, InterfaceIds.I_ERC4626);
-    asset = IERC4626Strict(_vault).asset();
-    vault = _vault;
   }
 
   // *************************************************************
