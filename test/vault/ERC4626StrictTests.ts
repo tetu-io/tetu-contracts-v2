@@ -116,6 +116,7 @@ describe("ERC4626Strict tests", function () {
 
   it("withdraw not owner test", async () => {
     await vault.deposit(parseUnits('1', 6), signer.address);
+    expect(await vault.sharePrice()).eq(parseUnits('1', 6))
     await vault.approve(signer1.address, parseUnits('1', 6));
     await vault.connect(signer1).withdraw(parseUnits('0.1', 6), signer1.address, signer.address);
   });
@@ -125,6 +126,33 @@ describe("ERC4626Strict tests", function () {
     await vault.approve(signer1.address, Misc.MAX_UINT);
     await vault.connect(signer1).withdraw(parseUnits('0.1', 6), signer1.address, signer.address);
   });
+
+  it("deposit and withdraw all", async () => {
+    await vault.deposit(parseUnits('1', 6), signer.address);
+    expect(await vault.balanceOf(signer.address)).eq(parseUnits('1', 6));
+    await vault.withdrawAll();
+    expect(await vault.balanceOf(signer.address)).eq(0);
+  });
+
+  it("deposit when strategy has funds", async () => {
+    const s = await DeployerUtils.deployContract(signer, 'MockStrategyStrict') as MockStrategyStrict;
+    const v = await DeployerUtils.deployContract(
+      signer,
+      'ERC4626Strict',
+      usdc.address,
+      'USDC',
+      'USDC',
+      s.address,
+      1_000);
+    await s.init(v.address);
+    await usdc.approve(v.address, Misc.MAX_UINT);
+    await usdc.approve(s.address, parseUnits('1', 6));
+    await usdc.transfer(s.address, parseUnits('1', 6));
+    await v.deposit(parseUnits('1', 4), signer.address)
+    expect(await v.balanceOf(signer.address)).eq(parseUnits('1', 4));
+    expect(await usdc.balanceOf(s.address)).eq(parseUnits('1', 6));
+  });
+
 
   it("max redeem revert", async () => {
     await expect(vault.redeem(Misc.MAX_UINT, signer.address, signer.address)).revertedWith('MAX')
@@ -197,6 +225,35 @@ describe("ERC4626Strict tests", function () {
     await usdc.approve(v.address, Misc.MAX_UINT);
     await v.deposit(parseUnits('1', 6), signer.address)
     expect(await usdc.balanceOf(v.address)).eq(10_000);
+  });
+
+  it("simple mint/withdraw test", async () => {
+    await vault.mint(parseUnits('1', 6), signer.address);
+    await vault.withdraw(parseUnits('1', 6), signer.address, signer.address);
+  });
+
+  it("simple maxDeposit test", async () => {
+    expect(await vault.maxDeposit(signer.address)).eq(Misc.MAX_UINT_MINUS_ONE);
+  });
+
+  it("simple maxMint test", async () => {
+    expect(await vault.maxMint(signer.address)).eq(Misc.MAX_UINT_MINUS_ONE);
+  });
+
+  it("simple maxWithdraw test", async () => {
+    expect(await vault.maxWithdraw(signer.address)).eq(0);
+  });
+
+  it("simple maxRedeem test", async () => {
+    expect(await vault.maxRedeem(signer.address)).eq(0);
+  });
+
+  it("max mint revert", async () => {
+    await expect(vault.mint(Misc.MAX_UINT, signer.address)).revertedWith('MAX')
+  });
+
+  it("splitter assets test", async () => {
+    expect(await vault.strategyAssets()).eq(0);
   });
 
 });

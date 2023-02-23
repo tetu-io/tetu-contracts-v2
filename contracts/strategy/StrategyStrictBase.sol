@@ -114,18 +114,8 @@ abstract contract StrategyStrictBase is IStrategyStrict, TetuERC165 {
     address _vault = vault;
     address _asset = asset; // gas saving
     require(msg.sender == _vault, DENIED);
-
+    _withdrawAllFromPool();
     uint balance = IERC20(_asset).balanceOf(address(this));
-
-    (uint investedAssetsUSD, uint assetPrice) = _withdrawAllFromPool();
-
-    balance = _checkWithdrawImpact(
-      _asset,
-      balance,
-      investedAssetsUSD,
-      assetPrice
-    );
-
     {
       // we cannot withdraw more than the base amount value
       // if any additional amount exist on the balance (i.e. airdrops)
@@ -150,13 +140,8 @@ abstract contract StrategyStrictBase is IStrategyStrict, TetuERC165 {
     require(msg.sender == _vault, DENIED);
     uint balance = IERC20(_asset).balanceOf(address(this));
     if (amount > balance) {
-      (uint investedAssetsUSD, uint assetPrice) = _withdrawFromPool(amount - balance);
-      balance = _checkWithdrawImpact(
-        _asset,
-        balance,
-        investedAssetsUSD,
-        assetPrice
-      );
+      _withdrawFromPool(amount - balance);
+      balance = IERC20(_asset).balanceOf(address(this));
     }
 
     uint amountAdjusted = Math.min(amount, balance);
@@ -188,33 +173,6 @@ abstract contract StrategyStrictBase is IStrategyStrict, TetuERC165 {
     baseAmounts[asset_] += amount_;
     emit UpdateBaseAmounts(asset_, int(amount_));
     require(assetBalance_ >= amount_, WRONG_AMOUNT);
-  }
-
-  // *************************************************************
-  //                       HELPERS
-  // *************************************************************
-
-  // todo: not sure if we need this function since priceChangeTolerance is always 0 for strict strategies.
-  /// @notice Calculate withdrawn amount in USD using the {assetPrice}.
-  ///         Revert if the amount is different from expected too much (high price impact)
-  /// @param balanceBefore Asset balance of the strategy before withdrawing
-  /// @param investedAssetsUSD Expected amount in USD, decimals are same to {_asset}
-  /// @param assetPrice Price of the asset, decimals 18
-  /// @return balance Current asset balance of the strategy
-  function _checkWithdrawImpact(
-    address _asset,
-    uint balanceBefore,
-    uint investedAssetsUSD,
-    uint assetPrice
-  ) internal view returns (uint balance) {
-    balance = IERC20(_asset).balanceOf(address(this));
-
-    if (assetPrice != 0 && investedAssetsUSD != 0) {
-      uint withdrew = balance > balanceBefore ? balance - balanceBefore : 0;
-      uint withdrewUSD = withdrew * assetPrice / 1e18;
-      uint difference = investedAssetsUSD > withdrewUSD ? investedAssetsUSD - withdrewUSD : 0;
-      require(difference == 0, IMPACT_TOO_HIGH);
-    }
   }
 
   // *************************************************************
