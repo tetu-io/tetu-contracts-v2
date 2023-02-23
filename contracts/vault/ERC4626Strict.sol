@@ -2,11 +2,11 @@
 
 pragma solidity 0.8.17;
 
-import "./ERC4626Upgradeable.sol";
+import "./ERC4626.sol";
 import "../interfaces/IStrategyStrict.sol";
 import "../tools/TetuERC165.sol";
 
-contract ERC4626Strict is ERC4626Upgradeable, TetuERC165 {
+contract ERC4626Strict is ERC4626, TetuERC165 {
   using SafeERC20 for IERC20;
   using FixedPointMathLib for uint;
 
@@ -44,16 +44,13 @@ contract ERC4626Strict is ERC4626Upgradeable, TetuERC165 {
     string memory _symbol,
     address _strategy,
     uint _buffer
-  ) {
+  ) ERC4626(asset_, _name, _symbol){
     // buffer is 5% max
     require(_buffer <= BUFFER_DENOMINATOR / 20, "!BUFFER");
-
     _requireERC20(address(asset_));
-    _requireInterface(_strategy, InterfaceIds.I_STRATEGY_STRICT);
-    __ERC4626_init(asset_, _name, _symbol);
-
-    strategy = IStrategyStrict(_strategy);
     buffer = _buffer;
+    _requireInterface(_strategy, InterfaceIds.I_STRATEGY_STRICT);
+    strategy = IStrategyStrict(_strategy);
   }
 
   // *************************************************************

@@ -6,7 +6,7 @@ import {parseUnits} from "ethers/lib/utils";
 import {
   ControllerMinimal,
   ControllerV2,
-  ControllerV2__factory,
+  ControllerV2__factory, ERC4626Strict,
   ForwarderV3,
   ForwarderV3__factory,
   MockStakingToken,
