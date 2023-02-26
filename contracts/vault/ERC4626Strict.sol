@@ -94,7 +94,7 @@ contract ERC4626Strict is ERC4626, TetuERC165 {
     // invest only when buffer is filled
     if (toInvest > 0) {
       asset_.safeTransfer(address(_strategy), toInvest);
-      _strategy.investAll(toInvest);
+      _strategy.investAll();
       emit Invest(address(_strategy), toInvest);
     }
   }
