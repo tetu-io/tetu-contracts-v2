@@ -97,12 +97,10 @@ abstract contract StrategyStrictBase is IStrategyStrict, TetuERC165 {
   // *************************************************************
 
   /// @dev Stakes everything the strategy holds into the reward pool.
-  /// @param amount_ Amount transferred to the strategy balance just before calling this function
-  function investAll(uint amount_) external override {
+  function investAll() external override {
     require(msg.sender == vault, DENIED);
     address _asset = asset; // gas saving
     uint balance = IERC20(_asset).balanceOf(address(this));
-    _increaseBaseAmount(_asset, amount_, balance);
     if (balance > 0) {
       _depositToPool(balance);
     }
