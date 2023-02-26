@@ -97,12 +97,10 @@ abstract contract StrategyStrictBase is IStrategyStrict, TetuERC165 {
   // *************************************************************
 
   /// @dev Stakes everything the strategy holds into the reward pool.
-  /// @param amount_ Amount transferred to the strategy balance just before calling this function
-  function investAll(uint amount_) external override {
+  function investAll() external override {
     require(msg.sender == vault, DENIED);
     address _asset = asset; // gas saving
     uint balance = IERC20(_asset).balanceOf(address(this));
-    _increaseBaseAmount(_asset, amount_, balance);
     if (balance > 0) {
       _depositToPool(balance);
     }
@@ -127,7 +125,6 @@ abstract contract StrategyStrictBase is IStrategyStrict, TetuERC165 {
     }
 
     if (balance != 0) {
-      _decreaseBaseAmount(_asset, balance);
       IERC20(_asset).safeTransfer(_vault, balance);
     }
     emit WithdrawAllToVault(balance);
@@ -146,33 +143,9 @@ abstract contract StrategyStrictBase is IStrategyStrict, TetuERC165 {
 
     uint amountAdjusted = Math.min(amount, balance);
     if (amountAdjusted != 0) {
-      _decreaseBaseAmount(_asset, amountAdjusted);
       IERC20(_asset).safeTransfer(_vault, amountAdjusted);
     }
     emit WithdrawToVault(amount, amountAdjusted, balance);
-  }
-
-
-  // *************************************************************
-  //                  baseAmounts modifications
-  // *************************************************************
-
-  /// @notice Decrease {baseAmounts} of the {asset} on {amount_}
-  ///         The {amount_} can be greater then total base amount value because it can includes rewards.
-  ///         We assume here, that base amounts are spent first, then rewards and any other profit-amounts
-  function _decreaseBaseAmount(address asset_, uint amount_) internal {
-    uint baseAmount = baseAmounts[asset_];
-    require(baseAmount >= amount_, WRONG_AMOUNT);
-    baseAmounts[asset_] = baseAmount - amount_;
-    emit UpdateBaseAmounts(asset_, -int(baseAmount));
-  }
-
-  /// @notice Increase {baseAmounts} of the {asset} on {amount_}, ensure that current {assetBalance_} >= {amount_}
-  /// @param assetBalance_ Current balance of the {asset} to check if {amount_} > the balance. Pass 0 to skip the check
-  function _increaseBaseAmount(address asset_, uint amount_, uint assetBalance_) internal {
-    baseAmounts[asset_] += amount_;
-    emit UpdateBaseAmounts(asset_, int(amount_));
-    require(assetBalance_ >= amount_, WRONG_AMOUNT);
   }
 
   // *************************************************************

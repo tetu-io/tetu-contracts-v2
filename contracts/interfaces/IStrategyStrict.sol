@@ -24,7 +24,7 @@ interface IStrategyStrict {
 
   function withdrawToVault(uint amount) external;
 
-  function investAll(uint amount) external;
+  function investAll() external;
 
   function doHardWork() external returns (uint earned, uint lost);
 
