@@ -44,10 +44,6 @@ abstract contract StrategyStrictBase is IStrategyStrict, TetuERC165 {
   address public override vault;
   /// @dev Percent of profit for autocompound inside this strategy.
   uint public override compoundRatio;
-  /// @notice Balances of not-reward amounts
-  /// @dev Any amounts transferred to the strategy for investing or withdrawn back are registered here
-  ///      As result it's possible to distinct invested amounts from rewards, airdrops and other profits
-  mapping(address => uint) public baseAmounts;
 
   // *************************************************************
   //                        EVENTS
@@ -63,8 +59,6 @@ abstract contract StrategyStrictBase is IStrategyStrict, TetuERC165 {
   event WithdrawAllFromPool(uint amount);
   event Claimed(address token, uint amount);
   event CompoundRatioChanged(uint oldValue, uint newValue);
-  /// @notice {baseAmounts} of {asset} is changed on the {amount} value
-  event UpdateBaseAmounts(address asset, int amount);
 
   // *************************************************************
   //                        INIT
@@ -114,15 +108,6 @@ abstract contract StrategyStrictBase is IStrategyStrict, TetuERC165 {
     require(msg.sender == _vault, DENIED);
     _withdrawAllFromPool();
     uint balance = IERC20(_asset).balanceOf(address(this));
-    {
-      // we cannot withdraw more than the base amount value
-      // if any additional amount exist on the balance (i.e. airdrops)
-      // it should be processed by hardwork at first (split on compound/forwarder)
-      uint baseAmount = baseAmounts[_asset];
-      if (balance > baseAmount) {
-        balance = baseAmount;
-      }
-    }
 
     if (balance != 0) {
       IERC20(_asset).safeTransfer(_vault, balance);
