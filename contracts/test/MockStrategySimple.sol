@@ -21,6 +21,8 @@ contract MockStrategySimple is ControllableV3, IStrategyV2 {
   uint internal lastEarned;
   uint internal lastLost;
 
+  uint internal _capacity;
+
   function init(
     address controller_,
     address _splitter,
@@ -30,6 +32,7 @@ contract MockStrategySimple is ControllableV3, IStrategyV2 {
     splitter = _splitter;
     asset = _asset;
     isReadyToHardWork = true;
+    _capacity = 2*255; // unlimited capacity by default
   }
 
   function totalAssets() public view override returns (uint) {
@@ -48,7 +51,7 @@ contract MockStrategySimple is ControllableV3, IStrategyV2 {
     IERC20(asset).transfer(splitter, amount - _slippage);
   }
 
-  function investAll(uint amount_) external override {
+  function investAll(uint amount_) pure external override {
     amount_; // hide warning
     // noop
   }
@@ -68,6 +71,15 @@ contract MockStrategySimple is ControllableV3, IStrategyV2 {
 
   function setCompoundRatio(uint value) external override {
     compoundRatio = value;
+  }
+
+  /// @notice Max amount that can be deposited to the strategy, see SCB-593
+  function capacity() external view override returns (uint) {
+    return _capacity;
+  }
+
+  function setCapacity(uint capacity_) external {
+    _capacity = capacity_;
   }
 
 }

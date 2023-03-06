@@ -655,8 +655,9 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     }
   }
 
-  function _investToTopStrategy() internal returns (address) {
-    address strategy;
+  function _investToTopStrategy() internal returns (
+    address strategy
+  ) {
     address _asset = asset;
     uint balance = IERC20(_asset).balanceOf(address(this));
     // no actions for zero balance, return empty strategy
@@ -670,7 +671,9 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
         uint capacity = strategyCapacity[strategy];
         // zero means no capacity
         if (capacity == 0) {
-          capacity = type(uint).max;
+          capacity = IStrategyV2(strategies[i]).capacity();
+        } else {
+          capacity = Math.min(capacity, IStrategyV2(strategies[i]).capacity());
         }
         uint strategyBalance = IStrategyV2(strategy).totalAssets();
         uint toInvest;

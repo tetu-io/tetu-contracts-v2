@@ -19,6 +19,7 @@ contract MockStrategy is StrategyBaseV2 {
   uint internal hardWorkSlippage;
   uint internal lastEarned;
   uint internal lastLost;
+  uint internal _capacity;
 
   MockPool public pool;
 
@@ -29,6 +30,7 @@ contract MockStrategy is StrategyBaseV2 {
     __StrategyBase_init(controller_, _splitter);
     splitter = _splitter;
     isReadyToHardWork = true;
+    _capacity = 2**255; // unlimited capacity by default
     pool = new MockPool();
   }
 
@@ -133,6 +135,16 @@ contract MockStrategy is StrategyBaseV2 {
   function setBaseAmount(address asset_, uint amount_) external {
     baseAmounts[asset_] = amount_;
   }
+
+  /// @notice Max amount that can be deposited to the strategy, see SCB-593
+  function capacity() external view override returns (uint) {
+    return _capacity;
+  }
+
+  function setCapacity(uint capacity_) external {
+    _capacity = capacity_;
+  }
+
 
   ////////////////////////////////////////////////////////
   ///           Access to internal functions

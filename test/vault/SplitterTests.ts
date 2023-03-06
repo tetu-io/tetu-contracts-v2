@@ -368,6 +368,26 @@ describe("Splitter and base strategy tests", function () {
       expect(await usdc.balanceOf(splitter.address)).eq(70);
     });
 
+    it("rebalance with capacity and internal capacity SCB-593", async () => {
+      expect(await strategy.totalAssets()).eq(0);
+      expect(await strategy2.totalAssets()).eq(100);
+      expect(await strategy3.totalAssets()).eq(0);
+
+      await splitter.setAPRs([strategy3.address], [300]);
+      await splitter.setStrategyCapacity(strategy.address, 10);
+      await splitter.setStrategyCapacity(strategy2.address, 10);
+      await splitter.setStrategyCapacity(strategy3.address, 10);
+      await strategy.setCapacity(15);
+      await strategy2.setCapacity(20);
+      await strategy3.setCapacity(5);
+
+      await splitter.rebalance(100, 10_001)
+      expect(await strategy.totalAssets()).eq(10);
+      expect(await strategy2.totalAssets()).eq(10);
+      expect(await strategy3.totalAssets()).eq(5);
+      expect(await usdc.balanceOf(splitter.address)).eq(75);
+    });
+
     it("deposit with capacity", async () => {
       expect(await strategy.totalAssets()).eq(0);
       expect(await strategy2.totalAssets()).eq(100);
@@ -384,6 +404,45 @@ describe("Splitter and base strategy tests", function () {
       expect(await strategy2.totalAssets()).eq(100);
       expect(await strategy3.totalAssets()).eq(10);
       expect(await usdc.balanceOf(splitter.address)).eq(80);
+    });
+
+    it("deposit with internal strategy capacity SCB-593", async () => {
+      expect(await strategy.totalAssets()).eq(0);
+      expect(await strategy2.totalAssets()).eq(100);
+      expect(await strategy3.totalAssets()).eq(0);
+
+      await splitter.setAPRs([strategy3.address], [300]);
+      await strategy.setCapacity(10);
+      await strategy2.setCapacity(20);
+      await strategy3.setCapacity(30);
+
+      await vault.deposit(100, signer.address);
+
+      expect(await strategy.totalAssets()).eq(10);
+      expect(await strategy2.totalAssets()).eq(100);
+      expect(await strategy3.totalAssets()).eq(30);
+      expect(await usdc.balanceOf(splitter.address)).eq(60);
+    });
+
+    it("deposit with both capacity and internal strategy capacity SCB-593", async () => {
+      expect(await strategy.totalAssets()).eq(0);
+      expect(await strategy2.totalAssets()).eq(100);
+      expect(await strategy3.totalAssets()).eq(0);
+
+      await splitter.setAPRs([strategy3.address], [300]);
+      await strategy.setCapacity(10);
+      await strategy2.setCapacity(20);
+      await strategy3.setCapacity(30);
+      await splitter.setStrategyCapacity(strategy.address, 15)
+      await splitter.setStrategyCapacity(strategy2.address, 50)
+      await splitter.setStrategyCapacity(strategy3.address, 25)
+
+      await vault.deposit(100, signer.address);
+
+      expect(await strategy.totalAssets()).eq(10);
+      expect(await strategy2.totalAssets()).eq(100);
+      expect(await strategy3.totalAssets()).eq(25);
+      expect(await usdc.balanceOf(splitter.address)).eq(65);
     });
 
     it("maxCheapWithdraw test", async () => {
