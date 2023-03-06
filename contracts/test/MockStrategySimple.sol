@@ -51,9 +51,16 @@ contract MockStrategySimple is ControllableV3, IStrategyV2 {
     IERC20(asset).transfer(splitter, amount - _slippage);
   }
 
-  function investAll(uint amount_) pure external override {
+  function investAll(
+    uint amount_,
+    bool updateTotalAssetsBeforeInvest_
+  ) external override returns (
+    int totalAssetsDelta
+  ) {
     amount_; // hide warning
+    updateTotalAssetsBeforeInvest_; // hide warning
     // noop
+    return totalAssetsDelta;
   }
 
   function doHardWork() external view override returns (uint earned, uint lost) {

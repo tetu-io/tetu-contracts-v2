@@ -152,9 +152,18 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   //                    DEPOSIT/WITHDRAW
   // *************************************************************
 
-  /// @dev Stakes everything the strategy holds into the reward pool.
+  /// @notice Stakes everything the strategy holds into the reward pool.
   /// @param amount_ Amount transferred to the strategy balance just before calling this function
-  function investAll(uint amount_) external override {
+  /// @param updateTotalAssetsBeforeInvest_ Recalculate total assets amount before depositing.
+  ///                                       It can be false if we know exactly, that the amount is already actual.
+  /// @return totalAssetsDelta The {strategy} can update its totalAssets amount internally before depositing {amount_}
+  ///                          Return [totalAssets-before-deposit - totalAssets-before-call-of-investAll]
+  function investAll(
+    uint amount_,
+    bool updateTotalAssetsBeforeInvest_
+  ) external override returns (
+    int totalAssetsDelta
+  ) {
     require(msg.sender == splitter, DENIED);
 
     address _asset = asset; // gas saving
@@ -163,9 +172,11 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
     _increaseBaseAmount(_asset, amount_, balance);
 
     if (balance > 0) {
-      _depositToPool(balance);
+      totalAssetsDelta = _depositToPool(balance, updateTotalAssetsBeforeInvest_);
     }
     emit InvestAll(balance);
+
+    return totalAssetsDelta;
   }
 
   /// @dev Withdraws all underlying assets to the vault
@@ -289,8 +300,17 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   /// @dev Amount of underlying assets invested to the pool.
   function investedAssets() public view virtual returns (uint);
 
-  /// @dev Deposit given amount to the pool.
-  function _depositToPool(uint amount) internal virtual;
+  /// @notice Deposit given amount to the pool.
+  /// @param updateTotalAssetsBeforeInvest_ Recalculate total assets amount before depositing.
+  ///                                       It can be false if we know exactly, that the amount is already actual.
+  /// @return totalAssetsDelta The {strategy} can update its totalAssets amount internally before depositing {amount_}
+  ///                          Return [totalAssets-before-deposit - totalAssets-before-call-of-investAll]
+  function _depositToPool(
+    uint amount,
+    bool updateTotalAssetsBeforeInvest_
+  ) internal virtual returns (
+    int totalAssetsDelta
+  );
 
   /// @dev Withdraw given amount from the pool.
   /// @return investedAssetsUSD Sum of USD value of each asset in the pool that was withdrawn, decimals of {asset}.

@@ -326,7 +326,9 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     }
     uint balanceAfterWithdraw = totalAssets();
 
-    address topStrategy = _investToTopStrategy();
+    (address topStrategy,) = _investToTopStrategy(
+      false // we assume here, that total-assets-amount of the strategy was just updated in withdraw above
+    );
 
     uint balanceAfterInvest = totalAssets();
     uint slippage;
@@ -414,9 +416,19 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     _onlyVault();
 
     if (strategies.length != 0) {
+      // calculate total-assets of all strategies
       uint totalAssetsBefore = totalAssets();
 
-      address strategy = _investToTopStrategy();
+      (address strategy, int totalAssetDelta) = _investToTopStrategy(true);
+
+      // Insurance covers potential losses during deposit, but doesn't cover losses because of price changes.
+      // The selected strategy updates totalAssets before the depositing, we need to use updated value.
+      if (totalAssetDelta > 0) {
+        totalAssetsBefore += uint(totalAssetDelta);
+      } else {
+        require(totalAssetsBefore >= uint(totalAssetDelta), "SS: patch"); // protection from mistakes in strategy
+        totalAssetsBefore -= uint(totalAssetDelta);
+      }
 
       uint totalAssetsAfter = totalAssets();
       if (totalAssetsAfter < totalAssetsBefore) {
@@ -655,8 +667,16 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     }
   }
 
-  function _investToTopStrategy() internal returns (
-    address strategy
+  /// @param updateTotalAssetsBeforeInvest TotalAssets of strategy should be updated before investing.
+  ///                                      The increment of {TotalAssets} should be returned as {totalAssetsDelta}
+  /// @return strategy Selected strategy or zero
+  /// @return totalAssetsDelta The {strategy} can update its totalAssets amount internally before depositing {amount_}
+  ///                          Return [totalAssets-before-deposit - totalAssets-before-call-of-investAll]
+  function _investToTopStrategy(
+    bool updateTotalAssetsBeforeInvest
+  ) internal returns (
+    address strategy,
+    int totalAssetsDelta
   ) {
     address _asset = asset;
     uint balance = IERC20(_asset).balanceOf(address(this));
@@ -668,13 +688,16 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
         if (pausedStrategies[strategy]) {
           continue;
         }
+
+        // There are strategy capacities of two kinds: external (from splitter) and internal (from strategy)
+        // We should use minimum value (but: zero external capacity means no capacity)
         uint capacity = strategyCapacity[strategy];
-        // zero means no capacity
         if (capacity == 0) {
           capacity = IStrategyV2(strategies[i]).capacity();
         } else {
           capacity = Math.min(capacity, IStrategyV2(strategies[i]).capacity());
         }
+
         uint strategyBalance = IStrategyV2(strategy).totalAssets();
         uint toInvest;
         if (capacity > strategyBalance) {
@@ -682,12 +705,13 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
         }
 
         IERC20(_asset).safeTransfer(strategy, toInvest);
-        IStrategyV2(strategy).investAll(toInvest);
+        totalAssetsDelta = IStrategyV2(strategy).investAll(toInvest, updateTotalAssetsBeforeInvest);
         balance -= toInvest;
         emit Invested(strategy, toInvest);
       }
     }
-    return strategy;
+
+    return (strategy, totalAssetsDelta);
   }
 
 }

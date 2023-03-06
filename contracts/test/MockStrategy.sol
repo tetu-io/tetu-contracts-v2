@@ -20,6 +20,8 @@ contract MockStrategy is StrategyBaseV2 {
   uint internal lastEarned;
   uint internal lastLost;
   uint internal _capacity;
+  /// @notice Result of _depositToPool
+  int internal depositToPoolTotalAssetPatch;
 
   MockPool public pool;
 
@@ -64,7 +66,12 @@ contract MockStrategy is StrategyBaseV2 {
   }
 
   /// @dev Deposit given amount to the pool.
-  function _depositToPool(uint amount) internal override {
+  function _depositToPool(
+    uint amount,
+    bool updateTotalAssetsBeforeInvest_
+  ) internal override returns (
+    int totalAssetDelta
+  ) {
     uint _slippage = amount * slippageDeposit / 100_000;
     if (_slippage != 0) {
       IERC20(asset).transfer(controller(), _slippage);
@@ -72,6 +79,10 @@ contract MockStrategy is StrategyBaseV2 {
     if (amount - _slippage != 0) {
       IERC20(asset).transfer(address(pool), amount - _slippage);
     }
+
+    return updateTotalAssetsBeforeInvest_
+      ? depositToPoolTotalAssetPatch
+      : int(0);
   }
 
   /// @dev Withdraw given amount from the pool.
@@ -143,6 +154,10 @@ contract MockStrategy is StrategyBaseV2 {
 
   function setCapacity(uint capacity_) external {
     _capacity = capacity_;
+  }
+
+  function setDepositToPoolTotalAssetPatch(int totalAssetsPatch_) external {
+    depositToPoolTotalAssetPatch = totalAssetsPatch_;
   }
 
 

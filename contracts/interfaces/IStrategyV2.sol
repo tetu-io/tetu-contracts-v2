@@ -26,8 +26,16 @@ interface IStrategyV2 {
 
   /// @notice Stakes everything the strategy holds into the reward pool.
   /// @param amount_ Amount transferred to the strategy balance just before calling this function
-  /// todo return totalAssetsBeforeInvestOut
-  function investAll(uint amount_) external; // todo returns (uint totalAssetsBeforeInvestOut);
+  /// @param updateTotalAssetsBeforeInvest_ Recalculate total assets amount before depositing.
+  ///                                       It can be false if we know exactly, that the amount is already actual.
+  /// @return totalAssetsDelta The {strategy} can update its totalAssets amount internally before depositing {amount_}
+  ///                          Return [totalAssets-before-deposit - totalAssets-before-call-of-investAll]
+  function investAll(
+    uint amount_,
+    bool updateTotalAssetsBeforeInvest_
+  ) external returns (
+    int totalAssetsDelta
+  );
 
   function doHardWork() external returns (uint earned, uint lost);
 
