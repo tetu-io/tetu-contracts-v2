@@ -4,7 +4,7 @@ import {
   MockGauge,
   MockGauge__factory,
   MockStrategy, MockStrategy__factory,
-  MockToken,
+  MockToken, strategy,
   StrategySplitterV2,
   TetuVaultV2
 } from "../../typechain";
@@ -94,7 +94,7 @@ describe("StrategyBaseV2Tests", function () {
         it("should register invested amount", async () => {
           const amount = parseUnits('1', 6);
           await usdc.transfer(strategyAsSplitter.address, amount);
-          await strategyAsSplitter.investAll(amount);
+          await strategyAsSplitter.investAll(amount, false);
 
           const ret = await strategyAsSplitter.baseAmounts(usdc.address);
           expect(ret).eq(amount);
@@ -104,7 +104,7 @@ describe("StrategyBaseV2Tests", function () {
           await usdc.transfer(strategyAsSplitter.address, amount);
 
           // todo Replace by await expect( after migration to hardhat-chai-matchers
-          expect(await strategyAsSplitter.investAll(amount))
+          expect(await strategyAsSplitter.investAll(amount, false))
             .to.emit(strategyAsSplitter.address, "UpdateBaseAmounts")
             .withArgs(usdc.address, amount);
         });
@@ -113,7 +113,7 @@ describe("StrategyBaseV2Tests", function () {
         it("should revert with WRONG_AMOUNT", async () => {
           const amount = parseUnits('1', 6);
           // (!) The amount is NOT transferred // await usdc.transfer(splitter.address, amount);
-          await expect(strategyAsSplitter.investAll(amount))
+          await expect(strategyAsSplitter.investAll(amount, false))
             .revertedWith("SB: Wrong amount");
         });
       });
@@ -125,7 +125,7 @@ describe("StrategyBaseV2Tests", function () {
           const amountToWithdraw = parseUnits('0.3', 6);
 
           await usdc.transfer(strategyAsSplitter.address, amount);
-          await strategyAsSplitter.investAll(amount);
+          await strategyAsSplitter.investAll(amount, false);
           const before = await strategyAsSplitter.baseAmounts(usdc.address);
           await strategyAsSplitter.connect(await Misc.impersonate(splitter.address)).withdrawToSplitter(amountToWithdraw);
           const after = await strategyAsSplitter.baseAmounts(usdc.address);
@@ -145,7 +145,7 @@ describe("StrategyBaseV2Tests", function () {
           const amountToWithdraw = parseUnits('5.5', 6);
 
           await usdc.transfer(strategyAsSplitter.address, amount);
-          await strategyAsSplitter.investAll(amount);
+          await strategyAsSplitter.investAll(amount, false);
 
           // todo Replace by await expect( after migration to hardhat-chai-matchers
           expect(await strategyAsSplitter.withdrawToSplitter(amountToWithdraw))
@@ -159,7 +159,7 @@ describe("StrategyBaseV2Tests", function () {
           const amountToWithdraw = parseUnits('5.5', 6);
           const rewardsAmount = parseUnits('5', 6);
           await usdc.transfer(strategyAsSplitter.address, amount);
-          await strategyAsSplitter.investAll(amount);
+          await strategyAsSplitter.investAll(amount, false);
 
           // add "rewards" to the strategy
           // now, the total amount on strategy balance is more than the base amount
@@ -175,7 +175,7 @@ describe("StrategyBaseV2Tests", function () {
         it("should unregister invested amount", async () => {
           const amount = parseUnits('1', 6);
           await usdc.transfer(strategyAsSplitter.address, amount);
-          await strategyAsSplitter.investAll(amount);
+          await strategyAsSplitter.investAll(amount, false);
           const before = await strategyAsSplitter.baseAmounts(usdc.address);
           await strategyAsSplitter.connect(await Misc.impersonate(splitter.address)).withdrawAllToSplitter();
           const after = await strategyAsSplitter.baseAmounts(usdc.address);
@@ -193,7 +193,7 @@ describe("StrategyBaseV2Tests", function () {
         it("should emit UpdateBaseAmounts", async () => {
           const amount = parseUnits('1', 6);
           await usdc.transfer(strategyAsSplitter.address, amount);
-          await strategyAsSplitter.investAll(amount);
+          await strategyAsSplitter.investAll(amount, false);
           // todo Replace by await expect( after migration to hardhat-chai-matchers
           expect(await strategyAsSplitter.withdrawAllToSplitter())
             .to.emit(strategyAsSplitter.address, "UpdateBaseAmounts")
@@ -202,7 +202,7 @@ describe("StrategyBaseV2Tests", function () {
         it("should unregister base amount when balance > base amount", async () => {
           const amount = parseUnits('1', 6);
           await usdc.transfer(strategyAsSplitter.address, amount);
-          await strategyAsSplitter.investAll(amount);
+          await strategyAsSplitter.investAll(amount, false);
 
           // make the total amount on strategy balance more than the base amount (i.e. airdrops)
           const additionalAmount = parseUnits('777', 6);

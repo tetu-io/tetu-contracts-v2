@@ -20,8 +20,7 @@ contract MockStrategy is StrategyBaseV2 {
   uint internal lastEarned;
   uint internal lastLost;
   uint internal _capacity;
-  /// @notice Result of _depositToPool
-  int internal depositToPoolTotalAssetPatch;
+  int internal _totalAssetsDelta;
 
   MockPool public pool;
 
@@ -70,7 +69,7 @@ contract MockStrategy is StrategyBaseV2 {
     uint amount,
     bool updateTotalAssetsBeforeInvest_
   ) internal override returns (
-    int totalAssetDelta
+    int totalAssetsDelta
   ) {
     uint _slippage = amount * slippageDeposit / 100_000;
     if (_slippage != 0) {
@@ -81,14 +80,20 @@ contract MockStrategy is StrategyBaseV2 {
     }
 
     return updateTotalAssetsBeforeInvest_
-      ? depositToPoolTotalAssetPatch
+      ? _totalAssetsDelta
       : int(0);
   }
 
   /// @dev Withdraw given amount from the pool.
-  function _withdrawFromPool(uint amount) internal override returns (uint investedAssetsUSD, uint assetPrice) {
+  function _withdrawFromPool(uint amount) internal override returns (
+    uint investedAssetsUSD,
+    uint assetPrice,
+    int totalAssetsDelta
+  ) {
     assetPrice = 1e18;
     investedAssetsUSD = amount;
+    totalAssetsDelta = _totalAssetsDelta;
+
     pool.withdraw(asset, amount);
     uint _slippage = amount * slippage / 100_000;
     if (_slippage != 0) {
@@ -97,15 +102,21 @@ contract MockStrategy is StrategyBaseV2 {
   }
 
   /// @dev Withdraw all from the pool.
-  function _withdrawAllFromPool() internal override returns (uint investedAssetsUSD, uint assetPrice) {
+  function _withdrawAllFromPool() internal override returns (
+    uint investedAssetsUSD,
+    uint assetPrice,
+    int totalAssetsDelta
+  ) {
     assetPrice = 1e18;
     investedAssetsUSD = investedAssets();
+    totalAssetsDelta = _totalAssetsDelta;
+
     pool.withdraw(asset, investedAssets());
     uint _slippage = totalAssets() * slippage / 100_000;
     if (_slippage != 0) {
       IERC20(asset).transfer(controller(), _slippage);
     }
-    return (0, 0);
+    return (0, 0, _totalAssetsDelta);
   }
 
   /// @dev If pool support emergency withdraw need to call it for emergencyExit()
@@ -156,8 +167,8 @@ contract MockStrategy is StrategyBaseV2 {
     _capacity = capacity_;
   }
 
-  function setDepositToPoolTotalAssetPatch(int totalAssetsPatch_) external {
-    depositToPoolTotalAssetPatch = totalAssetsPatch_;
+  function setTotalAssetsDelta(int totalAssetsDelta_) external {
+    _totalAssetsDelta = totalAssetsDelta_;
   }
 
 

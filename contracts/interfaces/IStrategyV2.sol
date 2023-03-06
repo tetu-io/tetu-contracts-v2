@@ -20,9 +20,13 @@ interface IStrategyV2 {
   /// @dev Usually, indicate that claimable rewards have reasonable amount.
   function isReadyToHardWork() external view returns (bool);
 
-  function withdrawAllToSplitter() external;
+  /// @return totalAssetsDelta The {strategy} can update its totalAssets amount internally before withdrawing
+  ///                          Return [totalAssets-before-withdraw - totalAssets-before-call-of-withdrawAllToSplitter]
+  function withdrawAllToSplitter() external returns (int totalAssetsDelta);
 
-  function withdrawToSplitter(uint amount) external;
+  /// @return totalAssetsDelta The {strategy} can update its totalAssets amount internally before withdrawing
+  ///                          Return [totalAssets-before-withdraw - totalAssets-before-call-of-withdrawToSplitter]
+  function withdrawToSplitter(uint amount) external returns (int totalAssetsDelta);
 
   /// @notice Stakes everything the strategy holds into the reward pool.
   /// @param amount_ Amount transferred to the strategy balance just before calling this function

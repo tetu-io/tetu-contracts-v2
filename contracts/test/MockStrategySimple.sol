@@ -39,16 +39,17 @@ contract MockStrategySimple is ControllableV3, IStrategyV2 {
     return IERC20(asset).balanceOf(address(this));
   }
 
-  function withdrawAllToSplitter() external override {
-    withdrawToSplitter(totalAssets());
+  function withdrawAllToSplitter() external override returns (int totalAssetsDelta) {
+    return withdrawToSplitter(totalAssets());
   }
 
-  function withdrawToSplitter(uint amount) public override {
+  function withdrawToSplitter(uint amount) public override returns (int totalAssetsDelta) {
     uint _slippage = amount * slippage / 100;
     if (_slippage != 0) {
       IERC20(asset).transfer(controller(), _slippage);
     }
     IERC20(asset).transfer(splitter, amount - _slippage);
+    return 0;
   }
 
   function investAll(

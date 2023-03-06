@@ -19,7 +19,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant STRATEGY_BASE_VERSION = "2.0.2";
+  string public constant STRATEGY_BASE_VERSION = "2.0.3";
   /// @dev Denominator for compound ratio
   uint internal constant COMPOUND_DENOMINATOR = 100_000;
   /// @dev Denominator for fee calculation.
@@ -180,14 +180,14 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   }
 
   /// @dev Withdraws all underlying assets to the vault
-  function withdrawAllToSplitter() external override {
+  function withdrawAllToSplitter() external override returns (int) {
     address _splitter = splitter;
     address _asset = asset; // gas saving
     require(msg.sender == _splitter, DENIED);
 
     uint balance = IERC20(_asset).balanceOf(address(this));
 
-    (uint investedAssetsUSD, uint assetPrice) = _withdrawAllFromPool();
+    (uint investedAssetsUSD, uint assetPrice, int totalAssetsDelta) = _withdrawAllFromPool();
 
     balance = _checkWithdrawImpact(
       _asset,
@@ -212,17 +212,23 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
       IERC20(_asset).safeTransfer(_splitter, balance);
     }
     emit WithdrawAllToSplitter(balance);
+
+    return totalAssetsDelta;
   }
 
   /// @dev Withdraws some assets to the splitter
-  function withdrawToSplitter(uint amount) external override {
+  function withdrawToSplitter(uint amount) external override returns (int) {
     address _splitter = splitter;
     address _asset = asset; // gas saving
     require(msg.sender == _splitter, DENIED);
+    int totalAssetsDelta;
 
     uint balance = IERC20(_asset).balanceOf(address(this));
     if (amount > balance) {
-      (uint investedAssetsUSD, uint assetPrice) = _withdrawFromPool(amount - balance);
+      uint investedAssetsUSD;
+      uint assetPrice;
+
+      (investedAssetsUSD, assetPrice, totalAssetsDelta) = _withdrawFromPool(amount - balance);
       balance = _checkWithdrawImpact(
         _asset,
         balance,
@@ -238,6 +244,8 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
       IERC20(_asset).safeTransfer(_splitter, amountAdjusted);
     }
     emit WithdrawToSplitter(amount, amountAdjusted, balance);
+
+    return totalAssetsDelta;
   }
 
 
@@ -315,12 +323,24 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   /// @dev Withdraw given amount from the pool.
   /// @return investedAssetsUSD Sum of USD value of each asset in the pool that was withdrawn, decimals of {asset}.
   /// @return assetPrice Price of the strategy {asset}.
-  function _withdrawFromPool(uint amount) internal virtual returns (uint investedAssetsUSD, uint assetPrice);
+  /// @return totalAssetsDelta The {strategy} can update its totalAssets amount internally before withdrawing
+  ///                          Return [totalAssets-before-withdraw - totalAssets-before-call-of-_withdrawFromPool]
+  function _withdrawFromPool(uint amount) internal virtual returns (
+    uint investedAssetsUSD,
+    uint assetPrice,
+    int totalAssetsDelta
+  );
 
   /// @dev Withdraw all from the pool.
   /// @return investedAssetsUSD Sum of USD value of each asset in the pool that was withdrawn, decimals of {asset}.
   /// @return assetPrice Price of the strategy {asset}.
-  function _withdrawAllFromPool() internal virtual returns (uint investedAssetsUSD, uint assetPrice);
+  /// @return totalAssetsDelta The {strategy} can update its totalAssets amount internally before withdrawing
+  ///                          Return [totalAssets-before-withdraw - totalAssets-before-call-of-_withdrawAllFromPool]
+  function _withdrawAllFromPool() internal virtual returns (
+    uint investedAssetsUSD,
+    uint assetPrice,
+    int totalAssetsDelta
+  );
 
   /// @dev If pool support emergency withdraw need to call it for emergencyExit()
   ///      Withdraw assets without impact checking.
