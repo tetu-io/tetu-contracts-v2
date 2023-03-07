@@ -31,7 +31,7 @@ contract MockStrategy is StrategyBaseV2 {
     __StrategyBase_init(controller_, _splitter);
     splitter = _splitter;
     isReadyToHardWork = true;
-    _capacity = 2**255; // unlimited capacity by default
+    _capacity = type(uint).max; // unlimited capacity by default
     pool = new MockPool();
   }
 

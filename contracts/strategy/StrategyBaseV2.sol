@@ -180,6 +180,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   }
 
   /// @dev Withdraws all underlying assets to the vault
+  /// @return Return [totalAssets-before-withdraw - totalAssets-before-call-of-withdrawAllToSplitter]
   function withdrawAllToSplitter() external override returns (int) {
     address _splitter = splitter;
     address _asset = asset; // gas saving
@@ -217,11 +218,11 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   }
 
   /// @dev Withdraws some assets to the splitter
-  function withdrawToSplitter(uint amount) external override returns (int) {
+  /// @return totalAssetsDelta =[totalAssets-before-withdraw - totalAssets-before-call-of-withdrawAllToSplitter]
+  function withdrawToSplitter(uint amount) external override returns (int totalAssetsDelta) {
     address _splitter = splitter;
     address _asset = asset; // gas saving
     require(msg.sender == _splitter, DENIED);
-    int totalAssetsDelta;
 
     uint balance = IERC20(_asset).balanceOf(address(this));
     if (amount > balance) {

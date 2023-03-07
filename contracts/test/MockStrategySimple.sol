@@ -32,7 +32,7 @@ contract MockStrategySimple is ControllableV3, IStrategyV2 {
     splitter = _splitter;
     asset = _asset;
     isReadyToHardWork = true;
-    _capacity = 2*255; // unlimited capacity by default
+    _capacity = type(uint).max; // unlimited capacity by default
   }
 
   function totalAssets() public view override returns (uint) {

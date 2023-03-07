@@ -319,10 +319,11 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     }
     require(lowStrategyBalance != 0, "SS: No strategies");
 
-    if (percent == 100) {
-      IStrategyV2(lowStrategy).withdrawAllToSplitter();
-    } else {
-      IStrategyV2(lowStrategy).withdrawToSplitter(lowStrategyBalance * percent / 100);
+    int totalAssetsDelta = (percent == 100)
+      ? IStrategyV2(lowStrategy).withdrawAllToSplitter()
+      : IStrategyV2(lowStrategy).withdrawToSplitter(lowStrategyBalance * percent / 100);
+    if (totalAssetsDelta != 0) {
+      balance = _fixTotalAssets(balance, totalAssetsDelta);
     }
     uint balanceAfterWithdraw = totalAssets();
 
@@ -488,14 +489,11 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
         uint strategyBalance = strategy.totalAssets();
         uint balanceBefore = strategyBalance + balance;
-        int totalAssetsDelta;
 
         // withdraw from strategy
-        if (strategyBalance <= remainingAmount) {
-          totalAssetsDelta = strategy.withdrawAllToSplitter();
-        } else {
-          totalAssetsDelta = strategy.withdrawToSplitter(remainingAmount);
-        }
+        int totalAssetsDelta = (strategyBalance <= remainingAmount)
+          ? strategy.withdrawAllToSplitter()
+          : strategy.withdrawToSplitter(remainingAmount);
         if (totalAssetsDelta != 0) {
           balanceBefore = _fixTotalAssets(balanceBefore, totalAssetsDelta);
         }
@@ -533,15 +531,20 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     }
   }
 
-  /// @notice Returns {totalAssets_} + {delta}
-  ///         Insurance covers potential losses during deposit, but doesn't cover losses because of price changes.
-  ///         The selected strategy updates totalAssets before the depositing/withdrawing, we need to use updated value.
-  function _fixTotalAssets(uint totalAssets_, int delta) internal view returns (uint totalAssetsOut) {
-    if (delta > 0) {
-      totalAssetsOut = totalAssets_ + uint(delta);
+  /// @notice Calculate totalAssets-before-deposit/withdraw as {totalAssets_} + {delta}
+  ///         Insurance covers losses during deposit/withdraw but doesn't cover losses because of price changes.
+  ///         The selected strategy updates totalAssets before the depositing/withdrawing,
+  ///         we need to use updated value to calculate the losses.
+  ///             Looses-to-cover = [totalAssets-after-deposit/withdraw - totalAssets-before-deposit/withdraw]
+  /// @param totalAssets_ totalAssets-before-call-of-deposit/withdraw-function
+  /// @param delta_ [totalAssets-before-deposit/withdraw - totalAssets-before-call-of-deposit/withdraw-function]
+  /// @return totalAssetsOut totalAssets-before-deposit/withdraw
+  function _fixTotalAssets(uint totalAssets_, int delta_) internal view returns (uint totalAssetsOut) {
+    if (delta_ > 0) {
+      totalAssetsOut = totalAssets_ + uint(delta_);
     } else {
-      require(totalAssets_ >= uint(-delta), "SS: patch"); // protection from mistakes in strategy
-      totalAssetsOut = totalAssets_ - uint(-delta);
+      require(totalAssets_ >= uint(- delta_), "SS: patch"); // protection from mistakes in strategy
+      totalAssetsOut = totalAssets_ - uint(- delta_);
     }
   }
 
