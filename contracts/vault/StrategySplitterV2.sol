@@ -300,7 +300,6 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     _onlyGov();
 
     uint balance = totalAssets();
-
     uint length = strategies.length;
     require(length > 1, "SS: Length");
     require(percent <= 100, "SS: Percent");
@@ -539,7 +538,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   /// @param totalAssets_ totalAssets-before-call-of-deposit/withdraw-function
   /// @param delta_ [totalAssets-before-deposit/withdraw - totalAssets-before-call-of-deposit/withdraw-function]
   /// @return totalAssetsOut totalAssets-before-deposit/withdraw
-  function _fixTotalAssets(uint totalAssets_, int delta_) internal view returns (uint totalAssetsOut) {
+  function _fixTotalAssets(uint totalAssets_, int delta_) internal pure returns (uint totalAssetsOut) {
     if (delta_ > 0) {
       totalAssetsOut = totalAssets_ + uint(delta_);
     } else {

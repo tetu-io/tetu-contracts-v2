@@ -650,6 +650,41 @@ describe("Splitter and base strategy tests", function () {
       expect(await vault.totalAssets()).eq(1090);
     });
 
+    it("rebalance with positive totalAssetsDelta", async () => {
+      expect(await vault.sharePrice()).eq(1000000);
+      await usdc.mint(await vault.insurance(), 1000);
+      await splitter.setAPRs([strategy.address], [200]);
+
+      await vault.deposit(1000, signer.address);
+      await strategy2.setTotalAssetsDelta(17);
+
+      // totalAssets before rebalance is 1100
+      // totalAssetsDelta is 17
+      // so, totalAssets before withdraw is 1117
+      // totalAssets after withdraw is 1100, so we have loss = 17
+      // Insurance has enough amount, so the loss is fully covered
+      await splitter.rebalance(100, 10_000);
+
+      expect(await vault.totalAssets()).eq(1117);
+    });
+
+    it("rebalance with negative totalAssetsDelta", async () => {
+      expect(await vault.sharePrice()).eq(1000000);
+      await usdc.mint(await vault.insurance(), 1000);
+      await splitter.setAPRs([strategy.address], [200]);
+
+      await vault.deposit(1000, signer.address);
+      await strategy2.setTotalAssetsDelta(-17);
+
+      // totalAssets before rebalance is 1100
+      // totalAssetsDelta is -17
+      // so, totalAssets before withdraw is 1083
+      // totalAssets after withdraw is 1100, so we have income = 17
+      // there are no losses
+      await splitter.rebalance(100, 10_000);
+
+      expect(await vault.totalAssets()).eq(1100);
+    });
   });
 
 

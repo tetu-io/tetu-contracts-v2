@@ -108,7 +108,7 @@ contract MockStrategy is StrategyBaseV2 {
     int totalAssetsDelta
   ) {
     assetPrice = 1e18;
-    investedAssetsUSD = investedAssets();
+    investedAssetsUSD = 0; // investedAssets();
     totalAssetsDelta = _totalAssetsDelta;
 
     pool.withdraw(asset, investedAssets());
@@ -116,7 +116,8 @@ contract MockStrategy is StrategyBaseV2 {
     if (_slippage != 0) {
       IERC20(asset).transfer(controller(), _slippage);
     }
-    return (0, 0, _totalAssetsDelta);
+
+    return (investedAssetsUSD, assetPrice, _totalAssetsDelta);
   }
 
   /// @dev If pool support emergency withdraw need to call it for emergencyExit()
