@@ -24,7 +24,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   // *********************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant SPLITTER_VERSION = "2.0.1";
+  string public constant SPLITTER_VERSION = "2.0.2";
   /// @dev APR denominator. Represent 100% APR.
   uint public constant APR_DENOMINATOR = 100_000;
   /// @dev Delay between hardwork calls for a strategy.
@@ -300,7 +300,6 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     _onlyGov();
 
     uint balance = totalAssets();
-
     uint length = strategies.length;
     require(length > 1, "SS: Length");
     require(percent <= 100, "SS: Percent");
@@ -319,14 +318,17 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     }
     require(lowStrategyBalance != 0, "SS: No strategies");
 
-    if (percent == 100) {
-      IStrategyV2(lowStrategy).withdrawAllToSplitter();
-    } else {
-      IStrategyV2(lowStrategy).withdrawToSplitter(lowStrategyBalance * percent / 100);
+    int totalAssetsDelta = (percent == 100)
+      ? IStrategyV2(lowStrategy).withdrawAllToSplitter()
+      : IStrategyV2(lowStrategy).withdrawToSplitter(lowStrategyBalance * percent / 100);
+    if (totalAssetsDelta != 0) {
+      balance = _fixTotalAssets(balance, totalAssetsDelta);
     }
     uint balanceAfterWithdraw = totalAssets();
 
-    address topStrategy = _investToTopStrategy();
+    (address topStrategy,) = _investToTopStrategy(
+      false // we assume here, that total-assets-amount of the strategy was just updated in withdraw above
+    );
 
     uint balanceAfterInvest = totalAssets();
     uint slippage;
@@ -414,9 +416,13 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     _onlyVault();
 
     if (strategies.length != 0) {
+      // calculate total-assets of all strategies
       uint totalAssetsBefore = totalAssets();
 
-      address strategy = _investToTopStrategy();
+      (address strategy, int totalAssetsDelta) = _investToTopStrategy(true);
+      if (totalAssetsDelta != 0) {
+        totalAssetsBefore = _fixTotalAssets(totalAssetsBefore, totalAssetsDelta);
+      }
 
       uint totalAssetsAfter = totalAssets();
       if (totalAssetsAfter < totalAssetsBefore) {
@@ -434,15 +440,21 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     uint balance = totalAssets();
     uint balanceBefore = balance;
     uint balanceAfter;
+    uint totalLoss;
 
     uint length = strategies.length;
     for (uint i = 0; i < length; i++) {
-      IStrategyV2(strategies[i]).withdrawAllToSplitter();
+      int totalAssetsDelta = IStrategyV2(strategies[i]).withdrawAllToSplitter();
       emit WithdrawFromStrategy(strategies[i]);
+      if (totalAssetsDelta != 0) {
+        balanceBefore = _fixTotalAssets(balanceBefore, totalAssetsDelta);
+      }
+
       // register possible loses
       balanceAfter = totalAssets();
       if (balanceAfter < balanceBefore) {
         emit Loss(strategies[i], balanceBefore - balanceAfter);
+        totalLoss += balanceBefore - balanceAfter;
       }
       balanceBefore = balanceAfter;
     }
@@ -450,9 +462,9 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     balanceAfter = IERC20(_asset).balanceOf(address(this));
 
     address _vault = vault;
-    // if we withdrew not enough try to cover loss from vault insurance
-    if (balanceAfter < balance) {
-      ITetuVaultV2(_vault).coverLoss(balance - balanceAfter);
+    // if we withdrew less than expected try to cover loss from vault insurance
+    if (totalLoss != 0) {
+      ITetuVaultV2(_vault).coverLoss(totalLoss);
     }
 
     if (balanceAfter > 0) {
@@ -465,6 +477,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   function withdrawToVault(uint256 amount) external override {
     _onlyVault();
 
+    uint totalLoss;
     address _asset = asset;
     uint balance = IERC20(_asset).balanceOf(address(this));
     if (balance < amount) {
@@ -477,10 +490,11 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
         uint balanceBefore = strategyBalance + balance;
 
         // withdraw from strategy
-        if (strategyBalance <= remainingAmount) {
-          strategy.withdrawAllToSplitter();
-        } else {
-          strategy.withdrawToSplitter(remainingAmount);
+        int totalAssetsDelta = (strategyBalance <= remainingAmount)
+          ? strategy.withdrawAllToSplitter()
+          : strategy.withdrawToSplitter(remainingAmount);
+        if (totalAssetsDelta != 0) {
+          balanceBefore = _fixTotalAssets(balanceBefore, totalAssetsDelta);
         }
         emit WithdrawFromStrategy(address(strategy));
 
@@ -496,6 +510,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
         // register loss
         if (balanceAfter < balanceBefore) {
           emit Loss(address(strategy), balanceBefore - balanceAfter);
+          totalLoss += balanceBefore - balanceAfter;
         }
 
         if (balance >= amount) {
@@ -505,13 +520,30 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     }
 
     address _vault = vault;
-    // if we withdrew not enough try to cover loss from vault insurance
-    if (amount > balance) {
-      ITetuVaultV2(_vault).coverLoss(amount - balance);
+    // if we withdrew less than expected try to cover loss from vault insurance
+    if (totalLoss != 0) {
+      ITetuVaultV2(_vault).coverLoss(totalLoss);
     }
 
     if (balance != 0) {
       IERC20(_asset).safeTransfer(_vault, Math.min(amount, balance));
+    }
+  }
+
+  /// @notice Calculate totalAssets-before-deposit/withdraw as {totalAssets_} + {delta}
+  ///         Insurance covers losses during deposit/withdraw but doesn't cover losses because of price changes.
+  ///         The selected strategy updates totalAssets before the depositing/withdrawing,
+  ///         we need to use updated value to calculate the losses.
+  ///             Looses-to-cover = [totalAssets-after-deposit/withdraw - totalAssets-before-deposit/withdraw]
+  /// @param totalAssets_ totalAssets-before-call-of-deposit/withdraw-function
+  /// @param delta_ [totalAssets-before-deposit/withdraw - totalAssets-before-call-of-deposit/withdraw-function]
+  /// @return totalAssetsOut totalAssets-before-deposit/withdraw
+  function _fixTotalAssets(uint totalAssets_, int delta_) internal pure returns (uint totalAssetsOut) {
+    if (delta_ > 0) {
+      totalAssetsOut = totalAssets_ + uint(delta_);
+    } else {
+      require(totalAssets_ >= uint(- delta_), "SS: patch"); // protection from mistakes in strategy
+      totalAssetsOut = totalAssets_ - uint(- delta_);
     }
   }
 
@@ -655,8 +687,17 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     }
   }
 
-  function _investToTopStrategy() internal returns (address) {
-    address strategy;
+  /// @param updateTotalAssetsBeforeInvest TotalAssets of strategy should be updated before investing.
+  ///                                      The increment of {TotalAssets} should be returned as {totalAssetsDelta}
+  /// @return strategy Selected strategy or zero
+  /// @return totalAssetsDelta The {strategy} can update its totalAssets amount internally before depositing {amount_}
+  ///                          Return [totalAssets-before-deposit - totalAssets-before-call-of-investAll]
+  function _investToTopStrategy(
+    bool updateTotalAssetsBeforeInvest
+  ) internal returns (
+    address strategy,
+    int totalAssetsDelta
+  ) {
     address _asset = asset;
     uint balance = IERC20(_asset).balanceOf(address(this));
     // no actions for zero balance, return empty strategy
@@ -667,11 +708,16 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
         if (pausedStrategies[strategy]) {
           continue;
         }
+
+        // There are strategy capacities of two kinds: external (from splitter) and internal (from strategy)
+        // We should use minimum value (but: zero external capacity means no capacity)
         uint capacity = strategyCapacity[strategy];
-        // zero means no capacity
         if (capacity == 0) {
-          capacity = type(uint).max;
+          capacity = IStrategyV2(strategies[i]).capacity();
+        } else {
+          capacity = Math.min(capacity, IStrategyV2(strategies[i]).capacity());
         }
+
         uint strategyBalance = IStrategyV2(strategy).totalAssets();
         uint toInvest;
         if (capacity > strategyBalance) {
@@ -679,12 +725,13 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
         }
 
         IERC20(_asset).safeTransfer(strategy, toInvest);
-        IStrategyV2(strategy).investAll(toInvest);
+        totalAssetsDelta = IStrategyV2(strategy).investAll(toInvest, updateTotalAssetsBeforeInvest);
         balance -= toInvest;
         emit Invested(strategy, toInvest);
       }
     }
-    return strategy;
+
+    return (strategy, totalAssetsDelta);
   }
 
 }

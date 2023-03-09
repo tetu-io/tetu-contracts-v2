@@ -20,16 +20,32 @@ interface IStrategyV2 {
   /// @dev Usually, indicate that claimable rewards have reasonable amount.
   function isReadyToHardWork() external view returns (bool);
 
-  function withdrawAllToSplitter() external;
+  /// @return totalAssetsDelta The {strategy} can update its totalAssets amount internally before withdrawing
+  ///                          Return [totalAssets-before-withdraw - totalAssets-before-call-of-withdrawAllToSplitter]
+  function withdrawAllToSplitter() external returns (int totalAssetsDelta);
 
-  function withdrawToSplitter(uint amount) external;
+  /// @return totalAssetsDelta The {strategy} can update its totalAssets amount internally before withdrawing
+  ///                          Return [totalAssets-before-withdraw - totalAssets-before-call-of-withdrawToSplitter]
+  function withdrawToSplitter(uint amount) external returns (int totalAssetsDelta);
 
   /// @notice Stakes everything the strategy holds into the reward pool.
   /// @param amount_ Amount transferred to the strategy balance just before calling this function
-  function investAll(uint amount_) external;
+  /// @param updateTotalAssetsBeforeInvest_ Recalculate total assets amount before depositing.
+  ///                                       It can be false if we know exactly, that the amount is already actual.
+  /// @return totalAssetsDelta The {strategy} can update its totalAssets amount internally before depositing {amount_}
+  ///                          Return [totalAssets-before-deposit - totalAssets-before-call-of-investAll]
+  function investAll(
+    uint amount_,
+    bool updateTotalAssetsBeforeInvest_
+  ) external returns (
+    int totalAssetsDelta
+  );
 
   function doHardWork() external returns (uint earned, uint lost);
 
   function setCompoundRatio(uint value) external;
 
+  /// @notice Max amount that can be deposited to the strategy (its internal capacity), see SCB-593.
+  ///         0 means no deposit is allowed at this moment
+  function capacity() external view returns (uint);
 }

@@ -19,6 +19,8 @@ contract MockStrategy is StrategyBaseV2 {
   uint internal hardWorkSlippage;
   uint internal lastEarned;
   uint internal lastLost;
+  uint internal _capacity;
+  int internal _totalAssetsDelta;
 
   MockPool public pool;
 
@@ -29,6 +31,7 @@ contract MockStrategy is StrategyBaseV2 {
     __StrategyBase_init(controller_, _splitter);
     splitter = _splitter;
     isReadyToHardWork = true;
+    _capacity = type(uint).max; // unlimited capacity by default
     pool = new MockPool();
   }
 
@@ -62,7 +65,12 @@ contract MockStrategy is StrategyBaseV2 {
   }
 
   /// @dev Deposit given amount to the pool.
-  function _depositToPool(uint amount) internal override {
+  function _depositToPool(
+    uint amount,
+    bool updateTotalAssetsBeforeInvest_
+  ) internal override returns (
+    int totalAssetsDelta
+  ) {
     uint _slippage = amount * slippageDeposit / 100_000;
     if (_slippage != 0) {
       IERC20(asset).transfer(controller(), _slippage);
@@ -70,12 +78,22 @@ contract MockStrategy is StrategyBaseV2 {
     if (amount - _slippage != 0) {
       IERC20(asset).transfer(address(pool), amount - _slippage);
     }
+
+    return updateTotalAssetsBeforeInvest_
+      ? _totalAssetsDelta
+      : int(0);
   }
 
   /// @dev Withdraw given amount from the pool.
-  function _withdrawFromPool(uint amount) internal override returns (uint investedAssetsUSD, uint assetPrice) {
+  function _withdrawFromPool(uint amount) internal override returns (
+    uint investedAssetsUSD,
+    uint assetPrice,
+    int totalAssetsDelta
+  ) {
     assetPrice = 1e18;
     investedAssetsUSD = amount;
+    totalAssetsDelta = _totalAssetsDelta;
+
     pool.withdraw(asset, amount);
     uint _slippage = amount * slippage / 100_000;
     if (_slippage != 0) {
@@ -84,15 +102,22 @@ contract MockStrategy is StrategyBaseV2 {
   }
 
   /// @dev Withdraw all from the pool.
-  function _withdrawAllFromPool() internal override returns (uint investedAssetsUSD, uint assetPrice) {
+  function _withdrawAllFromPool() internal override returns (
+    uint investedAssetsUSD,
+    uint assetPrice,
+    int totalAssetsDelta
+  ) {
     assetPrice = 1e18;
-    investedAssetsUSD = investedAssets();
+    investedAssetsUSD = 0; // investedAssets();
+    totalAssetsDelta = _totalAssetsDelta;
+
     pool.withdraw(asset, investedAssets());
     uint _slippage = totalAssets() * slippage / 100_000;
     if (_slippage != 0) {
       IERC20(asset).transfer(controller(), _slippage);
     }
-    return (0, 0);
+
+    return (investedAssetsUSD, assetPrice, _totalAssetsDelta);
   }
 
   /// @dev If pool support emergency withdraw need to call it for emergencyExit()
@@ -133,6 +158,20 @@ contract MockStrategy is StrategyBaseV2 {
   function setBaseAmount(address asset_, uint amount_) external {
     baseAmounts[asset_] = amount_;
   }
+
+  /// @notice Max amount that can be deposited to the strategy, see SCB-593
+  function capacity() external view override returns (uint) {
+    return _capacity;
+  }
+
+  function setCapacity(uint capacity_) external {
+    _capacity = capacity_;
+  }
+
+  function setTotalAssetsDelta(int totalAssetsDelta_) external {
+    _totalAssetsDelta = totalAssetsDelta_;
+  }
+
 
   ////////////////////////////////////////////////////////
   ///           Access to internal functions

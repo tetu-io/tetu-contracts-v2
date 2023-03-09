@@ -21,6 +21,8 @@ contract MockStrategySimple is ControllableV3, IStrategyV2 {
   uint internal lastEarned;
   uint internal lastLost;
 
+  uint internal _capacity;
+
   function init(
     address controller_,
     address _splitter,
@@ -30,27 +32,36 @@ contract MockStrategySimple is ControllableV3, IStrategyV2 {
     splitter = _splitter;
     asset = _asset;
     isReadyToHardWork = true;
+    _capacity = type(uint).max; // unlimited capacity by default
   }
 
   function totalAssets() public view override returns (uint) {
     return IERC20(asset).balanceOf(address(this));
   }
 
-  function withdrawAllToSplitter() external override {
-    withdrawToSplitter(totalAssets());
+  function withdrawAllToSplitter() external override returns (int totalAssetsDelta) {
+    return withdrawToSplitter(totalAssets());
   }
 
-  function withdrawToSplitter(uint amount) public override {
+  function withdrawToSplitter(uint amount) public override returns (int totalAssetsDelta) {
     uint _slippage = amount * slippage / 100;
     if (_slippage != 0) {
       IERC20(asset).transfer(controller(), _slippage);
     }
     IERC20(asset).transfer(splitter, amount - _slippage);
+    return 0;
   }
 
-  function investAll(uint amount_) external override {
+  function investAll(
+    uint amount_,
+    bool updateTotalAssetsBeforeInvest_
+  ) external override returns (
+    int totalAssetsDelta
+  ) {
     amount_; // hide warning
+    updateTotalAssetsBeforeInvest_; // hide warning
     // noop
+    return totalAssetsDelta;
   }
 
   function doHardWork() external view override returns (uint earned, uint lost) {
@@ -68,6 +79,15 @@ contract MockStrategySimple is ControllableV3, IStrategyV2 {
 
   function setCompoundRatio(uint value) external override {
     compoundRatio = value;
+  }
+
+  /// @notice Max amount that can be deposited to the strategy, see SCB-593
+  function capacity() external view override returns (uint) {
+    return _capacity;
+  }
+
+  function setCapacity(uint capacity_) external {
+    _capacity = capacity_;
   }
 
 }
