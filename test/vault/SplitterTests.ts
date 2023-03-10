@@ -747,7 +747,7 @@ describe("Splitter and base strategy tests", function () {
         await strategy.setBaseAmount(await strategy.asset(), parseUnits('0.5', 6));
         await expect(
           strategy.connect(await Misc.impersonate(splitter.address)).withdrawToSplitter(parseUnits('1', 6))
-        ).revertedWith("SB: Wrong amount"); // WRONG_AMOUNT
+        ).revertedWith("SB: Wrong value"); // WRONG_VALUE
       });
     });
 

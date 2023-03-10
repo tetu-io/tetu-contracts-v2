@@ -22,6 +22,8 @@ contract MockStrategySimple is ControllableV3, IStrategyV2 {
   uint internal lastLost;
 
   uint internal _capacity;
+  address public override performanceReceiver;
+  uint public override performanceFee;
 
   function init(
     address controller_,
@@ -33,6 +35,8 @@ contract MockStrategySimple is ControllableV3, IStrategyV2 {
     asset = _asset;
     isReadyToHardWork = true;
     _capacity = type(uint).max; // unlimited capacity by default
+    performanceReceiver = IController(controller_).governance();
+    performanceFee = 10_000;
   }
 
   function totalAssets() public view override returns (uint) {
@@ -55,7 +59,7 @@ contract MockStrategySimple is ControllableV3, IStrategyV2 {
   function investAll(
     uint amount_,
     bool updateTotalAssetsBeforeInvest_
-  ) external override returns (
+  ) external pure override returns (
     int totalAssetsDelta
   ) {
     amount_; // hide warning
@@ -90,4 +94,9 @@ contract MockStrategySimple is ControllableV3, IStrategyV2 {
     _capacity = capacity_;
   }
 
+  /// @notice Set performance fee and receiver
+  function setupPerformanceFee(uint fee_, address receiver_) external {
+    performanceFee = fee_;
+    performanceReceiver = receiver_;
+  }
 }
