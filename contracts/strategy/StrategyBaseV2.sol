@@ -24,6 +24,8 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   uint internal constant COMPOUND_DENOMINATOR = 100_000;
   /// @dev Denominator for fee calculation.
   uint internal constant FEE_DENOMINATOR = 100_000;
+  /// @notice 10% of total profit is sent to {performanceReceiver} before compounding
+  uint internal constant DEFAULT_PERFORMANCE_FEE = 10_000;
 
   // *************************************************************
   //                        ERRORS
@@ -33,7 +35,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   string internal constant DENIED = "SB: Denied";
   string internal constant TOO_HIGH = "SB: Too high";
   string internal constant IMPACT_TOO_HIGH = "SB: Impact too high";
-  string internal constant WRONG_AMOUNT = "SB: Wrong amount";
+  string internal constant WRONG_VALUE = "SB: Wrong value";
 
   // *************************************************************
   //                        VARIABLES
@@ -51,6 +53,14 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   /// @dev Any amounts transferred to the strategy for investing or withdrawn back are registered here
   ///      As result it's possible to distinct invested amounts from rewards, airdrops and other profits
   mapping(address => uint) public baseAmounts;
+
+  /// @notice {performanceFee}% of total profit is sent to {performanceReceiver} before compounding
+  /// @dev governance by default
+  address public override performanceReceiver;
+
+  /// @notice A percent of total profit that is sent to the {performanceReceiver} before compounding
+  /// @dev {DEFAULT_PERFORMANCE_FEE} by default, FEE_DENOMINATOR is used
+  uint public override performanceFee;
 
   // *************************************************************
   //                        EVENTS
@@ -85,6 +95,22 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
 
     asset = ISplitter(_splitter).asset();
     splitter = _splitter;
+
+    performanceReceiver = IController(controller_).governance();
+    performanceFee = DEFAULT_PERFORMANCE_FEE;
+  }
+
+  // *************************************************************
+  //                     PERFORMANCE FEE
+  // *************************************************************
+  /// @notice Set performance fee and receiver
+  function setupPerformanceFee(uint fee_, address receiver_) external {
+    require(msg.sender == IController(controller()).governance(), DENIED);
+    require(fee_ <= DEFAULT_PERFORMANCE_FEE, TOO_HIGH);
+    require(receiver_ != address(0), WRONG_VALUE);
+
+    performanceFee = fee_;
+    performanceReceiver = receiver_;
   }
 
   // *************************************************************
@@ -259,7 +285,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   ///         We assume here, that base amounts are spent first, then rewards and any other profit-amounts
   function _decreaseBaseAmount(address asset_, uint amount_) internal {
     uint baseAmount = baseAmounts[asset_];
-    require(baseAmount >= amount_, WRONG_AMOUNT);
+    require(baseAmount >= amount_, WRONG_VALUE);
     baseAmounts[asset_] = baseAmount - amount_;
     emit UpdateBaseAmounts(asset_, -int(baseAmount));
   }
@@ -269,7 +295,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   function _increaseBaseAmount(address asset_, uint amount_, uint assetBalance_) internal {
     baseAmounts[asset_] += amount_;
     emit UpdateBaseAmounts(asset_, int(amount_));
-    require(assetBalance_ >= amount_, WRONG_AMOUNT);
+    require(assetBalance_ >= amount_, WRONG_VALUE);
   }
 
   // *************************************************************

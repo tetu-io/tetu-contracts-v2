@@ -48,4 +48,11 @@ interface IStrategyV2 {
   /// @notice Max amount that can be deposited to the strategy (its internal capacity), see SCB-593.
   ///         0 means no deposit is allowed at this moment
   function capacity() external view returns (uint);
+
+  /// @notice {performanceFee}% of total profit is sent to the {performanceReceiver} before compounding
+  function performanceReceiver() external view returns (address);
+
+  /// @notice A percent of total profit that is sent to the {performanceReceiver} before compounding
+  /// @dev use FEE_DENOMINATOR
+  function performanceFee() external view returns (uint);
 }

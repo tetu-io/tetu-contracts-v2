@@ -1,6 +1,6 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {
-  ControllerMinimal, IERC20__factory,
+  ControllerMinimal, IController__factory, IERC20__factory,
   MockGauge,
   MockGauge__factory,
   MockStrategy, MockStrategy__factory,
@@ -110,11 +110,11 @@ describe("StrategyBaseV2Tests", function () {
         });
       });
       describe("Bad paths", () => {
-        it("should revert with WRONG_AMOUNT", async () => {
+        it("should revert with WRONG_VALUE", async () => {
           const amount = parseUnits('1', 6);
           // (!) The amount is NOT transferred // await usdc.transfer(splitter.address, amount);
           await expect(strategyAsSplitter.investAll(amount, false))
-            .revertedWith("SB: Wrong amount");
+            .revertedWith("SB: Wrong value");
         });
       });
     });
@@ -229,5 +229,55 @@ describe("StrategyBaseV2Tests", function () {
     });
   });
 
+  describe("performanceFee", () => {
+    describe("Good paths", () => {
+      it("should return default fee and governance as default receiver", async () => {
+        const ret = [
+          await strategyAsSplitter.performanceFee(),
+          await strategyAsSplitter.performanceReceiver()
+        ].join();
+        const expected = [
+          10_000, // strategyAsSplitter.DEFAULT_PERFORMANCE_FEE
+          await IController__factory.connect(await strategyAsSplitter.controller(), signer).governance()
+        ].join();
+        expect(ret).eq(expected);
+      });
+      it("should return expected fee and receiver", async () => {
+        const governance = await IController__factory.connect(await strategyAsSplitter.controller(), signer).governance();
+        const receiver = ethers.Wallet.createRandom();
+        await strategyAsSplitter.connect(await Misc.impersonate(governance)).setupPerformanceFee(5_000, receiver.address);
+
+        const ret = [
+          await strategyAsSplitter.performanceFee(),
+          await strategyAsSplitter.performanceReceiver(),
+        ].join();
+        const expected = [5_000, receiver.address].join();
+        expect(ret).eq(expected);
+      });
+    });
+    describe("Bad paths", () => {
+      it("should revert if not governance", async () => {
+        const governance = await IController__factory.connect(await strategyAsSplitter.controller(), signer).governance();
+        const receiver = ethers.Wallet.createRandom();
+        const notGovernance = ethers.Wallet.createRandom().address;
+        await expect(
+          strategyAsSplitter.connect(await Misc.impersonate(notGovernance)).setupPerformanceFee(5_000, receiver.address)
+        ).revertedWith("SB: Denied"); // DENIED
+      });
+      it("should revert if the fee is too high", async () => {
+        const governance = await IController__factory.connect(await strategyAsSplitter.controller(), signer).governance();
+        const receiver = ethers.Wallet.createRandom();
+        await expect(
+          strategyAsSplitter.connect(await Misc.impersonate(governance)).setupPerformanceFee(11_000, receiver.address)
+        ).revertedWith("SB: Too high"); // TOO_HIGH
+      });
+      it("should revert if the receiver is zero", async () => {
+        const governance = await IController__factory.connect(await strategyAsSplitter.controller(), signer).governance();
+        await expect(
+          strategyAsSplitter.connect(await Misc.impersonate(governance)).setupPerformanceFee(10_000, Misc.ZERO_ADDRESS)
+        ).revertedWith("SB: Wrong value"); // WRONG_VALUE
+      });
+    });
+  });
 //endregion Unit tests
 });
