@@ -10,7 +10,8 @@ const log: Logger<unknown> = new Logger(logSettings);
 export const WAIT_BLOCKS_BETWEEN_DEPLOY = 5;
 
 const libraries = new Map<string, string>([
-  ['VeTetu', 'VeTetuLogo']
+  ['VeTetu', 'VeTetuLogo'],
+  ['MockStrategy', 'StrategyLib'],
 ]);
 
 export async function deployContract<T extends ContractFactory>(

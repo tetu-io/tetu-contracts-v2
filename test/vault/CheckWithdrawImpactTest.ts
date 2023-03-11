@@ -173,7 +173,7 @@ describe("Tests for StrategyBaseV2._checkWithdrawImpact", function () {
           parseUnits("5", 18),
           100 // fee denominator is 100_000
         )
-      ).revertedWith("SB: Impact too high");
+      ).revertedWith("SB: Too high");
     });
     it("WBTC, decimals 8", async () => {
       await expect(
@@ -185,7 +185,7 @@ describe("Tests for StrategyBaseV2._checkWithdrawImpact", function () {
           parseUnits("5", 18),
           100 // fee denominator is 100_000
         )
-      ).revertedWith("SB: Impact too high");
+      ).revertedWith("SB: Too high");
     });
   });
 

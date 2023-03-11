@@ -511,7 +511,7 @@ describe("Splitter and base strategy tests", function () {
       await strategy2.setSlippage(1_100);
       await vault.setFees(1_000, 1_000)
       await vault.deposit(10_000_000, signer.address)
-      await expect(vault.withdraw(1000, signer.address, signer.address)).revertedWith('SB: Impact too high');
+      await expect(vault.withdraw(1000, signer.address, signer.address)).revertedWith("SB: Too high");
       await strategy2.setSlippage(1_000);
       await vault.withdraw(1000, signer.address, signer.address);
     });
@@ -692,7 +692,7 @@ describe("Splitter and base strategy tests", function () {
 
   it("strategy init wrong controller revert", async () => {
     const c = await DeployerUtils.deployMockController(signer);
-    await expect(strategy.init(c.address, splitter.address)).revertedWith("SB: Wrong controller");
+    await expect(strategy.init(c.address, splitter.address)).revertedWith("SB: Wrong value");
   });
 
   describe("with inited strategy", function () {

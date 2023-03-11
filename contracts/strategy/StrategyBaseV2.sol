@@ -6,8 +6,8 @@ import "../openzeppelin/Math.sol";
 import "../interfaces/IStrategyV2.sol";
 import "../interfaces/ISplitter.sol";
 import "../interfaces/IForwarder.sol";
-import "../interfaces/ITetuVaultV2.sol";
 import "../proxy/ControllableV3.sol";
+import "./StrategyLib.sol";
 
 /// @title Abstract contract for base strategy functionality
 /// @author belbix
@@ -19,23 +19,11 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant STRATEGY_BASE_VERSION = "2.0.3";
+  string public constant STRATEGY_BASE_VERSION = "2.1.0";
   /// @dev Denominator for compound ratio
   uint internal constant COMPOUND_DENOMINATOR = 100_000;
-  /// @dev Denominator for fee calculation.
-  uint internal constant FEE_DENOMINATOR = 100_000;
   /// @notice 10% of total profit is sent to {performanceReceiver} before compounding
   uint internal constant DEFAULT_PERFORMANCE_FEE = 10_000;
-
-  // *************************************************************
-  //                        ERRORS
-  // *************************************************************
-
-  string internal constant WRONG_CONTROLLER = "SB: Wrong controller";
-  string internal constant DENIED = "SB: Denied";
-  string internal constant TOO_HIGH = "SB: Too high";
-  string internal constant IMPACT_TOO_HIGH = "SB: Impact too high";
-  string internal constant WRONG_VALUE = "SB: Wrong value";
 
   // *************************************************************
   //                        VARIABLES
@@ -91,7 +79,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
     _requireInterface(_splitter, InterfaceIds.I_SPLITTER);
     __Controllable_init(controller_);
 
-    require(IControllable(_splitter).isController(controller_), WRONG_CONTROLLER);
+    require(IControllable(_splitter).isController(controller_), StrategyLib.WRONG_VALUE);
 
     asset = ISplitter(_splitter).asset();
     splitter = _splitter;
@@ -105,21 +93,12 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   // *************************************************************
   /// @notice Set performance fee and receiver
   function setupPerformanceFee(uint fee_, address receiver_) external {
-    require(msg.sender == IController(controller()).governance(), DENIED);
-    require(fee_ <= DEFAULT_PERFORMANCE_FEE, TOO_HIGH);
-    require(receiver_ != address(0), WRONG_VALUE);
+    StrategyLib.onlyGovernance(controller());
+    require(fee_ <= DEFAULT_PERFORMANCE_FEE, StrategyLib.TOO_HIGH);
+    require(receiver_ != address(0), StrategyLib.WRONG_VALUE);
 
     performanceFee = fee_;
     performanceReceiver = receiver_;
-  }
-
-  // *************************************************************
-  //                     RESTRICTIONS
-  // *************************************************************
-
-  /// @dev Restrict access only for operators
-  function _onlyOperators() internal view {
-    require(IController(controller()).isOperator(msg.sender), DENIED);
   }
 
   // *************************************************************
@@ -143,8 +122,8 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   /// @dev PlatformVoter can change compound ratio for some strategies.
   ///      A strategy can implement another logic for some uniq cases.
   function setCompoundRatio(uint value) external virtual override {
-    require(msg.sender == IController(controller()).platformVoter(), DENIED);
-    require(value <= COMPOUND_DENOMINATOR, TOO_HIGH);
+    StrategyLib.onlyPlatformVoter(controller());
+    require(value <= COMPOUND_DENOMINATOR, StrategyLib.TOO_HIGH);
     emit CompoundRatioChanged(compoundRatio, value);
     compoundRatio = value;
   }
@@ -155,20 +134,22 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
 
   /// @dev In case of any issue operator can withdraw all from pool.
   function emergencyExit() external {
-    _onlyOperators();
+    StrategyLib.onlyOperators(controller());
 
     _emergencyExitFromPool();
 
-    address _asset = asset; // gas saving
+    address _asset = asset;
+    // gas saving
     uint balance = IERC20(_asset).balanceOf(address(this));
-    _decreaseBaseAmount(_asset, baseAmounts[_asset]); // reset base amount
+    _decreaseBaseAmount(_asset, baseAmounts[_asset]);
+    // reset base amount
     IERC20(_asset).safeTransfer(splitter, balance);
     emit EmergencyExit(msg.sender, balance);
   }
 
   /// @dev Manual claim rewards.
   function claim() external {
-    _onlyOperators();
+    StrategyLib.onlyOperators(controller());
 
     _claim();
     emit ManualClaim(msg.sender);
@@ -190,9 +171,9 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   ) external override returns (
     int totalAssetsDelta
   ) {
-    require(msg.sender == splitter, DENIED);
+    StrategyLib.onlySplitter(splitter);
 
-    address _asset = asset; // gas saving
+    address _asset = asset;
     uint balance = IERC20(_asset).balanceOf(address(this));
 
     _increaseBaseAmount(_asset, amount_, balance);
@@ -209,14 +190,14 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   /// @return Return [totalAssets-before-withdraw - totalAssets-before-call-of-withdrawAllToSplitter]
   function withdrawAllToSplitter() external override returns (int) {
     address _splitter = splitter;
-    address _asset = asset; // gas saving
-    require(msg.sender == _splitter, DENIED);
+    address _asset = asset;
+    StrategyLib.onlySplitter(_splitter);
 
     uint balance = IERC20(_asset).balanceOf(address(this));
 
     (uint investedAssetsUSD, uint assetPrice, int totalAssetsDelta) = _withdrawAllFromPool();
 
-    balance = _checkWithdrawImpact(
+    balance = StrategyLib.checkWithdrawImpact(
       _asset,
       balance,
       investedAssetsUSD,
@@ -247,8 +228,9 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   /// @return totalAssetsDelta =[totalAssets-before-withdraw - totalAssets-before-call-of-withdrawAllToSplitter]
   function withdrawToSplitter(uint amount) external override returns (int totalAssetsDelta) {
     address _splitter = splitter;
-    address _asset = asset; // gas saving
-    require(msg.sender == _splitter, DENIED);
+    address _asset = asset;
+    StrategyLib.onlySplitter(_splitter);
+
 
     uint balance = IERC20(_asset).balanceOf(address(this));
     if (amount > balance) {
@@ -256,7 +238,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
       uint assetPrice;
 
       (investedAssetsUSD, assetPrice, totalAssetsDelta) = _withdrawFromPool(amount - balance);
-      balance = _checkWithdrawImpact(
+      balance = StrategyLib.checkWithdrawImpact(
         _asset,
         balance,
         investedAssetsUSD,
@@ -285,9 +267,9 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   ///         We assume here, that base amounts are spent first, then rewards and any other profit-amounts
   function _decreaseBaseAmount(address asset_, uint amount_) internal {
     uint baseAmount = baseAmounts[asset_];
-    require(baseAmount >= amount_, WRONG_VALUE);
+    require(baseAmount >= amount_, StrategyLib.WRONG_VALUE);
     baseAmounts[asset_] = baseAmount - amount_;
-    emit UpdateBaseAmounts(asset_, -int(baseAmount));
+    emit UpdateBaseAmounts(asset_, - int(baseAmount));
   }
 
   /// @notice Increase {baseAmounts} of the {asset} on {amount_}, ensure that current {assetBalance_} >= {amount_}
@@ -295,36 +277,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   function _increaseBaseAmount(address asset_, uint amount_, uint assetBalance_) internal {
     baseAmounts[asset_] += amount_;
     emit UpdateBaseAmounts(asset_, int(amount_));
-    require(assetBalance_ >= amount_, WRONG_VALUE);
-  }
-
-  // *************************************************************
-  //                       HELPERS
-  // *************************************************************
-
-  /// @notice Calculate withdrawn amount in USD using the {assetPrice}.
-  ///         Revert if the amount is different from expected too much (high price impact)
-  /// @param balanceBefore Asset balance of the strategy before withdrawing
-  /// @param investedAssetsUSD Expected amount in USD, decimals are same to {_asset}
-  /// @param assetPrice Price of the asset, decimals 18
-  /// @return balance Current asset balance of the strategy
-  function _checkWithdrawImpact(
-    address _asset,
-    uint balanceBefore,
-    uint investedAssetsUSD,
-    uint assetPrice,
-    address _splitter
-  ) internal view returns (uint balance) {
-    balance = IERC20(_asset).balanceOf(address(this));
-    if (assetPrice != 0 && investedAssetsUSD != 0) {
-
-      uint withdrew = balance > balanceBefore ? balance - balanceBefore : 0;
-      uint withdrewUSD = withdrew * assetPrice / 1e18;
-      uint priceChangeTolerance = ITetuVaultV2(ISplitter(_splitter).vault()).withdrawFee();
-      uint difference = investedAssetsUSD > withdrewUSD ? investedAssetsUSD - withdrewUSD : 0;
-
-      require(difference * FEE_DENOMINATOR / investedAssetsUSD <= priceChangeTolerance, IMPACT_TOO_HIGH);
-    }
+    require(assetBalance_ >= amount_, StrategyLib.WRONG_VALUE);
   }
 
   // *************************************************************

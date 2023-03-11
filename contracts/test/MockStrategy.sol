@@ -183,6 +183,6 @@ contract MockStrategy is StrategyBaseV2 {
     uint assetPrice,
     address _splitter
   ) external view returns (uint balance) {
-    return _checkWithdrawImpact(_asset, balanceBefore, investedAssetsUSD, assetPrice, _splitter);
+    return StrategyLib.checkWithdrawImpact(_asset, balanceBefore, investedAssetsUSD, assetPrice, _splitter);
   }
 }

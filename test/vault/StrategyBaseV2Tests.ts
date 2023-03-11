@@ -166,7 +166,7 @@ describe("StrategyBaseV2Tests", function () {
           await usdc.transfer(strategyAsSplitter.address, rewardsAmount);
 
           await expect(strategyAsSplitter.withdrawToSplitter(amountToWithdraw))
-            .revertedWith("SB: Wrong amount");
+            .revertedWith("SB: Wrong value");
         });
       });
     });
