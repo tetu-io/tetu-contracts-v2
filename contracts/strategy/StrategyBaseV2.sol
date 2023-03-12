@@ -19,7 +19,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant STRATEGY_BASE_VERSION = "2.1.0";
+  string public constant STRATEGY_BASE_VERSION = "2.1.1";
   /// @dev Denominator for compound ratio
   uint internal constant COMPOUND_DENOMINATOR = 100_000;
   /// @notice 10% of total profit is sent to {performanceReceiver} before compounding
@@ -75,7 +75,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   function __StrategyBase_init(
     address controller_,
     address _splitter
-  ) public onlyInitializing {
+  ) internal onlyInitializing {
     _requireInterface(_splitter, InterfaceIds.I_SPLITTER);
     __Controllable_init(controller_);
 
