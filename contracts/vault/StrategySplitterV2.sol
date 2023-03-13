@@ -24,7 +24,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   // *********************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant SPLITTER_VERSION = "2.0.2";
+  string public constant SPLITTER_VERSION = "2.0.3";
   /// @dev APR denominator. Represent 100% APR.
   uint public constant APR_DENOMINATOR = 100_000;
   /// @dev Delay between hardwork calls for a strategy.
@@ -726,7 +726,6 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
         IERC20(_asset).safeTransfer(strategy, toInvest);
         totalAssetsDelta = IStrategyV2(strategy).investAll(toInvest, updateTotalAssetsBeforeInvest);
-        balance -= toInvest;
         emit Invested(strategy, toInvest);
       }
     }
