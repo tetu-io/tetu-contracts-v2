@@ -1,6 +1,6 @@
 {
   "name": "@tetu_io/tetu-contracts-v2",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "TETU solidity base contracts V2",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -18,7 +18,8 @@
     "coverage": "npm run build && npx cross-env NODE_OPTIONS=\"--max_old_space_size=8192\" hardhat coverage --temp artifacts --max-memory 4096",
     "slither": "npm run build && slither .",
     "lint": "tslint -p tsconfig.json",
-    "lint-fix": "tslint --fix -p tsconfig.json"
+    "lint-fix": "tslint --fix -p tsconfig.json",
+    "publish-npm": "npm publish --access public"
   },
   "repository": {
     "type": "git",
