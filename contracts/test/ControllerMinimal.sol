@@ -52,6 +52,10 @@ contract ControllerMinimal is TetuERC165, IController {
     vaults.push(vault);
   }
 
+  function addOperator(address operator) external {
+    operators[operator] = true;
+  }
+
   function updateProxies(address[] memory proxies, address[] memory newLogics) external {
     require(proxies.length == newLogics.length, "Wrong arrays");
     for (uint i; i < proxies.length; i++) {

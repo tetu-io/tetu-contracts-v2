@@ -155,6 +155,15 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
     emit ManualClaim(msg.sender);
   }
 
+  /// @dev In case of broken base amounts, operator can assign baseAmount = current balance
+  function resetBaseAmounts(address[] memory tokens_) external {
+    StrategyLib.onlyOperators(controller());
+    uint len = tokens_.length;
+    for (uint i; i < len; ++i) {
+      baseAmounts[tokens_[i]] = IERC20(tokens_[i]).balanceOf(address(this));
+    }
+  }
+
   // *************************************************************
   //                    DEPOSIT/WITHDRAW
   // *************************************************************
