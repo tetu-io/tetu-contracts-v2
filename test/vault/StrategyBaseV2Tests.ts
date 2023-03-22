@@ -1,6 +1,6 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {
-  ControllerMinimal, IController__factory, IERC20__factory,
+  ControllerMinimal, ControllerV2__factory, IController__factory, IERC20__factory,
   MockGauge,
   MockGauge__factory,
   MockStrategy, MockStrategy__factory,
@@ -225,6 +225,44 @@ describe("StrategyBaseV2Tests", function () {
           ].join();
           expect(ret).eq(expected);
         });
+      });
+    });
+    describe("resetBaseAmounts", () => {
+      it("should reset given base amount to balance values", async () => {
+        const operator = ethers.Wallet.createRandom().address;
+        const amount = parseUnits('1', 6);
+        await usdc.transfer(strategyAsSplitter.address, amount);
+        await tetu.transfer(strategyAsSplitter.address, amount);
+        await strategyAsSplitter.investAll(amount, false);
+
+        await controller.addOperator(operator);
+        const strategyAsOperator = strategyAsSplitter.connect(await Misc.impersonate(operator));
+
+        await usdc.transfer(strategyAsSplitter.address, amount);
+        await tetu.transfer(strategyAsSplitter.address, amount.mul(2));
+        await strategyAsOperator.resetBaseAmounts([usdc.address, tetu.address]);
+
+        const usdcBaseAmountAfter = await strategyAsSplitter.baseAmounts(usdc.address);
+        const tetuBaseAmountAfter = await strategyAsSplitter.baseAmounts(tetu.address);
+        const usdcBalanceAfter = await usdc.balanceOf(strategyAsSplitter.address);
+        const tetuBalanceAfter = await tetu.balanceOf(strategyAsSplitter.address);
+
+        const ret = [
+          usdcBaseAmountAfter.sub(usdcBalanceAfter),
+          tetuBaseAmountAfter.sub(tetuBalanceAfter)
+        ].join("\n");
+        const expected = [
+          amount,
+          amount.mul(2)
+        ].join("\n");
+        expect(ret).eq(expected);
+      });
+      it("should revert if not operator", async () => {
+        const notOperator = ethers.Wallet.createRandom().address;
+        const strategyAsNotOperator = strategyAsSplitter.connect(await Misc.impersonate(notOperator));
+        await expect(
+          strategyAsNotOperator.resetBaseAmounts([usdc.address, tetu.address])
+        ).revertedWith("SB: Denied"); // DENIED
       });
     });
   });
