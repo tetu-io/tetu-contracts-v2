@@ -12,11 +12,25 @@ contract MockSplitter is ISplitter, ControllableV3 {
   address public override asset;
   address public override vault;
   uint public slippage;
+  address[] public strategies;
+  uint public constant HARDWORK_DELAY = 12 hours;
+  mapping(address => bool) public pausedStrategies;
+  mapping(address => uint) public lastHardWorks;
 
   function init(address controller_, address _asset, address _vault) external initializer override {
     __Controllable_init(controller_);
     asset = _asset;
     vault = _vault;
+  }
+
+  function pauseInvesting(address strategy) external {
+    require(!pausedStrategies[strategy], "SS: Paused");
+    pausedStrategies[strategy] = true;
+  }
+
+  function continueInvesting(address strategy, uint /*apr*/) external {
+    require(pausedStrategies[strategy], "SS: Not paused");
+    pausedStrategies[strategy] = false;
   }
 
   function setSlippage(uint value) external {
@@ -64,4 +78,7 @@ contract MockSplitter is ISplitter, ControllableV3 {
     return interfaceId == InterfaceIds.I_SPLITTER || super.supportsInterface(interfaceId);
   }
 
+  function strategiesLength() external view returns (uint) {
+    return strategies.length;
+  }
 }

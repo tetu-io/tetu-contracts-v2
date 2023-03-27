@@ -5,13 +5,14 @@ import {
   ControllerMinimal,
   HardWorkResolver,
   HardWorkResolver__factory,
-  MockGauge__factory,
+  MockGauge__factory, MockStrategy, MockStrategy__factory, StrategySplitterV2,
   TetuVaultV2,
 } from "../../typechain";
 import {TimeUtils} from "../TimeUtils";
 import {ethers} from "hardhat";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
-import {formatUnits} from "ethers/lib/utils";
+import {formatUnits, parseUnits} from "ethers/lib/utils";
+import {Misc} from "../../scripts/utils/Misc";
 
 const {expect} = chai;
 chai.use(chaiAsPromised);
@@ -24,6 +25,8 @@ describe("HardWorkResolverTest", function () {
   let controller: ControllerMinimal
   let resolver: HardWorkResolver;
   let vault: TetuVaultV2
+  let splitter: StrategySplitterV2
+  let strategyAsSplitter: MockStrategy;
 
   before(async function () {
     this.timeout(1200000);
@@ -49,8 +52,19 @@ describe("HardWorkResolverTest", function () {
       10
     );
 
-    const splitter = await DeployerUtils.deploySplitter(signer, controller.address, usdc.address, vault.address);
+    splitter = await DeployerUtils.deploySplitter(signer, controller.address, usdc.address, vault.address);
     await vault.setSplitter(splitter.address)
+
+    strategyAsSplitter = MockStrategy__factory.connect(
+      (await DeployerUtils.deployProxy(signer, 'MockStrategy')),
+      await Misc.impersonate(splitter.address)
+    );
+
+    await strategyAsSplitter.init(controller.address, splitter.address);
+    await splitter.addStrategies([strategyAsSplitter.address], [100]);
+    const amount = parseUnits('1', 6);
+    await usdc.transfer(strategyAsSplitter.address, amount);
+    await strategyAsSplitter.investAll(amount, false);
 
     await resolver.changeOperatorStatus(signer.address, true)
     await resolver.changeVaultStatus(vault.address, true)
@@ -95,19 +109,37 @@ describe("HardWorkResolverTest", function () {
   it("checker", async () => {
     const gas = (await resolver.estimateGas.checker()).toNumber()
     expect(gas).below(15_000_000);
-    let data = await resolver.checker();
+
+    expect((await resolver.checker()).canExec).eq(false)
+
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 24);
+
+    const data = await resolver.checker();
     expect(data.canExec).eq(true)
     const vaults = HardWorkResolver__factory.createInterface().decodeFunctionData('call', data.execPayload)._vaults
     expect(vaults[0]).eq(vault.address)
 
     await resolver.setMaxGas(0)
-    data = await resolver.checker({
-      gasPrice: 1,
-    });
-    expect(data.canExec).eq(false)
+    expect((await resolver.checker({gasPrice: 1,})).canExec).eq(false)
+
+    expect((await resolver.checker()).canExec).eq(true)
+
+    await splitter.pauseInvesting(strategyAsSplitter.address)
+    expect((await resolver.checker()).canExec).eq(false)
+
+    await splitter.continueInvesting(strategyAsSplitter.address, 0)
+    expect((await resolver.checker()).canExec).eq(true)
+
+    await strategyAsSplitter.withdrawAllToSplitter()
+
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 24);
+
+    expect((await resolver.checker()).canExec).eq(false)
   });
 
   it("execute call", async () => {
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 24);
+
     const data = await resolver.checker();
 
     const vaults = HardWorkResolver__factory.createInterface().decodeFunctionData('call', data.execPayload)._vaults

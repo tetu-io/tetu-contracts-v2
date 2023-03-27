@@ -4,9 +4,12 @@ pragma solidity 0.8.17;
 
 import "../interfaces/ITetuVaultV2.sol";
 import "../interfaces/ISplitter.sol";
+import "../interfaces/IStrategyV2.sol";
 import "../openzeppelin/EnumerableSet.sol";
 import "../proxy/ControllableV3.sol";
 
+/// @title Gelato resolver for hardworks
+/// @author a17
 contract HardWorkResolver is ControllableV3 {
   using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -159,13 +162,28 @@ contract HardWorkResolver is ControllableV3 {
       address vault = vaults.at(i);
       if (!excludedVaults[vault]) {
 
+        bool strategyNeedHardwork;
+        ISplitter splitter = ITetuVaultV2(vault).splitter();
+        for (uint k; k < splitter.strategiesLength(); ++k) {
+          IStrategyV2 strategy = IStrategyV2(splitter.strategies(k));
+          if (
+            strategy.isReadyToHardWork()
+            && splitter.lastHardWorks(address(strategy)) + splitter.HARDWORK_DELAY() < block.timestamp
+            && !splitter.pausedStrategies(address(strategy))
+            && strategy.totalAssets() > 0
+          ) {
+            strategyNeedHardwork = true;
+            break;
+          }
+        }
+
         uint delayAdjusted = _delay;
         uint _delayRate = delayRate[vault];
         if (_delayRate != 0) {
           delayAdjusted = _delay * _delayRate / DELAY_RATE_DENOMINATOR;
         }
 
-        if (lastHW(vault) + _delay < block.timestamp) {
+        if (strategyNeedHardwork && lastHW(vault) + _delay < block.timestamp) {
           _vaults[i] = vault;
           counter++;
         }
