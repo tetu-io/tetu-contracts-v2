@@ -23,6 +23,7 @@ contract HardWorkResolver is ControllableV3 {
   uint public maxGas;
   uint public maxHwPerCall;
 
+  mapping(address => uint) internal _lastHW;
   mapping(address => uint) public delayRate;
   mapping(address => bool) public operators;
   mapping(address => bool) public excludedVaults;
@@ -87,13 +88,12 @@ contract HardWorkResolver is ControllableV3 {
   // --- MAIN LOGIC ---
 
   function lastHW(address vault) public view returns (uint lastHardWorkTimestamp) {
-    lastHardWorkTimestamp = ITetuVaultV2(vault).splitter().lastHardWorks(vault);
+    lastHardWorkTimestamp = _lastHW[vault];
   }
 
   function call(address[] memory _vaults) external returns (uint amountOfCalls) {
     require(operators[msg.sender], "!operator");
 
-    uint _delay = delay;
     uint _maxHwPerCall = maxHwPerCall;
     uint vaultsLength = _vaults.length;
     uint counter;
@@ -107,6 +107,7 @@ contract HardWorkResolver is ControllableV3 {
       } catch (bytes memory _err) {
         revert(string(abi.encodePacked("Vault low-level error: 0x", _toAsciiString(vault), " ", string(_err))));
       }
+      _lastHW[vault] = block.timestamp;
       counter++;
       if (counter >= _maxHwPerCall) {
         break;
@@ -160,7 +161,7 @@ contract HardWorkResolver is ControllableV3 {
           delayAdjusted = _delay * _delayRate / DELAY_RATE_DENOMINATOR;
         }
 
-        if (strategyNeedHardwork && lastHW(vault) + _delay < block.timestamp) {
+        if (strategyNeedHardwork && lastHW(vault) + delayAdjusted < block.timestamp) {
           _vaults[i] = vault;
           counter++;
         }
@@ -218,5 +219,4 @@ contract HardWorkResolver is ControllableV3 {
     if (uint8(b) < 10) return bytes1(uint8(b) + 0x30);
     else return bytes1(uint8(b) + 0x57);
   }
-
 }
