@@ -254,7 +254,7 @@ describe("Splitter and base strategy tests", function () {
     const strategy2 = MockStrategy__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategy')), signer)
     await strategy2.init(controller.address, splitter.address);
     await splitter.addStrategies([strategy.address, strategy2.address], [100, 100]);
-    await expect(splitter.rebalance(1, 1)).revertedWith("SS: No strategies");
+    await expect(splitter.rebalance(1, 1)).revertedWith("SS: Not invested");
   });
 
   it("rebalance test", async () => {
@@ -357,35 +357,32 @@ describe("Splitter and base strategy tests", function () {
       expect(await strategy2.totalAssets()).eq(100);
       expect(await strategy3.totalAssets()).eq(0);
 
-      await splitter.setAPRs([strategy3.address], [300]);
+      await splitter.setAPRs([strategy.address, strategy2.address, strategy3.address], [100, 200, 300]);
       await splitter.setStrategyCapacity(strategy.address, 10)
       await splitter.setStrategyCapacity(strategy2.address, 10)
-      await splitter.setStrategyCapacity(strategy3.address, 10)
+      await strategy3.setCapacity(10);
+
+      await splitter.rebalance(100, 10_001)
+      expect(await strategy.totalAssets()).eq(0);
+      expect(await strategy2.totalAssets()).eq(0);
+      expect(await strategy3.totalAssets()).eq(10);
+      expect(await usdc.balanceOf(splitter.address)).eq(90);
+
+      console.log("REBALANCE 1 OK");
+
+      await splitter.rebalance(100, 10_001)
+      expect(await strategy.totalAssets()).eq(0);
+      expect(await strategy2.totalAssets()).eq(10);
+      expect(await strategy3.totalAssets()).eq(10);
+      expect(await usdc.balanceOf(splitter.address)).eq(80);
+
+      console.log("REBALANCE 2 OK");
+
       await splitter.rebalance(100, 10_001)
       expect(await strategy.totalAssets()).eq(10);
       expect(await strategy2.totalAssets()).eq(10);
       expect(await strategy3.totalAssets()).eq(10);
       expect(await usdc.balanceOf(splitter.address)).eq(70);
-    });
-
-    it("rebalance with capacity and internal capacity SCB-593", async () => {
-      expect(await strategy.totalAssets()).eq(0);
-      expect(await strategy2.totalAssets()).eq(100);
-      expect(await strategy3.totalAssets()).eq(0);
-
-      await splitter.setAPRs([strategy3.address], [300]);
-      await splitter.setStrategyCapacity(strategy.address, 10);
-      await splitter.setStrategyCapacity(strategy2.address, 10);
-      await splitter.setStrategyCapacity(strategy3.address, 10);
-      await strategy.setCapacity(15);
-      await strategy2.setCapacity(20);
-      await strategy3.setCapacity(5);
-
-      await splitter.rebalance(100, 10_001)
-      expect(await strategy.totalAssets()).eq(10);
-      expect(await strategy2.totalAssets()).eq(10);
-      expect(await strategy3.totalAssets()).eq(5);
-      expect(await usdc.balanceOf(splitter.address)).eq(75);
     });
 
     it("deposit with capacity", async () => {
@@ -400,10 +397,10 @@ describe("Splitter and base strategy tests", function () {
 
       await vault.deposit(100, signer.address);
 
-      expect(await strategy.totalAssets()).eq(10);
+      expect(await strategy.totalAssets()).eq(0);
       expect(await strategy2.totalAssets()).eq(100);
       expect(await strategy3.totalAssets()).eq(10);
-      expect(await usdc.balanceOf(splitter.address)).eq(80);
+      expect(await usdc.balanceOf(splitter.address)).eq(90);
     });
 
     it("deposit with internal strategy capacity SCB-593", async () => {
@@ -418,10 +415,10 @@ describe("Splitter and base strategy tests", function () {
 
       await vault.deposit(100, signer.address);
 
-      expect(await strategy.totalAssets()).eq(10);
+      expect(await strategy.totalAssets()).eq(0);
       expect(await strategy2.totalAssets()).eq(100);
       expect(await strategy3.totalAssets()).eq(30);
-      expect(await usdc.balanceOf(splitter.address)).eq(60);
+      expect(await usdc.balanceOf(splitter.address)).eq(70);
     });
 
     it("deposit with both capacity and internal strategy capacity SCB-593", async () => {
@@ -439,10 +436,10 @@ describe("Splitter and base strategy tests", function () {
 
       await vault.deposit(100, signer.address);
 
-      expect(await strategy.totalAssets()).eq(10);
+      expect(await strategy.totalAssets()).eq(0);
       expect(await strategy2.totalAssets()).eq(100);
       expect(await strategy3.totalAssets()).eq(25);
-      expect(await usdc.balanceOf(splitter.address)).eq(65);
+      expect(await usdc.balanceOf(splitter.address)).eq(75);
     });
 
     it("maxCheapWithdraw test", async () => {

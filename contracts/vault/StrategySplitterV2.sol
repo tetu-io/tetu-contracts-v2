@@ -24,7 +24,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   // *********************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant SPLITTER_VERSION = "2.0.3";
+  string public constant SPLITTER_VERSION = "2.0.4";
   /// @dev APR denominator. Represent 100% APR.
   uint public constant APR_DENOMINATOR = 100_000;
   /// @dev Delay between hardwork calls for a strategy.
@@ -187,6 +187,17 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     return interfaceId == InterfaceIds.I_SPLITTER || super.supportsInterface(interfaceId);
   }
 
+  /// @dev There are strategy capacities of two kinds: external (from splitter) and internal (from strategy)
+  ///      We should use minimum value (but: zero external capacity means no capacity)
+  function getStrategyCapacity(address strategy) public view returns (uint capacity) {
+    capacity = strategyCapacity[strategy];
+    if (capacity == 0) {
+      capacity = IStrategyV2(strategy).capacity();
+    } else {
+      capacity = Math.min(capacity, IStrategyV2(strategy).capacity());
+    }
+  }
+
   // *********************************************
   //                GOV ACTIONS
   // *********************************************
@@ -304,11 +315,30 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     require(length > 1, "SS: Length");
     require(percent <= 100, "SS: Percent");
 
+    uint topStrategyWithoutCapacity = type(uint).max;
+
+    for (uint i = 0; i < length; i++) {
+      address strategy = strategies[i];
+      uint capacity = getStrategyCapacity(strategy);
+      if (capacity != 0) {
+        uint strategyBalance = IStrategyV2(strategy).totalAssets();
+        if (strategyBalance < capacity) {
+          topStrategyWithoutCapacity = i;
+          break;
+        }
+      } else {
+        topStrategyWithoutCapacity = i;
+        break;
+      }
+    }
+    require(topStrategyWithoutCapacity != type(uint).max, "SS: All capped");
+
 
     address lowStrategy;
 
     uint lowStrategyBalance;
-    for (uint i = length; i > 1; i--) {
+    // loop for all strategies since from top uncapped
+    for (uint i = length; i > topStrategyWithoutCapacity + 1; i--) {
       lowStrategy = strategies[i - 1];
       lowStrategyBalance = IStrategyV2(lowStrategy).totalAssets();
       if (lowStrategyBalance == 0) {
@@ -316,19 +346,22 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
       }
       break;
     }
-    require(lowStrategyBalance != 0, "SS: No strategies");
 
-    int totalAssetsDelta = (percent == 100)
+    // if we are able to withdraw something let's do it
+    if (lowStrategyBalance != 0) {
+      int totalAssetsDelta = (percent == 100)
       ? IStrategyV2(lowStrategy).withdrawAllToSplitter()
       : IStrategyV2(lowStrategy).withdrawToSplitter(lowStrategyBalance * percent / 100);
-    if (totalAssetsDelta != 0) {
-      balance = _fixTotalAssets(balance, totalAssetsDelta);
+      if (totalAssetsDelta != 0) {
+        balance = _fixTotalAssets(balance, totalAssetsDelta);
+      }
     }
     uint balanceAfterWithdraw = totalAssets();
 
     (address topStrategy,) = _investToTopStrategy(
       false // we assume here, that total-assets-amount of the strategy was just updated in withdraw above
     );
+    require(topStrategy != address(0), "SS: Not invested");
 
     uint balanceAfterInvest = totalAssets();
     uint slippage;
@@ -491,8 +524,8 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
         // withdraw from strategy
         int totalAssetsDelta = (strategyBalance <= remainingAmount)
-          ? strategy.withdrawAllToSplitter()
-          : strategy.withdrawToSplitter(remainingAmount);
+        ? strategy.withdrawAllToSplitter()
+        : strategy.withdrawToSplitter(remainingAmount);
         if (totalAssetsDelta != 0) {
           balanceBefore = _fixTotalAssets(balanceBefore, totalAssetsDelta);
         }
@@ -542,7 +575,8 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     if (delta_ > 0) {
       totalAssetsOut = totalAssets_ + uint(delta_);
     } else {
-      require(totalAssets_ >= uint(- delta_), "SS: patch"); // protection from mistakes in strategy
+      require(totalAssets_ >= uint(- delta_), "SS: patch");
+      // protection from mistakes in strategy
       totalAssetsOut = totalAssets_ - uint(- delta_);
     }
   }
@@ -709,24 +743,22 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
           continue;
         }
 
-        // There are strategy capacities of two kinds: external (from splitter) and internal (from strategy)
-        // We should use minimum value (but: zero external capacity means no capacity)
-        uint capacity = strategyCapacity[strategy];
-        if (capacity == 0) {
-          capacity = IStrategyV2(strategies[i]).capacity();
-        } else {
-          capacity = Math.min(capacity, IStrategyV2(strategies[i]).capacity());
-        }
+        uint capacity = getStrategyCapacity(strategy);
 
         uint strategyBalance = IStrategyV2(strategy).totalAssets();
         uint toInvest;
         if (capacity > strategyBalance) {
           toInvest = Math.min(capacity - strategyBalance, balance);
+        } else {
+          continue;
         }
 
-        IERC20(_asset).safeTransfer(strategy, toInvest);
-        totalAssetsDelta = IStrategyV2(strategy).investAll(toInvest, updateTotalAssetsBeforeInvest);
-        emit Invested(strategy, toInvest);
+        if (toInvest != 0) {
+          IERC20(_asset).safeTransfer(strategy, toInvest);
+          totalAssetsDelta += IStrategyV2(strategy).investAll(toInvest, updateTotalAssetsBeforeInvest);
+          emit Invested(strategy, toInvest);
+          break;
+        }
       }
     }
 
