@@ -23,7 +23,6 @@ contract HardWorkResolver is ControllableV3 {
   uint public maxGas;
   uint public maxHwPerCall;
 
-  mapping(address => uint) internal _lastHW;
   mapping(address => uint) public delayRate;
   mapping(address => bool) public operators;
   mapping(address => bool) public excludedVaults;
@@ -88,7 +87,18 @@ contract HardWorkResolver is ControllableV3 {
   // --- MAIN LOGIC ---
 
   function lastHW(address vault) public view returns (uint lastHardWorkTimestamp) {
-    lastHardWorkTimestamp = _lastHW[vault];
+    // hide warning
+    lastHardWorkTimestamp = 0;
+    ISplitter splitter = ITetuVaultV2(vault).splitter();
+    for (uint k; k < splitter.strategiesLength(); ++k) {
+      IStrategyV2 strategy = IStrategyV2(splitter.strategies(k));
+      if (
+        !splitter.pausedStrategies(address(strategy)) && strategy.totalAssets() > 0
+        && (lastHardWorkTimestamp == 0 || lastHardWorkTimestamp > splitter.lastHardWorks(address(strategy)))
+      ) {
+        lastHardWorkTimestamp = splitter.lastHardWorks(address(strategy));
+      }
+    }
   }
 
   function call(address[] memory _vaults) external returns (uint amountOfCalls) {
@@ -107,7 +117,6 @@ contract HardWorkResolver is ControllableV3 {
       } catch (bytes memory _err) {
         revert(string(abi.encodePacked("Vault low-level error: 0x", _toAsciiString(vault), " ", string(_err))));
       }
-      _lastHW[vault] = block.timestamp;
       counter++;
       if (counter >= _maxHwPerCall) {
         break;
