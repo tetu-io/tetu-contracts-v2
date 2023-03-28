@@ -22,7 +22,10 @@ export async function deployContract<T extends ContractFactory>(
   // tslint:disable-next-line:no-any
   ...args: any[]
 ) {
-  await hre.run("compile")
+  if (hre.network.name !== 'hardhat') {
+    await hre.run("compile")
+  }
+
   const ethers = hre.ethers;
   log.info(`Deploying ${name}`);
   log.info("Account balance: " + utils.formatUnits(await signer.getBalance(), 18));
