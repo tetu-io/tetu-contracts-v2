@@ -67,7 +67,7 @@ describe("HardWorkResolverTest", function () {
     await strategyAsSplitter.investAll(amount, false);
 
     await resolver.changeOperatorStatus(signer.address, true)
-    await resolver.changeVaultStatus(vault.address, true)
+    await controller.addVault(vault.address)
   })
 
   after(async function () {

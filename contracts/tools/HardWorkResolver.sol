@@ -5,14 +5,11 @@ pragma solidity 0.8.17;
 import "../interfaces/ITetuVaultV2.sol";
 import "../interfaces/ISplitter.sol";
 import "../interfaces/IStrategyV2.sol";
-import "../openzeppelin/EnumerableSet.sol";
 import "../proxy/ControllableV3.sol";
 
 /// @title Gelato resolver for hardworks
 /// @author a17
 contract HardWorkResolver is ControllableV3 {
-  using EnumerableSet for EnumerableSet.AddressSet;
-
   // --- CONSTANTS ---
 
   string public constant VERSION = "1.0.0";
@@ -26,13 +23,10 @@ contract HardWorkResolver is ControllableV3 {
   uint public maxGas;
   uint public maxHwPerCall;
 
-  mapping(address => uint) internal _lastHW;
   mapping(address => uint) public delayRate;
   mapping(address => bool) public operators;
   mapping(address => bool) public excludedVaults;
   uint public lastHWCall;
-
-  EnumerableSet.AddressSet internal vaults;
 
   // --- INIT ---
 
@@ -48,10 +42,6 @@ contract HardWorkResolver is ControllableV3 {
   modifier onlyOwner() {
     require(msg.sender == owner, "!owner");
     _;
-  }
-
-  function allVaults() external view returns (address[] memory) {
-    return vaults.values();
   }
 
   // --- OWNER FUNCTIONS ---
@@ -94,20 +84,10 @@ contract HardWorkResolver is ControllableV3 {
     }
   }
 
-  function changeVaultStatus(address vault, bool add) external {
-    require(operators[msg.sender], "!operator");
-
-    if (add) {
-      require(vaults.add(vault), 'exist');
-    } else {
-      require(vaults.remove(vault), '!exist');
-    }
-  }
-
   // --- MAIN LOGIC ---
 
   function lastHW(address vault) public view returns (uint lastHardWorkTimestamp) {
-    lastHardWorkTimestamp = _lastHW[vault];
+    lastHardWorkTimestamp = ITetuVaultV2(vault).splitter().lastHardWorks(vault);
   }
 
   function call(address[] memory _vaults) external returns (uint amountOfCalls) {
@@ -119,9 +99,6 @@ contract HardWorkResolver is ControllableV3 {
     uint counter;
     for (uint i; i < vaultsLength; ++i) {
       address vault = _vaults[i];
-      if (lastHW(vault) + _delay > block.timestamp) {
-        continue;
-      }
 
       ISplitter splitter = ITetuVaultV2(vault).splitter();
 
@@ -130,7 +107,6 @@ contract HardWorkResolver is ControllableV3 {
       } catch (bytes memory _err) {
         revert(string(abi.encodePacked("Vault low-level error: 0x", _toAsciiString(vault), " ", string(_err))));
       }
-      _lastHW[vault] = block.timestamp;
       counter++;
       if (counter >= _maxHwPerCall) {
         break;
@@ -154,12 +130,13 @@ contract HardWorkResolver is ControllableV3 {
       return (false, abi.encodePacked("Too high gas: ", _toString(tx.gasprice / 1e9)));
     }
 
+    IController _controller = IController(controller());
     uint _delay = delay;
-    uint vaultsLength = vaults.length();
+    uint vaultsLength = _controller.vaultsListLength();
     address[] memory _vaults = new address[](vaultsLength);
     uint counter;
     for (uint i; i < vaultsLength; ++i) {
-      address vault = vaults.at(i);
+      address vault = _controller.vaults(i);
       if (!excludedVaults[vault]) {
 
         bool strategyNeedHardwork;
