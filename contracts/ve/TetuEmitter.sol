@@ -158,6 +158,21 @@ contract TetuEmitter is ControllableV3 {
     emit EpochStarted(epoch, startEpochTS, balance, toVe, toVoter);
   }
 
+  function gelatoResolver() external view returns (bool canExec, bytes memory execPayload) {
+    if (!isReadyToStart()) {
+      return (false, bytes("Not ready yet"));
+    }
+
+    uint _minAmountPerEpoch = minAmountPerEpoch;
+    uint balance = IERC20(token).balanceOf(address(this));
+
+    if (balance >= _minAmountPerEpoch) {
+      return (true, abi.encodeWithSelector(TetuEmitter.startEpoch.selector, _minAmountPerEpoch));
+    } else {
+      return (false, bytes("Not enough tokens"));
+    }
+  }
+
   // *************************************************************
   //                    INTERNAL LOGIC
   // *************************************************************

@@ -48,11 +48,11 @@ contract ForwarderV3 is ReentrancyGuard, ControllableV3, IForwarder {
   // -- convert options
 
   /// @dev We will convert all tokens to TETU and distribute to destinations.
-  address public tetu;
+  address public override tetu;
   /// @dev Contract for bribes distribution
   address public bribe;
   /// @dev Minimum amount of TETU tokens for distribution.
-  uint public tetuThreshold;
+  uint public override tetuThreshold;
   /// @dev Specific slippages for volatile tokens.
   mapping(address => uint) public tokenSlippage;
 
@@ -66,7 +66,7 @@ contract ForwarderV3 is ReentrancyGuard, ControllableV3, IForwarder {
   /// @dev Destination => Tokens ready to distribute
   mapping(address => EnumerableSet.AddressSet) internal _tokensPerDestination;
   /// @dev Token => Destination => Registered amount
-  mapping(address => mapping(address => uint)) public amountPerDestination;
+  mapping(address => mapping(address => uint)) public override amountPerDestination;
 
   // *************************************************************
   //                        EVENTS
