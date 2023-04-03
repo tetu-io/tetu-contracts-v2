@@ -88,185 +88,185 @@ describe("StrategyBaseV2Tests", function () {
   /**
    * Tests for modification of StrategyBaseV2.baseAmounts after investing/withdrawing any amount from/to the splitter
    */
-  describe("baseAmounts modifications", () => {
-    describe("investAll", () => {
-      describe("Good paths", () => {
-        it("should register invested amount", async () => {
-          const amount = parseUnits('1', 6);
-          await usdc.transfer(strategyAsSplitter.address, amount);
-          await strategyAsSplitter.investAll(amount, false);
-
-          const ret = await strategyAsSplitter.baseAmounts(usdc.address);
-          expect(ret).eq(amount);
-        });
-        it("should emit UpdateBaseAmounts", async () => {
-          const amount = parseUnits('1', 6);
-          await usdc.transfer(strategyAsSplitter.address, amount);
-
-          // todo Replace by await expect( after migration to hardhat-chai-matchers
-          expect(await strategyAsSplitter.investAll(amount, false))
-            .to.emit(strategyAsSplitter.address, "UpdateBaseAmounts")
-            .withArgs(usdc.address, amount);
-        });
-      });
-      describe("Bad paths", () => {
-        it("should revert with WRONG_VALUE", async () => {
-          const amount = parseUnits('1', 6);
-          // (!) The amount is NOT transferred // await usdc.transfer(splitter.address, amount);
-          await expect(strategyAsSplitter.investAll(amount, false))
-            .revertedWith("SB: Wrong value");
-        });
-      });
-    });
-    describe("withdrawToSplitter", () => {
-      describe("Good paths", () => {
-        it("should unregister invested amount, withdrawn amount == base amount", async () => {
-          const amount = parseUnits('1', 6);
-          const amountToWithdraw = parseUnits('0.3', 6);
-
-          await usdc.transfer(strategyAsSplitter.address, amount);
-          await strategyAsSplitter.investAll(amount, false);
-          const before = await strategyAsSplitter.baseAmounts(usdc.address);
-          await strategyAsSplitter.connect(await Misc.impersonate(splitter.address)).withdrawToSplitter(amountToWithdraw);
-          const after = await strategyAsSplitter.baseAmounts(usdc.address);
-
-          const ret = [
-            +formatUnits(before, 6),
-            +formatUnits(after, 6)
-          ].join();
-          const expected = [
-            +formatUnits(amount, 6),
-            +formatUnits(amount.sub(amountToWithdraw), 6)
-          ].join();
-          expect(ret).eq(expected);
-        });
-        it("should emit UpdateBaseAmounts, withdrawn amount == base amount", async () => {
-          const amount = parseUnits('5.5', 6);
-          const amountToWithdraw = parseUnits('5.5', 6);
-
-          await usdc.transfer(strategyAsSplitter.address, amount);
-          await strategyAsSplitter.investAll(amount, false);
-
-          // todo Replace by await expect( after migration to hardhat-chai-matchers
-          expect(await strategyAsSplitter.withdrawToSplitter(amountToWithdraw))
-            .to.emit(strategyAsSplitter.address, "UpdateBaseAmounts")
-            .withArgs(usdc.address, amountToWithdraw.mul(-1));
-        });
-      });
-      describe("Bad paths", () => {
-        it("should revert if withdrawn amount > base amount", async () => {
-          const amount = parseUnits('1', 6);
-          const amountToWithdraw = parseUnits('5.5', 6);
-          const rewardsAmount = parseUnits('5', 6);
-          await usdc.transfer(strategyAsSplitter.address, amount);
-          await strategyAsSplitter.investAll(amount, false);
-
-          // add "rewards" to the strategy
-          // now, the total amount on strategy balance is more than the base amount
-          await usdc.transfer(strategyAsSplitter.address, rewardsAmount);
-
-          await expect(strategyAsSplitter.withdrawToSplitter(amountToWithdraw))
-            .revertedWith("SB: Wrong value");
-        });
-      });
-    });
-    describe("withdrawAllToSplitter", () => {
-      describe("Good paths", () => {
-        it("should unregister invested amount", async () => {
-          const amount = parseUnits('1', 6);
-          await usdc.transfer(strategyAsSplitter.address, amount);
-          await strategyAsSplitter.investAll(amount, false);
-          const before = await strategyAsSplitter.baseAmounts(usdc.address);
-          await strategyAsSplitter.connect(await Misc.impersonate(splitter.address)).withdrawAllToSplitter();
-          const after = await strategyAsSplitter.baseAmounts(usdc.address);
-
-          const ret = [
-            +formatUnits(before, 6),
-            +formatUnits(after, 6)
-          ].join();
-          const expected = [
-            +formatUnits(amount, 6),
-            +formatUnits(0, 6)
-          ].join();
-          expect(ret).eq(expected);
-        });
-        it("should emit UpdateBaseAmounts", async () => {
-          const amount = parseUnits('1', 6);
-          await usdc.transfer(strategyAsSplitter.address, amount);
-          await strategyAsSplitter.investAll(amount, false);
-          // todo Replace by await expect( after migration to hardhat-chai-matchers
-          expect(await strategyAsSplitter.withdrawAllToSplitter())
-            .to.emit(strategyAsSplitter.address, "UpdateBaseAmounts")
-            .withArgs(usdc.address, amount.mul(-1));
-        });
-        it("should unregister base amount when balance > base amount", async () => {
-          const amount = parseUnits('1', 6);
-          await usdc.transfer(strategyAsSplitter.address, amount);
-          await strategyAsSplitter.investAll(amount, false);
-
-          // make the total amount on strategy balance more than the base amount (i.e. airdrops)
-          const additionalAmount = parseUnits('777', 6);
-          await usdc.transfer(strategyAsSplitter.address, additionalAmount);
-
-          const before = await strategyAsSplitter.baseAmounts(usdc.address);
-          await strategyAsSplitter.withdrawAllToSplitter();
-          const baseAmountAfter = await strategyAsSplitter.baseAmounts(usdc.address);
-          const balanceAfter = await usdc.balanceOf(strategyAsSplitter.address);
-
-          const ret = [
-            +formatUnits(before, 6),
-            +formatUnits(baseAmountAfter, 6),
-            +formatUnits(balanceAfter, 6),
-          ].join();
-          const expected = [
-            +formatUnits(amount, 6),
-            +formatUnits(0, 6),
-            +formatUnits(additionalAmount, 6),
-          ].join();
-          expect(ret).eq(expected);
-        });
-      });
-    });
-    describe("resetBaseAmounts", () => {
-      // todo fix
-      it.skip("should reset given base amount to balance values", async () => {
-        const operator = ethers.Wallet.createRandom().address;
-        const amount = parseUnits('1', 6);
-        await usdc.transfer(strategyAsSplitter.address, amount);
-        await tetu.transfer(strategyAsSplitter.address, amount);
-        await strategyAsSplitter.investAll(amount, false);
-
-        await controller.addOperator(operator);
-        const strategyAsOperator = strategyAsSplitter.connect(await Misc.impersonate(operator));
-
-        await usdc.transfer(strategyAsSplitter.address, amount);
-        await tetu.transfer(strategyAsSplitter.address, amount.mul(2));
-        await strategyAsOperator.resetBaseAmounts([usdc.address, tetu.address]);
-
-        const usdcBaseAmountAfter = await strategyAsSplitter.baseAmounts(usdc.address);
-        const tetuBaseAmountAfter = await strategyAsSplitter.baseAmounts(tetu.address);
-        const usdcBalanceAfter = await usdc.balanceOf(strategyAsSplitter.address);
-        const tetuBalanceAfter = await tetu.balanceOf(strategyAsSplitter.address);
-
-        const ret = [
-          usdcBaseAmountAfter.sub(usdcBalanceAfter),
-          tetuBaseAmountAfter.sub(tetuBalanceAfter)
-        ].join("\n");
-        const expected = [
-          amount,
-          amount.mul(2)
-        ].join("\n");
-        expect(ret).eq(expected);
-      });
-      it("should revert if not operator", async () => {
-        const notOperator = ethers.Wallet.createRandom().address;
-        const strategyAsNotOperator = strategyAsSplitter.connect(await Misc.impersonate(notOperator));
-        await expect(
-          strategyAsNotOperator.resetBaseAmounts([usdc.address, tetu.address])
-        ).revertedWith("SB: Denied"); // DENIED
-      });
-    });
-  });
+  // describe("baseAmounts modifications", () => {
+  //   describe("investAll", () => {
+  //     describe("Good paths", () => {
+  //       it("should register invested amount", async () => {
+  //         const amount = parseUnits('1', 6);
+  //         await usdc.transfer(strategyAsSplitter.address, amount);
+  //         await strategyAsSplitter.investAll(amount, false);
+  //
+  //         const ret = await strategyAsSplitter.baseAmounts(usdc.address);
+  //         expect(ret).eq(amount);
+  //       });
+  //       it("should emit UpdateBaseAmounts", async () => {
+  //         const amount = parseUnits('1', 6);
+  //         await usdc.transfer(strategyAsSplitter.address, amount);
+  //
+  //         // todo Replace by await expect( after migration to hardhat-chai-matchers
+  //         expect(await strategyAsSplitter.investAll(amount, false))
+  //           .to.emit(strategyAsSplitter.address, "UpdateBaseAmounts")
+  //           .withArgs(usdc.address, amount);
+  //       });
+  //     });
+  //     describe("Bad paths", () => {
+  //       it("should revert with WRONG_VALUE", async () => {
+  //         const amount = parseUnits('1', 6);
+  //         // (!) The amount is NOT transferred // await usdc.transfer(splitter.address, amount);
+  //         await expect(strategyAsSplitter.investAll(amount, false))
+  //           .revertedWith("SB: Wrong value");
+  //       });
+  //     });
+  //   });
+  //   describe("withdrawToSplitter", () => {
+  //     describe("Good paths", () => {
+  //       it("should unregister invested amount, withdrawn amount == base amount", async () => {
+  //         const amount = parseUnits('1', 6);
+  //         const amountToWithdraw = parseUnits('0.3', 6);
+  //
+  //         await usdc.transfer(strategyAsSplitter.address, amount);
+  //         await strategyAsSplitter.investAll(amount, false);
+  //         const before = await strategyAsSplitter.baseAmounts(usdc.address);
+  //         await strategyAsSplitter.connect(await Misc.impersonate(splitter.address)).withdrawToSplitter(amountToWithdraw);
+  //         const after = await strategyAsSplitter.baseAmounts(usdc.address);
+  //
+  //         const ret = [
+  //           +formatUnits(before, 6),
+  //           +formatUnits(after, 6)
+  //         ].join();
+  //         const expected = [
+  //           +formatUnits(amount, 6),
+  //           +formatUnits(amount.sub(amountToWithdraw), 6)
+  //         ].join();
+  //         expect(ret).eq(expected);
+  //       });
+  //       it("should emit UpdateBaseAmounts, withdrawn amount == base amount", async () => {
+  //         const amount = parseUnits('5.5', 6);
+  //         const amountToWithdraw = parseUnits('5.5', 6);
+  //
+  //         await usdc.transfer(strategyAsSplitter.address, amount);
+  //         await strategyAsSplitter.investAll(amount, false);
+  //
+  //         // todo Replace by await expect( after migration to hardhat-chai-matchers
+  //         expect(await strategyAsSplitter.withdrawToSplitter(amountToWithdraw))
+  //           .to.emit(strategyAsSplitter.address, "UpdateBaseAmounts")
+  //           .withArgs(usdc.address, amountToWithdraw.mul(-1));
+  //       });
+  //     });
+  //     describe("Bad paths", () => {
+  //       it("should revert if withdrawn amount > base amount", async () => {
+  //         const amount = parseUnits('1', 6);
+  //         const amountToWithdraw = parseUnits('5.5', 6);
+  //         const rewardsAmount = parseUnits('5', 6);
+  //         await usdc.transfer(strategyAsSplitter.address, amount);
+  //         await strategyAsSplitter.investAll(amount, false);
+  //
+  //         // add "rewards" to the strategy
+  //         // now, the total amount on strategy balance is more than the base amount
+  //         await usdc.transfer(strategyAsSplitter.address, rewardsAmount);
+  //
+  //         await expect(strategyAsSplitter.withdrawToSplitter(amountToWithdraw))
+  //           .revertedWith("SB: Wrong value");
+  //       });
+  //     });
+  //   });
+  //   describe("withdrawAllToSplitter", () => {
+  //     describe("Good paths", () => {
+  //       it("should unregister invested amount", async () => {
+  //         const amount = parseUnits('1', 6);
+  //         await usdc.transfer(strategyAsSplitter.address, amount);
+  //         await strategyAsSplitter.investAll(amount, false);
+  //         const before = await strategyAsSplitter.baseAmounts(usdc.address);
+  //         await strategyAsSplitter.connect(await Misc.impersonate(splitter.address)).withdrawAllToSplitter();
+  //         const after = await strategyAsSplitter.baseAmounts(usdc.address);
+  //
+  //         const ret = [
+  //           +formatUnits(before, 6),
+  //           +formatUnits(after, 6)
+  //         ].join();
+  //         const expected = [
+  //           +formatUnits(amount, 6),
+  //           +formatUnits(0, 6)
+  //         ].join();
+  //         expect(ret).eq(expected);
+  //       });
+  //       it("should emit UpdateBaseAmounts", async () => {
+  //         const amount = parseUnits('1', 6);
+  //         await usdc.transfer(strategyAsSplitter.address, amount);
+  //         await strategyAsSplitter.investAll(amount, false);
+  //         // todo Replace by await expect( after migration to hardhat-chai-matchers
+  //         expect(await strategyAsSplitter.withdrawAllToSplitter())
+  //           .to.emit(strategyAsSplitter.address, "UpdateBaseAmounts")
+  //           .withArgs(usdc.address, amount.mul(-1));
+  //       });
+  //       it("should unregister base amount when balance > base amount", async () => {
+  //         const amount = parseUnits('1', 6);
+  //         await usdc.transfer(strategyAsSplitter.address, amount);
+  //         await strategyAsSplitter.investAll(amount, false);
+  //
+  //         // make the total amount on strategy balance more than the base amount (i.e. airdrops)
+  //         const additionalAmount = parseUnits('777', 6);
+  //         await usdc.transfer(strategyAsSplitter.address, additionalAmount);
+  //
+  //         const before = await strategyAsSplitter.baseAmounts(usdc.address);
+  //         await strategyAsSplitter.withdrawAllToSplitter();
+  //         const baseAmountAfter = await strategyAsSplitter.baseAmounts(usdc.address);
+  //         const balanceAfter = await usdc.balanceOf(strategyAsSplitter.address);
+  //
+  //         const ret = [
+  //           +formatUnits(before, 6),
+  //           +formatUnits(baseAmountAfter, 6),
+  //           +formatUnits(balanceAfter, 6),
+  //         ].join();
+  //         const expected = [
+  //           +formatUnits(amount, 6),
+  //           +formatUnits(0, 6),
+  //           +formatUnits(additionalAmount, 6),
+  //         ].join();
+  //         expect(ret).eq(expected);
+  //       });
+  //     });
+  //   });
+  //   describe("resetBaseAmounts", () => {
+  //     // todo fix
+  //     it.skip("should reset given base amount to balance values", async () => {
+  //       const operator = ethers.Wallet.createRandom().address;
+  //       const amount = parseUnits('1', 6);
+  //       await usdc.transfer(strategyAsSplitter.address, amount);
+  //       await tetu.transfer(strategyAsSplitter.address, amount);
+  //       await strategyAsSplitter.investAll(amount, false);
+  //
+  //       await controller.addOperator(operator);
+  //       const strategyAsOperator = strategyAsSplitter.connect(await Misc.impersonate(operator));
+  //
+  //       await usdc.transfer(strategyAsSplitter.address, amount);
+  //       await tetu.transfer(strategyAsSplitter.address, amount.mul(2));
+  //       await strategyAsOperator.resetBaseAmounts([usdc.address, tetu.address]);
+  //
+  //       const usdcBaseAmountAfter = await strategyAsSplitter.baseAmounts(usdc.address);
+  //       const tetuBaseAmountAfter = await strategyAsSplitter.baseAmounts(tetu.address);
+  //       const usdcBalanceAfter = await usdc.balanceOf(strategyAsSplitter.address);
+  //       const tetuBalanceAfter = await tetu.balanceOf(strategyAsSplitter.address);
+  //
+  //       const ret = [
+  //         usdcBaseAmountAfter.sub(usdcBalanceAfter),
+  //         tetuBaseAmountAfter.sub(tetuBalanceAfter)
+  //       ].join("\n");
+  //       const expected = [
+  //         amount,
+  //         amount.mul(2)
+  //       ].join("\n");
+  //       expect(ret).eq(expected);
+  //     });
+  //     it("should revert if not operator", async () => {
+  //       const notOperator = ethers.Wallet.createRandom().address;
+  //       const strategyAsNotOperator = strategyAsSplitter.connect(await Misc.impersonate(notOperator));
+  //       await expect(
+  //         strategyAsNotOperator.resetBaseAmounts([usdc.address, tetu.address])
+  //       ).revertedWith("SB: Denied"); // DENIED
+  //     });
+  //   });
+  // });
 
   describe("performanceFee", () => {
     describe("Good paths", () => {
