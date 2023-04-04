@@ -20,25 +20,22 @@ interface IStrategyV2 {
   /// @dev Usually, indicate that claimable rewards have reasonable amount.
   function isReadyToHardWork() external view returns (bool);
 
-  /// @return totalAssetsDelta The {strategy} can update its totalAssets amount internally before withdrawing
-  ///                          Return [totalAssets-before-withdraw - totalAssets-before-call-of-withdrawAllToSplitter]
-  function withdrawAllToSplitter() external returns (int totalAssetsDelta);
+  /// @return strategyLoss Loss should be covered from Insurance
+  function withdrawAllToSplitter() external returns (uint strategyLoss);
 
-  /// @return totalAssetsDelta The {strategy} can update its totalAssets amount internally before withdrawing
-  ///                          Return [totalAssets-before-withdraw - totalAssets-before-call-of-withdrawToSplitter]
-  function withdrawToSplitter(uint amount) external returns (int totalAssetsDelta);
+  /// @return strategyLoss Loss should be covered from Insurance
+  function withdrawToSplitter(uint amount) external returns (uint strategyLoss);
 
   /// @notice Stakes everything the strategy holds into the reward pool.
   /// @param amount_ Amount transferred to the strategy balance just before calling this function
   /// @param updateTotalAssetsBeforeInvest_ Recalculate total assets amount before depositing.
   ///                                       It can be false if we know exactly, that the amount is already actual.
-  /// @return totalAssetsDelta The {strategy} can update its totalAssets amount internally before depositing {amount_}
-  ///                          Return [totalAssets-before-deposit - totalAssets-before-call-of-investAll]
+  /// @return strategyLoss Loss should be covered from Insurance
   function investAll(
     uint amount_,
     bool updateTotalAssetsBeforeInvest_
   ) external returns (
-    int totalAssetsDelta
+    uint strategyLoss
   );
 
   function doHardWork() external returns (uint earned, uint lost);

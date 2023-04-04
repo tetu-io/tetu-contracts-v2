@@ -67,9 +67,9 @@ contract MockStrategy is StrategyBaseV2 {
   /// @dev Deposit given amount to the pool.
   function _depositToPool(
     uint amount,
-    bool updateTotalAssetsBeforeInvest_
+    bool /*updateTotalAssetsBeforeInvest_*/
   ) internal override returns (
-    int totalAssetsDelta
+    uint strategyLoss
   ) {
     uint _slippage = amount * slippageDeposit / 100_000;
     if (_slippage != 0) {
@@ -79,23 +79,21 @@ contract MockStrategy is StrategyBaseV2 {
       IERC20(asset).transfer(address(pool), amount - _slippage);
     }
 
-    return updateTotalAssetsBeforeInvest_
-      ? _totalAssetsDelta
-      : int(0);
+    return _slippage;
   }
 
   /// @dev Withdraw given amount from the pool.
   function _withdrawFromPool(uint amount) internal override returns (
     uint investedAssetsUSD,
     uint assetPrice,
-    int totalAssetsDelta
+    uint strategyLoss
   ) {
     assetPrice = 1e18;
     investedAssetsUSD = amount;
-    totalAssetsDelta = _totalAssetsDelta;
 
     pool.withdraw(asset, amount);
     uint _slippage = amount * slippage / 100_000;
+    strategyLoss = _slippage;
     if (_slippage != 0) {
       IERC20(asset).transfer(controller(), _slippage);
     }
@@ -105,11 +103,10 @@ contract MockStrategy is StrategyBaseV2 {
   function _withdrawAllFromPool() internal override returns (
     uint investedAssetsUSD,
     uint assetPrice,
-    int totalAssetsDelta
+    uint strategyLoss
   ) {
     assetPrice = 1e18;
     investedAssetsUSD = 0; // investedAssets();
-    totalAssetsDelta = _totalAssetsDelta;
 
     pool.withdraw(asset, investedAssets());
     uint _slippage = totalAssets() * slippage / 100_000;
@@ -117,7 +114,7 @@ contract MockStrategy is StrategyBaseV2 {
       IERC20(asset).transfer(controller(), _slippage);
     }
 
-    return (investedAssetsUSD, assetPrice, _totalAssetsDelta);
+    return (investedAssetsUSD, assetPrice, _slippage);
   }
 
   /// @dev If pool support emergency withdraw need to call it for emergencyExit()
