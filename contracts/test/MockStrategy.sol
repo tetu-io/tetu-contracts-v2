@@ -84,12 +84,12 @@ contract MockStrategy is StrategyBaseV2 {
 
   /// @dev Withdraw given amount from the pool.
   function _withdrawFromPool(uint amount) internal override returns (
-    uint investedAssetsUSD,
+    uint expectedWithdrewUSD,
     uint assetPrice,
     uint strategyLoss
   ) {
     assetPrice = 1e18;
-    investedAssetsUSD = amount;
+    expectedWithdrewUSD = amount;
 
     pool.withdraw(asset, amount);
     uint _slippage = amount * slippage / 100_000;
@@ -101,12 +101,12 @@ contract MockStrategy is StrategyBaseV2 {
 
   /// @dev Withdraw all from the pool.
   function _withdrawAllFromPool() internal override returns (
-    uint investedAssetsUSD,
+    uint expectedWithdrewUSD,
     uint assetPrice,
     uint strategyLoss
   ) {
     assetPrice = 1e18;
-    investedAssetsUSD = 0; // investedAssets();
+    expectedWithdrewUSD = 0; // investedAssets();
 
     pool.withdraw(asset, investedAssets());
     uint _slippage = totalAssets() * slippage / 100_000;
@@ -114,7 +114,7 @@ contract MockStrategy is StrategyBaseV2 {
       IERC20(asset).transfer(controller(), _slippage);
     }
 
-    return (investedAssetsUSD, assetPrice, _slippage);
+    return (expectedWithdrewUSD, assetPrice, _slippage);
   }
 
   /// @dev If pool support emergency withdraw need to call it for emergencyExit()

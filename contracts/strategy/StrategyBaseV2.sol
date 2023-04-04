@@ -258,21 +258,21 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   );
 
   /// @dev Withdraw given amount from the pool.
-  /// @return investedAssetsUSD Sum of USD value of each asset in the pool that was withdrawn, decimals of {asset}.
+  /// @return expectedWithdrewUSD Sum of USD value of each asset in the pool that was withdrawn, decimals of {asset}.
   /// @return assetPrice Price of the strategy {asset}.
   /// @return strategyLoss Loss should be covered from Insurance
   function _withdrawFromPool(uint amount) internal virtual returns (
-    uint investedAssetsUSD,
+    uint expectedWithdrewUSD,
     uint assetPrice,
     uint strategyLoss
   );
 
   /// @dev Withdraw all from the pool.
-  /// @return investedAssetsUSD Sum of USD value of each asset in the pool that was withdrawn, decimals of {asset}.
+  /// @return expectedWithdrewUSD Sum of USD value of each asset in the pool that was withdrawn, decimals of {asset}.
   /// @return assetPrice Price of the strategy {asset}.
   /// @return strategyLoss Loss should be covered from Insurance
   function _withdrawAllFromPool() internal virtual returns (
-    uint investedAssetsUSD,
+    uint expectedWithdrewUSD,
     uint assetPrice,
     uint strategyLoss
   );
