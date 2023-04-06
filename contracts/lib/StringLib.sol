@@ -7,7 +7,7 @@ library StringLib {
 
   /// @dev Inspired by OraclizeAPI's implementation - MIT license
   ///      https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
-  function toString(uint value) public pure returns (string memory) {
+  function toString(uint value) external pure returns (string memory) {
     return _toString(value);
   }
 
@@ -30,7 +30,7 @@ library StringLib {
     return string(buffer);
   }
 
-  function toAsciiString(address x) public pure returns (string memory) {
+  function toAsciiString(address x) external pure returns (string memory) {
     return _toAsciiString(x);
   }
 
@@ -46,7 +46,7 @@ library StringLib {
     return string(s);
   }
 
-  function char(bytes1 b) public pure returns (bytes1 c) {
+  function char(bytes1 b) external pure returns (bytes1 c) {
     return _char(b);
   }
 

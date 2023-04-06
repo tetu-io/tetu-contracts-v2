@@ -268,6 +268,11 @@ describe("StrategyBaseV2Tests", function () {
   //   });
   // });
 
+  it("set specific name", async () => {
+    await strategyAsSplitter.connect(signer).setStrategySpecificName('New Name');
+    expect(await strategyAsSplitter.strategySpecificName()).eq('New Name');
+  });
+
   describe("performanceFee", () => {
     describe("Good paths", () => {
       it("should return default fee and governance as default receiver", async () => {
