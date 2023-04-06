@@ -10,6 +10,8 @@ interface ITetuVaultV2 {
 
   function splitter() external view returns (ISplitter);
 
+  function insurance() external view returns (IVaultInsurance);
+
   function depositFee() external view returns (uint);
 
   function withdrawFee() external view returns (uint);
