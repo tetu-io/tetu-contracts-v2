@@ -15,6 +15,9 @@ abstract contract ERC4626Upgradeable is ERC20PermitUpgradeable, ReentrancyGuard,
   using SafeERC20 for IERC20;
   using FixedPointMathLib for uint;
 
+  uint internal constant INITIAL_SHARES = 1000;
+  address internal constant DEAD_ADDRESS = 0xdEad000000000000000000000000000000000000;
+
   /// @dev The address of the underlying token used for the Vault uses for accounting,
   ///      depositing, and withdrawing
   IERC20 internal _asset;
@@ -54,11 +57,16 @@ abstract contract ERC4626Upgradeable is ERC20PermitUpgradeable, ReentrancyGuard,
     // Need to transfer before minting or ERC777s could reenter.
     _asset.safeTransferFrom(msg.sender, address(this), assets);
 
-    _mint(receiver, shares);
+    if(totalSupply() == 0) {
+      _mint(receiver, shares - INITIAL_SHARES);
+      _mint(DEAD_ADDRESS, INITIAL_SHARES);
+    } else {
+      _mint(receiver, shares);
+    }
 
     emit Deposit(msg.sender, receiver, assets, shares);
 
-    afterDeposit(assets, shares);
+    afterDeposit(assets, shares, receiver);
   }
 
   function mint(
@@ -73,11 +81,16 @@ abstract contract ERC4626Upgradeable is ERC20PermitUpgradeable, ReentrancyGuard,
     // Need to transfer before minting or ERC777s could reenter.
     _asset.safeTransferFrom(msg.sender, address(this), assets);
 
-    _mint(receiver, shares);
+    if(totalSupply() == 0) {
+      _mint(receiver, shares - INITIAL_SHARES);
+      _mint(DEAD_ADDRESS, INITIAL_SHARES);
+    } else {
+      _mint(receiver, shares);
+    }
 
     emit Deposit(msg.sender, receiver, assets, shares);
 
-    afterDeposit(assets, shares);
+    afterDeposit(assets, shares, receiver);
   }
 
   function withdraw(
@@ -96,7 +109,7 @@ abstract contract ERC4626Upgradeable is ERC20PermitUpgradeable, ReentrancyGuard,
       if (allowed != type(uint).max) _allowances[owner][msg.sender] = allowed - shares;
     }
 
-    beforeWithdraw(assets, shares);
+    beforeWithdraw(assets, shares, receiver);
 
     _burn(owner, shares);
 
@@ -123,7 +136,7 @@ abstract contract ERC4626Upgradeable is ERC20PermitUpgradeable, ReentrancyGuard,
     // Check for rounding error since we round down in previewRedeem.
     require(assets != 0, "ZERO_ASSETS");
 
-    beforeWithdraw(assets, shares);
+    beforeWithdraw(assets, shares, receiver);
 
     _burn(owner, shares);
 
@@ -195,9 +208,9 @@ abstract contract ERC4626Upgradeable is ERC20PermitUpgradeable, ReentrancyGuard,
   //                INTERNAL HOOKS LOGIC
   ///////////////////////////////////////////////////////////////
 
-  function beforeWithdraw(uint assets, uint shares) internal virtual {}
+  function beforeWithdraw(uint assets, uint shares, address receiver) internal virtual {}
 
-  function afterDeposit(uint assets, uint shares) internal virtual {}
+  function afterDeposit(uint assets, uint shares, address receiver) internal virtual {}
 
   /**
  * @dev This empty reserved space is put in place to allow future versions to add new

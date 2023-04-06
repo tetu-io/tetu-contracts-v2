@@ -137,6 +137,8 @@ async function enterAndExitTOVault(signer: SignerWithAddress, vaultAdr: string) 
   await token.approve(vaultAdr, Misc.MAX_UINT);
   const bal = await token.balanceOf(signer.address);
   await vault.deposit(parseUnits('1', 6), signer.address);
-  await vault.withdraw(parseUnits('1', 6), signer.address, signer.address);
-  expect(await token.balanceOf(signer.address)).eq(bal);
+  await vault.requestWithdraw();
+  await TimeUtils.advanceNBlocks(5);
+  await vault.withdraw(parseUnits('1', 6).sub(1000), signer.address, signer.address);
+  expect(await token.balanceOf(signer.address)).eq(bal.sub(1000));
 }

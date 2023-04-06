@@ -6,8 +6,10 @@ import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {
   ControllerMinimal,
-  MockGauge, MockGauge__factory,
-  MockSplitter, MockSplitter__factory,
+  MockGauge,
+  MockGauge__factory,
+  MockSplitter,
+  MockSplitter__factory,
   MockToken,
   ProxyControlled,
   TetuVaultV2,
@@ -63,6 +65,8 @@ describe("Tetu Vault V2 tests", function () {
     await usdc.connect(signer2).approve(vault.address, Misc.MAX_UINT);
     await usdc.connect(signer1).approve(vault.address, Misc.MAX_UINT);
     await usdc.approve(vault.address, Misc.MAX_UINT);
+
+    await vault.setWithdrawRequestBlocks(0);
   });
 
   after(async function () {
@@ -167,12 +171,12 @@ describe("Tetu Vault V2 tests", function () {
 
     const bal1 = await usdc.balanceOf(signer.address);
     await vault.deposit(parseUnits('1', 6), signer1.address);
-    expect(await vault.balanceOf(signer1.address)).eq(990_000);
+    expect(await vault.balanceOf(signer1.address)).eq(989000);
     expect(bal1.sub(await usdc.balanceOf(signer.address))).eq(parseUnits('1', 6));
 
     const bal2 = await usdc.balanceOf(signer.address);
     await vault.deposit(parseUnits('1', 6), signer.address);
-    expect(await vault.balanceOf(signer.address)).eq(990_000);
+    expect(await vault.balanceOf(signer.address)).eq(990000);
     expect(bal2.sub(await usdc.balanceOf(signer.address))).eq(parseUnits('1', 6));
 
     const insurance = await vault.insurance();
@@ -185,12 +189,12 @@ describe("Tetu Vault V2 tests", function () {
 
     const bal1 = await usdc.balanceOf(signer.address);
     await vault.mint(990_000, signer1.address);
-    expect(await vault.balanceOf(signer1.address)).eq(990_000);
+    expect(await vault.balanceOf(signer1.address)).eq(989000);
     expect(bal1.sub(await usdc.balanceOf(signer.address))).eq(parseUnits('1', 6));
 
     const bal2 = await usdc.balanceOf(signer.address);
     await vault.mint(990_000, signer.address);
-    expect(await vault.balanceOf(signer.address)).eq(990_000);
+    expect(await vault.balanceOf(signer.address)).eq(990000);
     expect(bal2.sub(await usdc.balanceOf(signer.address))).eq(parseUnits('1', 6));
 
     const insurance = await vault.insurance();
@@ -373,8 +377,8 @@ describe("Tetu Vault V2 tests", function () {
     expect(await usdc.balanceOf(vault.address)).eq(1200_000);
     await vault.withdraw(parseUnits('1', 6), signer.address, signer.address)
     expect(await usdc.balanceOf(vault.address)).eq(200_000);
-    await vault.withdraw(parseUnits('2', 6), signer.address, signer.address)
-    expect(await usdc.balanceOf(vault.address)).eq(0);
+    await vault.withdraw(parseUnits('2', 6).sub(1000), signer.address, signer.address)
+    expect(await usdc.balanceOf(vault.address)).eq(1000);
   });
 
   it("not invest on deposit", async () => {
@@ -393,9 +397,9 @@ describe("Tetu Vault V2 tests", function () {
     expect(await usdc.balanceOf(vault.address)).eq(100_000);
     await mockSplitter.connect(signer2).lost(parseUnits('0.1', 6))
     await vault.withdrawAll()
-    expect(await usdc.balanceOf(vault.address)).eq(0);
+    expect(await usdc.balanceOf(vault.address)).eq(90);
     const balAfter = await usdc.balanceOf(signer.address);
-    expect(bal.sub(balAfter)).eq(parseUnits('0.1', 6));
+    expect(bal.sub(balAfter)).eq(parseUnits('0.1', 6).add(900));
   });
 
   it("withdraw with slippage should be fair for all users", async () => {
@@ -413,7 +417,7 @@ describe("Tetu Vault V2 tests", function () {
     await vault.withdrawAll();
 
     const balAfter = await usdc.balanceOf(signer.address);
-    expect(bal.sub(balAfter)).eq(parseUnits('0.01', 6));
+    expect(bal.sub(balAfter)).eq(parseUnits('0.01', 6).add(990));
 
     await mockSplitter.setSlippage(1);
     await vault.connect(signer2).withdrawAll()
@@ -430,10 +434,10 @@ describe("Tetu Vault V2 tests", function () {
     const balanceBefore = await usdc.balanceOf(signer.address);
     await vault.setFees(0, 1_000);
     const expectWithdraw = parseUnits('1', 6).sub(parseUnits('0.01', 6));
-    expect(await vault.maxWithdraw(signer.address)).eq(expectWithdraw);
+    expect(await vault.maxWithdraw(signer.address)).eq(expectWithdraw.sub(990));
     await vault.withdrawAll();
     const balanceAfter = await usdc.balanceOf(signer.address);
-    expect(balanceBefore.add(expectWithdraw)).eq(balanceAfter);
+    expect(balanceBefore.add(expectWithdraw)).eq(balanceAfter.add(990));
   });
 
   it("maxWithdraw with fee test (withdraw max)", async () => {
@@ -441,10 +445,10 @@ describe("Tetu Vault V2 tests", function () {
     const balanceBefore = await usdc.balanceOf(signer.address);
     await vault.setFees(0, 1_000);
     const expectWithdraw = parseUnits('1', 6).sub(parseUnits('0.01', 6));
-    expect(await vault.maxWithdraw(signer.address)).eq(expectWithdraw);
+    expect(await vault.maxWithdraw(signer.address)).eq(expectWithdraw.sub(990));
     await vault.withdraw(await vault.maxWithdraw(signer.address), signer.address, signer.address);
     const balanceAfter = await usdc.balanceOf(signer.address);
-    expect(balanceBefore.add(expectWithdraw)).eq(balanceAfter);
+    expect(balanceBefore.add(expectWithdraw)).eq(balanceAfter.add(990));
   });
 
   it("cover loss test", async () => {
@@ -454,7 +458,7 @@ describe("Tetu Vault V2 tests", function () {
     await mockSplitter.coverLoss(10_000);
     await vault.withdrawAll();
     const balAfter = await usdc.balanceOf(signer.address);
-    expect(bal.sub(balAfter)).eq(0);
+    expect(bal.sub(balAfter)).eq(1011);
   });
 
   it("cover loss revert", async () => {
@@ -515,6 +519,18 @@ describe("Tetu Vault V2 tests", function () {
       const s = MockSplitter__factory.connect(await DeployerUtils.deployProxy(signer, 'MockSplitter'), signer);
       await s.init(cc.address, usdc.address, v.address);
       await expect(v.setSplitter(s.address)).revertedWith("WRONG_CONTROLLER");
+    });
+
+    it("set withdrawRequestBlocks", async () => {
+      await expect(vault.connect(signer2).setWithdrawRequestBlocks(10)).revertedWith("DENIED");
+      await vault.setWithdrawRequestBlocks(10);
+      expect(await vault.withdrawRequestBlocks()).eq(10);
+    });
+
+    it("withdraw request not asked revert", async () => {
+      await vault.setWithdrawRequestBlocks(10);
+      await vault.deposit(10000, signer.address);
+      await expect(vault.withdrawAll()).revertedWith("NOT_REQUESTED");
     });
   });
 
