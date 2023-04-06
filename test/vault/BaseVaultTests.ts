@@ -127,12 +127,12 @@ describe("Base Vaults tests", function () {
 
   it("simple deposit/redeem test", async () => {
     await vaultSimple.deposit(parseUnits('1', 6), signer.address);
-    await vaultSimple.redeem(parseUnits('1', 6), signer.address, signer.address);
+    await vaultSimple.redeem(parseUnits('1', 6).sub(1000), signer.address, signer.address);
   });
 
   it("simple mint/withdraw test", async () => {
     await vaultSimple.mint(parseUnits('1', 6), signer.address);
-    await vaultSimple.withdraw(parseUnits('1', 6), signer.address, signer.address);
+    await vaultSimple.withdraw(parseUnits('1', 6).sub(1000), signer.address, signer.address);
   });
 
   it("simple maxDeposit test", async () => {
@@ -203,7 +203,7 @@ describe("Base Vaults tests", function () {
   it("deposit test", async () => {
     const bal1 = await usdc.balanceOf(signer.address);
     await vault.deposit(parseUnits('1', 6), signer1.address);
-    expect(await vault.balanceOf(signer1.address)).eq(900_000);
+    expect(await vault.balanceOf(signer1.address)).eq(899000);
     expect(bal1.sub(await usdc.balanceOf(signer.address))).eq(parseUnits('1', 6));
 
     const bal2 = await usdc.balanceOf(signer.address);
@@ -215,7 +215,7 @@ describe("Base Vaults tests", function () {
   it("mint test", async () => {
     const bal1 = await usdc.balanceOf(signer.address);
     await vault.mint(900_000, signer1.address);
-    expect(await vault.balanceOf(signer1.address)).eq(900_000);
+    expect(await vault.balanceOf(signer1.address)).eq(899000);
     expect(bal1.sub(await usdc.balanceOf(signer.address))).eq(parseUnits('1', 6));
 
     const bal2 = await usdc.balanceOf(signer.address);

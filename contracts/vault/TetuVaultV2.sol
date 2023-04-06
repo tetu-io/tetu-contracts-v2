@@ -20,7 +20,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant VAULT_VERSION = "2.0.1";
+  string public constant VAULT_VERSION = "2.1.0";
   /// @dev Denominator for buffer calculation. 100% of the buffer amount.
   uint constant public BUFFER_DENOMINATOR = 100_000;
   /// @dev Denominator for fee calculation.
@@ -58,6 +58,10 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
 
   /// @dev Trigger doHardwork on invest action. Enabled by default.
   bool public doHardWorkOnInvest;
+  /// @dev msg.sender => block when request sent. Should be cleared on deposit/withdraw action
+  mapping(address => uint) public withdrawRequests;
+  /// @dev A user should wait this block amounts before able to withdraw.
+  uint public withdrawRequestBlocks;
 
   // *************************************************************
   //                        EVENTS
@@ -80,6 +84,8 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   event DoHardWorkOnInvestChanged(bool oldValue, bool newValue);
   event FeeTransfer(uint amount);
   event LossCovered(uint amount);
+  event WithdrawRequested(address sender, uint startBlock);
+  event WithdrawRequestBlocks(uint blocks);
 
   // *************************************************************
   //                        INIT
@@ -112,6 +118,8 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
     maxDepositAssets = type(uint).max - 1;
     maxMintShares = type(uint).max - 1;
     doHardWorkOnInvest = true;
+    withdrawRequestBlocks = 5;
+    emit WithdrawRequestBlocks(5);
 
     emit Init(
       controller_,
@@ -135,6 +143,13 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   // *************************************************************
   //                      GOV ACTIONS
   // *************************************************************
+
+  /// @dev Set block amount before user will able to withdraw after a request.
+  function setWithdrawRequestBlocks(uint blocks) external {
+    require(isGovernance(msg.sender), "DENIED");
+    withdrawRequestBlocks = blocks;
+    emit WithdrawRequestBlocks(blocks);
+  }
 
   /// @dev Set new buffer value. Should be lower than denominator.
   function setBuffer(uint _buffer) external {
@@ -243,7 +258,12 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   }
 
   /// @dev Calculate available to invest amount and send this amount to splitter
-  function afterDeposit(uint assets, uint) internal override {
+  function afterDeposit(uint assets, uint /*shares*/, address receiver) internal override {
+    // reset withdraw request if necessary
+    if (withdrawRequestBlocks != 0) {
+      withdrawRequests[receiver] = 0;
+    }
+
     address _splitter = address(splitter);
     IERC20 asset_ = _asset;
     uint _depositFee = depositFee;
@@ -290,6 +310,11 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   //                 WITHDRAW LOGIC
   // *************************************************************
 
+  function requestWithdraw() external {
+    withdrawRequests[msg.sender] = block.number;
+    emit WithdrawRequested(msg.sender, block.number);
+  }
+
   /// @dev Withdraw all available shares for tx sender.
   ///      The revert is expected if the balance is higher than `maxRedeem`
   function withdrawAll() external {
@@ -333,8 +358,17 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   /// @dev Internal hook for getting necessary assets from splitter.
   function beforeWithdraw(
     uint assets,
-    uint shares
+    uint shares,
+    address receiver
   ) internal override {
+    // check withdraw request if necessary
+    uint _withdrawRequestBlocks = withdrawRequestBlocks;
+    if (_withdrawRequestBlocks != 0) {
+      uint wr = withdrawRequests[receiver];
+      require(wr != 0 && wr + _withdrawRequestBlocks < block.number, "NOT_REQUESTED");
+      withdrawRequests[receiver] = 0;
+    }
+
     uint _withdrawFee = withdrawFee;
     uint fromSplitter;
     if (_withdrawFee != 0) {
@@ -423,6 +457,11 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
     address to,
     uint
   ) internal override {
+    // reset withdraw request if necessary
+    if (withdrawRequestBlocks != 0) {
+      withdrawRequests[from] = 0;
+      withdrawRequests[to] = 0;
+    }
     gauge.handleBalanceChange(from);
     gauge.handleBalanceChange(to);
   }

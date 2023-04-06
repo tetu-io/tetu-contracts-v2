@@ -10,6 +10,7 @@ describe("Deposit helper Tests", function () {
   let snapshotBefore: string;
   let snapshot: string;
   let signer: SignerWithAddress;
+  let signer2: SignerWithAddress;
   let strategy: SignerWithAddress;
 
 
@@ -21,7 +22,7 @@ describe("Deposit helper Tests", function () {
 
   before(async function () {
     snapshotBefore = await TimeUtils.snapshot();
-    [signer, strategy] = await ethers.getSigners();
+    [signer, strategy, signer2] = await ethers.getSigners();
 
     const controller = await DeployerUtils.deployMockController(signer);
     token = await DeployerUtils.deployMockToken(signer);
@@ -32,6 +33,9 @@ describe("Deposit helper Tests", function () {
     ve = await DeployerUtils.deployVeTetu(signer, token.address, controller.address);
 
     await token.connect(strategy).approve(vault.address, 99999999999);
+
+    await token.approve(vault.address, 10000);
+    await vault.deposit(10000, signer.address);
   });
 
   after(async function () {
@@ -51,14 +55,14 @@ describe("Deposit helper Tests", function () {
   it("test deposit", async () => {
     await token.approve(helper.address, 100)
     await helper.deposit(vault.address, token.address, 100, 99)
-    expect(await vault.balanceOf(signer.address)).eq(99);
+    expect(await vault.balanceOf(signer.address)).eq(8999);
 
     await token.approve(helper.address, 100)
     await expect(helper.deposit(vault.address, token.address, 100, 101)).to.be.revertedWith('SLIPPAGE')
 
     await token.approve(helper.address, 100)
     await helper.deposit(vault.address, token.address, 100, 99)
-    expect(await vault.balanceOf(signer.address)).eq(198);
+    expect(await vault.balanceOf(signer.address)).eq(9098);
 
     await IERC20__factory.connect(vault.address, signer).approve(helper.address, 198)
     await expect(helper.withdraw(vault.address, 198, 199)).to.be.revertedWith('SLIPPAGE')
