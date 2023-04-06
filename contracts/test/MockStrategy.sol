@@ -152,10 +152,6 @@ contract MockStrategy is StrategyBaseV2 {
     compoundRatio = ratio;
   }
 
-//  function setBaseAmount(address asset_, uint amount_) external {
-//    baseAmounts[asset_] = amount_;
-//  }
-
   /// @notice Max amount that can be deposited to the strategy, see SCB-593
   function capacity() external view override returns (uint) {
     return _capacity;

@@ -24,7 +24,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   // *********************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant SPLITTER_VERSION = "2.0.4";
+  string public constant SPLITTER_VERSION = "2.0.5";
   /// @dev APR denominator. Represent 100% APR.
   uint public constant APR_DENOMINATOR = 100_000;
   /// @dev Delay between hardwork calls for a strategy.
@@ -509,7 +509,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
         uint withdrew = currentBalance - balance;
         balance = currentBalance;
 
-        remainingAmount = withdrew <= remainingAmount ? remainingAmount - withdrew : 0;
+        remainingAmount = withdrew < remainingAmount ? remainingAmount - withdrew : 0;
 
         // register loss
         if (strategyLoss != 0) {
@@ -543,6 +543,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     _onlyOperatorsOrVault();
 
     // prevent recursion
+    require(!isHardWorking, "SS: Already in hard work");
     isHardWorking = true;
     uint length = strategies.length;
     bool needReorder;
@@ -563,6 +564,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     _onlyOperators();
 
     // prevent recursion
+    require(!isHardWorking, "SS: Already in hard work");
     isHardWorking = true;
     bool result = _doHardWorkForStrategy(strategy, push);
     if (result) {
@@ -675,7 +677,6 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   }
 
   /// @param updateTotalAssetsBeforeInvest TotalAssets of strategy should be updated before investing.
-  ///                                      The increment of {TotalAssets} should be returned as {totalAssetsDelta}
   /// @return strategy Selected strategy or zero
   /// @return strategyLoss Loss should be covered from Insurance
   function _investToTopStrategy(

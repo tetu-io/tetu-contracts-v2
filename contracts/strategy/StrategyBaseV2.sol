@@ -147,9 +147,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
     _emergencyExitFromPool();
 
     address _asset = asset;
-    // gas saving
     uint balance = IERC20(_asset).balanceOf(address(this));
-    // reset base amount
     IERC20(_asset).safeTransfer(splitter, balance);
     emit EmergencyExit(msg.sender, balance);
   }
@@ -198,12 +196,12 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
 
     uint balance = IERC20(_asset).balanceOf(address(this));
 
-    (uint investedAssetsUSD, uint assetPrice, uint _strategyLoss) = _withdrawAllFromPool();
+    (uint expectedWithdrewUSD, uint assetPrice, uint _strategyLoss) = _withdrawAllFromPool();
 
     balance = StrategyLib.checkWithdrawImpact(
       _asset,
       balance,
-      investedAssetsUSD,
+      expectedWithdrewUSD,
       assetPrice,
       _splitter
     );
@@ -226,14 +224,14 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
 
     uint balance = IERC20(_asset).balanceOf(address(this));
     if (amount > balance) {
-      uint investedAssetsUSD;
+      uint expectedWithdrewUSD;
       uint assetPrice;
 
-      (investedAssetsUSD, assetPrice, strategyLoss) = _withdrawFromPool(amount - balance);
+      (expectedWithdrewUSD, assetPrice, strategyLoss) = _withdrawFromPool(amount - balance);
       balance = StrategyLib.checkWithdrawImpact(
         _asset,
         balance,
-        investedAssetsUSD,
+        expectedWithdrewUSD,
         assetPrice,
         _splitter
       );
