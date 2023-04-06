@@ -9,6 +9,7 @@ import "../interfaces/IERC20.sol";
 contract MockStrategySimple is ControllableV3, IStrategyV2 {
 
   string public constant override NAME = "mock strategy";
+  string public override strategySpecificName = "mock strategy1";
   string public constant override PLATFORM = "test";
   string public constant override STRATEGY_VERSION = "1.0.0";
 
@@ -43,29 +44,29 @@ contract MockStrategySimple is ControllableV3, IStrategyV2 {
     return IERC20(asset).balanceOf(address(this));
   }
 
-  function withdrawAllToSplitter() external override returns (int totalAssetsDelta) {
+  function withdrawAllToSplitter() external override returns (uint strategyLoss) {
     return withdrawToSplitter(totalAssets());
   }
 
-  function withdrawToSplitter(uint amount) public override returns (int totalAssetsDelta) {
+  function withdrawToSplitter(uint amount) public override returns (uint strategyLoss) {
     uint _slippage = amount * slippage / 100;
     if (_slippage != 0) {
       IERC20(asset).transfer(controller(), _slippage);
     }
     IERC20(asset).transfer(splitter, amount - _slippage);
-    return 0;
+    return _slippage;
   }
 
   function investAll(
     uint amount_,
     bool updateTotalAssetsBeforeInvest_
   ) external pure override returns (
-    int totalAssetsDelta
+    uint strategyLoss
   ) {
     amount_; // hide warning
     updateTotalAssetsBeforeInvest_; // hide warning
     // noop
-    return totalAssetsDelta;
+    return strategyLoss;
   }
 
   function doHardWork() external view override returns (uint earned, uint lost) {

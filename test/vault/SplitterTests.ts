@@ -647,24 +647,6 @@ describe("Splitter and base strategy tests", function () {
       expect(await vault.totalAssets()).eq(1090);
     });
 
-    it("rebalance with positive totalAssetsDelta", async () => {
-      expect(await vault.sharePrice()).eq(1000000);
-      await usdc.mint(await vault.insurance(), 1000);
-      await splitter.setAPRs([strategy.address], [200]);
-
-      await vault.deposit(1000, signer.address);
-      await strategy2.setTotalAssetsDelta(17);
-
-      // totalAssets before rebalance is 1100
-      // totalAssetsDelta is 17
-      // so, totalAssets before withdraw is 1117
-      // totalAssets after withdraw is 1100, so we have loss = 17
-      // Insurance has enough amount, so the loss is fully covered
-      await splitter.rebalance(100, 10_000);
-
-      expect(await vault.totalAssets()).eq(1117);
-    });
-
     it("rebalance with negative totalAssetsDelta", async () => {
       expect(await vault.sharePrice()).eq(1000000);
       await usdc.mint(await vault.insurance(), 1000);
@@ -733,20 +715,20 @@ describe("Splitter and base strategy tests", function () {
       await strategy.connect(await Misc.impersonate(splitter.address)).investAll(0, true);
     });
 
-    describe("withdraw to splitter when enough balance test", () => {
-      it("withdraw to splitter when the amount on balance is registered in baseAmounts", async () => {
-        await usdc.transfer(strategy.address, parseUnits('1', 6));
-        await strategy.setBaseAmount(await strategy.asset(), parseUnits('1', 6));
-        await strategy.connect(await Misc.impersonate(splitter.address)).withdrawToSplitter(parseUnits('1', 6));
-      });
-      it("revert when the amount on balance is partly not registered in baseAmounts", async () => {
-        await usdc.transfer(strategy.address, parseUnits('1', 6));
-        await strategy.setBaseAmount(await strategy.asset(), parseUnits('0.5', 6));
-        await expect(
-          strategy.connect(await Misc.impersonate(splitter.address)).withdrawToSplitter(parseUnits('1', 6))
-        ).revertedWith("SB: Wrong value"); // WRONG_VALUE
-      });
-    });
+    // describe("withdraw to splitter when enough balance test", () => {
+    //   it("withdraw to splitter when the amount on balance is registered in baseAmounts", async () => {
+    //     await usdc.transfer(strategy.address, parseUnits('1', 6));
+    //     // await strategy.setBaseAmount(await strategy.asset(), parseUnits('1', 6));
+    //     await strategy.connect(await Misc.impersonate(splitter.address)).withdrawToSplitter(parseUnits('1', 6));
+    //   });
+    //   it("revert when the amount on balance is partly not registered in baseAmounts", async () => {
+    //     await usdc.transfer(strategy.address, parseUnits('1', 6));
+    //     await strategy.setBaseAmount(await strategy.asset(), parseUnits('0.5', 6));
+    //     await expect(
+    //       strategy.connect(await Misc.impersonate(splitter.address)).withdrawToSplitter(parseUnits('1', 6))
+    //     ).revertedWith("SB: Wrong value"); // WRONG_VALUE
+    //   });
+    // });
 
     it("set compound ratio test", async () => {
       await controller.setPlatformVoter(signer.address);
@@ -781,11 +763,11 @@ describe("Splitter and base strategy tests", function () {
           // after recalculation before investing, total asset is $1030
           // after investing total asset is $1000
           // as result, we lost $30 during investing... this amount should be covered from the insurance
-          await strategy.setTotalAssetsDelta(30);
+          await strategy.setSlippageDeposit(10_000);
           await vault.deposit(1000, signer.address);
           const insuranceAfter = await usdc.balanceOf(insurance);
 
-          expect(insuranceAfter.eq(insuranceBefore.sub(30))).eq(true);
+          expect(insuranceAfter).eq(insuranceBefore.sub(100));
         });
         it("should not use insurance if totalAssets-after is greater than totalAssets-before", async () => {
           const insurance = await vault.insurance();
@@ -809,20 +791,16 @@ describe("Splitter and base strategy tests", function () {
           const insurance = await vault.insurance();
           await splitter.addStrategies([strategy.address], [100]);
 
-          await usdc.mint(insurance, 500);
-          await vault.deposit(1000, signer.address);
+          await usdc.mint(insurance, 50000);
+          await vault.deposit(100000, signer.address);
+          await vault.setFees(0, 200)
 
           const insuranceBefore = await usdc.balanceOf(insurance);
-          // initial total asset is $1000
-          // totalAssetsDelta = $30
-          // after recalculation before withdrawing, the total asset is $1030
-          // after withdrawing total asset is $500
-          // as result, we lost $30 during withdrawing... this amount should be covered from the insurance
-          await strategy.setTotalAssetsDelta(30);
-          await vault.withdraw(500, signer.address, signer.address);
+          await strategy.setSlippage(100);
+          await vault.withdraw(50000, signer.address, signer.address);
           const insuranceAfter = await usdc.balanceOf(insurance);
 
-          expect(insuranceAfter.eq(insuranceBefore.sub(30))).eq(true);
+          expect(insuranceAfter).eq(50050);
         });
         it("should not use insurance if totalAssets-after is greater than totalAssets-before", async () => {
           const insurance = await vault.insurance();
@@ -858,13 +836,13 @@ describe("Splitter and base strategy tests", function () {
           // after recalculation before withdrawing, the total asset is $1030
           // after withdrawing total asset is $500
           // as result, we lost $30 during withdrawing... this amount should be covered from the insurance
-          await strategy.setTotalAssetsDelta(30);
+          await strategy.setSlippage(10_000);
           await vault.withdrawAll();
           const insuranceAfter = await usdc.balanceOf(insurance);
 
           console.log("insuranceBefore", insuranceBefore);
           console.log("insuranceAfter", insuranceAfter);
-          expect(insuranceAfter.eq(insuranceBefore.sub(30))).eq(true);
+          expect(insuranceAfter).eq(insuranceBefore.sub(100));
         });
         it("should not use insurance if totalAssets-after is greater than totalAssets-before", async () => {
           const insurance = await vault.insurance();

@@ -19,7 +19,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant STRATEGY_BASE_VERSION = "2.1.1";
+  string public constant STRATEGY_BASE_VERSION = "2.2.1";
   /// @dev Denominator for compound ratio
   uint internal constant COMPOUND_DENOMINATOR = 100_000;
   /// @notice 10% of total profit is sent to {performanceReceiver} before compounding
@@ -37,7 +37,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   address public override splitter;
   /// @dev Percent of profit for autocompound inside this strategy.
   uint public override compoundRatio;
-  /// @notice Balances of not-reward amounts
+  /// @notice DEPRECATED Balances of not-reward amounts
   /// @dev Any amounts transferred to the strategy for investing or withdrawn back are registered here
   ///      As result it's possible to distinct invested amounts from rewards, airdrops and other profits
   mapping(address => uint) public baseAmounts;
@@ -49,6 +49,8 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   /// @notice A percent of total profit that is sent to the {performanceReceiver} before compounding
   /// @dev {DEFAULT_PERFORMANCE_FEE} by default, FEE_DENOMINATOR is used
   uint public override performanceFee;
+  /// @dev Represent specific name for this strategy. Should include short strategy name and used assets. Uniq across the vault.
+  string public override strategySpecificName;
 
   // *************************************************************
   //                        EVENTS
@@ -64,8 +66,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   event WithdrawAllFromPool(uint amount);
   event Claimed(address token, uint amount);
   event CompoundRatioChanged(uint oldValue, uint newValue);
-  /// @notice {baseAmounts} of {asset} is changed on the {amount} value
-  event UpdateBaseAmounts(address asset, int amount);
+  event StrategySpecificNameChanged(string name);
 
   // *************************************************************
   //                        INIT
@@ -132,6 +133,13 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   //                   OPERATOR ACTIONS
   // *************************************************************
 
+  /// @dev The name will be used for UI.
+  function setStrategySpecificName(string memory name) external {
+    StrategyLib.onlyOperators(controller());
+    strategySpecificName = name;
+    emit StrategySpecificNameChanged(name);
+  }
+
   /// @dev In case of any issue operator can withdraw all from pool.
   function emergencyExit() external {
     StrategyLib.onlyOperators(controller());
@@ -139,10 +147,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
     _emergencyExitFromPool();
 
     address _asset = asset;
-    // gas saving
     uint balance = IERC20(_asset).balanceOf(address(this));
-    _decreaseBaseAmount(_asset, baseAmounts[_asset]);
-    // reset base amount
     IERC20(_asset).safeTransfer(splitter, balance);
     emit EmergencyExit(msg.sender, balance);
   }
@@ -155,87 +160,63 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
     emit ManualClaim(msg.sender);
   }
 
-  /// @dev In case of broken base amounts, operator can assign baseAmount = current balance
-  function resetBaseAmounts(address[] memory tokens_) external {
-    StrategyLib.onlyOperators(controller());
-    uint len = tokens_.length;
-    for (uint i; i < len; ++i) {
-      baseAmounts[tokens_[i]] = IERC20(tokens_[i]).balanceOf(address(this));
-    }
-  }
-
   // *************************************************************
   //                    DEPOSIT/WITHDRAW
   // *************************************************************
 
   /// @notice Stakes everything the strategy holds into the reward pool.
-  /// @param amount_ Amount transferred to the strategy balance just before calling this function
+  /// amount_ Amount transferred to the strategy balance just before calling this function
   /// @param updateTotalAssetsBeforeInvest_ Recalculate total assets amount before depositing.
   ///                                       It can be false if we know exactly, that the amount is already actual.
-  /// @return totalAssetsDelta The {strategy} can update its totalAssets amount internally before depositing {amount_}
-  ///                          Return [totalAssets-before-deposit - totalAssets-before-call-of-investAll]
+  /// @return strategyLoss Loss should be covered from Insurance
   function investAll(
-    uint amount_,
+    uint /*amount_*/,
     bool updateTotalAssetsBeforeInvest_
   ) external override returns (
-    int totalAssetsDelta
+    uint strategyLoss
   ) {
     StrategyLib.onlySplitter(splitter);
 
-    address _asset = asset;
-    uint balance = IERC20(_asset).balanceOf(address(this));
-
-    _increaseBaseAmount(_asset, amount_, balance);
+    uint balance = IERC20(asset).balanceOf(address(this));
 
     if (balance > 0) {
-      totalAssetsDelta = _depositToPool(balance, updateTotalAssetsBeforeInvest_);
+      strategyLoss = _depositToPool(balance, updateTotalAssetsBeforeInvest_);
     }
     emit InvestAll(balance);
 
-    return totalAssetsDelta;
+    return strategyLoss;
   }
 
   /// @dev Withdraws all underlying assets to the vault
-  /// @return Return [totalAssets-before-withdraw - totalAssets-before-call-of-withdrawAllToSplitter]
-  function withdrawAllToSplitter() external override returns (int) {
+  /// @return strategyLoss Loss should be covered from Insurance
+  function withdrawAllToSplitter() external override returns (uint strategyLoss) {
     address _splitter = splitter;
     address _asset = asset;
     StrategyLib.onlySplitter(_splitter);
 
     uint balance = IERC20(_asset).balanceOf(address(this));
 
-    (uint investedAssetsUSD, uint assetPrice, int totalAssetsDelta) = _withdrawAllFromPool();
+    (uint expectedWithdrewUSD, uint assetPrice, uint _strategyLoss) = _withdrawAllFromPool();
 
     balance = StrategyLib.checkWithdrawImpact(
       _asset,
       balance,
-      investedAssetsUSD,
+      expectedWithdrewUSD,
       assetPrice,
       _splitter
     );
 
-    {
-      // we cannot withdraw more than the base amount value
-      // if any additional amount exist on the balance (i.e. airdrops)
-      // it should be processed by hardwork at first (split on compound/forwarder)
-      uint baseAmount = baseAmounts[_asset];
-      if (balance > baseAmount) {
-        balance = baseAmount;
-      }
-    }
-
     if (balance != 0) {
-      _decreaseBaseAmount(_asset, balance);
       IERC20(_asset).safeTransfer(_splitter, balance);
     }
     emit WithdrawAllToSplitter(balance);
 
-    return totalAssetsDelta;
+    return _strategyLoss;
   }
 
   /// @dev Withdraws some assets to the splitter
-  /// @return totalAssetsDelta =[totalAssets-before-withdraw - totalAssets-before-call-of-withdrawAllToSplitter]
-  function withdrawToSplitter(uint amount) external override returns (int totalAssetsDelta) {
+  /// @return strategyLoss Loss should be covered from Insurance
+  function withdrawToSplitter(uint amount) external override returns (uint strategyLoss) {
     address _splitter = splitter;
     address _asset = asset;
     StrategyLib.onlySplitter(_splitter);
@@ -243,14 +224,14 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
 
     uint balance = IERC20(_asset).balanceOf(address(this));
     if (amount > balance) {
-      uint investedAssetsUSD;
+      uint expectedWithdrewUSD;
       uint assetPrice;
 
-      (investedAssetsUSD, assetPrice, totalAssetsDelta) = _withdrawFromPool(amount - balance);
+      (expectedWithdrewUSD, assetPrice, strategyLoss) = _withdrawFromPool(amount - balance);
       balance = StrategyLib.checkWithdrawImpact(
         _asset,
         balance,
-        investedAssetsUSD,
+        expectedWithdrewUSD,
         assetPrice,
         _splitter
       );
@@ -258,35 +239,11 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
 
     uint amountAdjusted = Math.min(amount, balance);
     if (amountAdjusted != 0) {
-      _decreaseBaseAmount(_asset, amountAdjusted);
       IERC20(_asset).safeTransfer(_splitter, amountAdjusted);
     }
     emit WithdrawToSplitter(amount, amountAdjusted, balance);
 
-    return totalAssetsDelta;
-  }
-
-
-  // *************************************************************
-  //                  baseAmounts modifications
-  // *************************************************************
-
-  /// @notice Decrease {baseAmounts} of the {asset} on {amount_}
-  ///         The {amount_} can be greater then total base amount value because it can includes rewards.
-  ///         We assume here, that base amounts are spent first, then rewards and any other profit-amounts
-  function _decreaseBaseAmount(address asset_, uint amount_) internal {
-    uint baseAmount = baseAmounts[asset_];
-    require(baseAmount >= amount_, StrategyLib.WRONG_VALUE);
-    baseAmounts[asset_] = baseAmount - amount_;
-    emit UpdateBaseAmounts(asset_, - int(baseAmount));
-  }
-
-  /// @notice Increase {baseAmounts} of the {asset} on {amount_}, ensure that current {assetBalance_} >= {amount_}
-  /// @param assetBalance_ Current balance of the {asset} to check if {amount_} > the balance. Pass 0 to skip the check
-  function _increaseBaseAmount(address asset_, uint amount_, uint assetBalance_) internal {
-    baseAmounts[asset_] += amount_;
-    emit UpdateBaseAmounts(asset_, int(amount_));
-    require(assetBalance_ >= amount_, StrategyLib.WRONG_VALUE);
+    return strategyLoss;
   }
 
   // *************************************************************
@@ -300,35 +257,32 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   /// @notice Deposit given amount to the pool.
   /// @param updateTotalAssetsBeforeInvest_ Recalculate total assets amount before depositing.
   ///                                       It can be false if we know exactly, that the amount is already actual.
-  /// @return totalAssetsDelta The {strategy} can update its totalAssets amount internally before depositing {amount_}
-  ///                          Return [totalAssets-before-deposit - totalAssets-before-call-of-investAll]
+  /// @return strategyLoss Loss should be covered from Insurance
   function _depositToPool(
     uint amount,
     bool updateTotalAssetsBeforeInvest_
   ) internal virtual returns (
-    int totalAssetsDelta
+    uint strategyLoss
   );
 
   /// @dev Withdraw given amount from the pool.
-  /// @return investedAssetsUSD Sum of USD value of each asset in the pool that was withdrawn, decimals of {asset}.
+  /// @return expectedWithdrewUSD Sum of USD value of each asset in the pool that was withdrawn, decimals of {asset}.
   /// @return assetPrice Price of the strategy {asset}.
-  /// @return totalAssetsDelta The {strategy} can update its totalAssets amount internally before withdrawing
-  ///                          Return [totalAssets-before-withdraw - totalAssets-before-call-of-_withdrawFromPool]
+  /// @return strategyLoss Loss should be covered from Insurance
   function _withdrawFromPool(uint amount) internal virtual returns (
-    uint investedAssetsUSD,
+    uint expectedWithdrewUSD,
     uint assetPrice,
-    int totalAssetsDelta
+    uint strategyLoss
   );
 
   /// @dev Withdraw all from the pool.
-  /// @return investedAssetsUSD Sum of USD value of each asset in the pool that was withdrawn, decimals of {asset}.
+  /// @return expectedWithdrewUSD Sum of USD value of each asset in the pool that was withdrawn, decimals of {asset}.
   /// @return assetPrice Price of the strategy {asset}.
-  /// @return totalAssetsDelta The {strategy} can update its totalAssets amount internally before withdrawing
-  ///                          Return [totalAssets-before-withdraw - totalAssets-before-call-of-_withdrawAllFromPool]
+  /// @return strategyLoss Loss should be covered from Insurance
   function _withdrawAllFromPool() internal virtual returns (
-    uint investedAssetsUSD,
+    uint expectedWithdrewUSD,
     uint assetPrice,
-    int totalAssetsDelta
+    uint strategyLoss
   );
 
   /// @dev If pool support emergency withdraw need to call it for emergencyExit()
