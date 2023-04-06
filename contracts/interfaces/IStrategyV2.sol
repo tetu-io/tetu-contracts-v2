@@ -5,6 +5,8 @@ interface IStrategyV2 {
 
   function NAME() external view returns (string memory);
 
+  function strategySpecificName() external view returns (string memory);
+
   function PLATFORM() external view returns (string memory);
 
   function STRATEGY_VERSION() external view returns (string memory);

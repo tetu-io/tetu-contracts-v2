@@ -9,6 +9,7 @@ import "../interfaces/IERC20.sol";
 contract MockStrategySimple is ControllableV3, IStrategyV2 {
 
   string public constant override NAME = "mock strategy";
+  string public override strategySpecificName = "mock strategy1";
   string public constant override PLATFORM = "test";
   string public constant override STRATEGY_VERSION = "1.0.0";
 

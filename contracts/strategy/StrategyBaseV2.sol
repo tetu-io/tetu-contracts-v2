@@ -49,6 +49,8 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   /// @notice A percent of total profit that is sent to the {performanceReceiver} before compounding
   /// @dev {DEFAULT_PERFORMANCE_FEE} by default, FEE_DENOMINATOR is used
   uint public override performanceFee;
+  /// @dev Represent specific name for this strategy. Should include short strategy name and used assets. Uniq across the vault.
+  string public override strategySpecificName;
 
   // *************************************************************
   //                        EVENTS
@@ -64,6 +66,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   event WithdrawAllFromPool(uint amount);
   event Claimed(address token, uint amount);
   event CompoundRatioChanged(uint oldValue, uint newValue);
+  event StrategySpecificNameChanged(string name);
 
   // *************************************************************
   //                        INIT
@@ -129,6 +132,13 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   // *************************************************************
   //                   OPERATOR ACTIONS
   // *************************************************************
+
+  /// @dev The name will be used for UI.
+  function setStrategySpecificName(string memory name) external {
+    StrategyLib.onlyOperators(controller());
+    strategySpecificName = name;
+    emit StrategySpecificNameChanged(name);
+  }
 
   /// @dev In case of any issue operator can withdraw all from pool.
   function emergencyExit() external {
