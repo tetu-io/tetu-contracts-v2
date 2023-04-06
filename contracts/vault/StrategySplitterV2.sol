@@ -33,6 +33,12 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   uint public constant HISTORY_DEEP = 3;
   /// @dev Time lock for adding new strategies.
   uint public constant TIME_LOCK = 18 hours;
+  /// @dev 1% of max loss for strategy TVL
+  uint public constant INVEST_LOSS_TOLERANCE = 1_000;
+  /// @dev 10%  of max loss for strategy TVL
+  uint public constant WITHDRAW_LOSS_TOLERANCE = 10_000;
+  /// @dev 5%  of max loss for strategy TVL
+  uint public constant HARDWORK_LOSS_TOLERANCE = 5_000;
 
 
   // *********************************************
@@ -72,8 +78,8 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     address topStrategy,
     address lowStrategy,
     uint percent,
-    uint slippageTolerance,
-    uint slippage,
+    uint strategyLossOnWithdraw,
+    uint strategyLossOnInvest,
     uint lowStrategyBalance
   );
   event HardWork(
@@ -94,6 +100,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   event Invested(address strategy, uint amount);
   event WithdrawFromStrategy(address strategy);
   event SetStrategyCapacity(address strategy, uint capacity);
+  event InvestFailed(string error);
 
   // *********************************************
   //                 INIT
@@ -307,11 +314,10 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   /// @dev Withdraw some percent from strategy with lowest APR and deposit to strategy with highest APR.
   ///      Strict access because possible losses during deposit/withdraw.
   /// @param percent Range of 1-100
-  /// @param slippageTolerance Range of 0-100_000
-  function rebalance(uint percent, uint slippageTolerance) external {
+  /// @param lossTolerance Range of 0-100_000
+  function rebalance(uint percent, uint lossTolerance) external {
     _onlyGov();
 
-    uint balance = totalAssets();
     uint length = strategies.length;
     require(length > 1, "SS: Length");
     require(percent <= 100, "SS: Percent");
@@ -355,34 +361,31 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
       ? IStrategyV2(lowStrategy).withdrawAllToSplitter()
       : IStrategyV2(lowStrategy).withdrawToSplitter(lowStrategyBalance * percent / 100);
     }
+    // need to emit loss separately
+    if (strategyLossOnWithdraw != 0) {
+      // for withdraw need to use balance before
+      _coverLoss(vault, strategyLossOnWithdraw, lossTolerance, lowStrategyBalance);
+      emit Loss(lowStrategy, strategyLossOnWithdraw);
+    }
 
-    (address topStrategy, uint strategyLossOnInvest) = _investToTopStrategy(
+    (address topStrategy, uint strategyLossOnInvest, uint strategyBalanceAfterInvest) = _investToTopStrategy(
       false // we assume here, that total-assets-amount of the strategy was just updated in withdraw above
     );
     require(topStrategy != address(0), "SS: Not invested");
-
-    uint slippage;
-    // slippage for withdraw
-    if (strategyLossOnWithdraw != 0) {
-      ITetuVaultV2(vault).coverLoss(strategyLossOnWithdraw);
-      emit Loss(lowStrategy, strategyLossOnWithdraw);
-      slippage = strategyLossOnWithdraw * 100_000 / balance;
-      require(slippage <= slippageTolerance, "SS: Slippage withdraw");
-    }
-    // slippage for invest
-    if (strategyLossOnInvest > 0) {
-      ITetuVaultV2(vault).coverLoss(strategyLossOnInvest);
+    // need to emit loss separately
+    if (strategyLossOnInvest != 0) {
+      // for invest need to use balance after
+      _coverLoss(vault, strategyLossOnInvest, lossTolerance, strategyBalanceAfterInvest);
       emit Loss(topStrategy, strategyLossOnInvest);
-      slippage += strategyLossOnInvest * 100_000 / balance;
-      require(slippage <= slippageTolerance, "SS: Slippage deposit");
     }
+
 
     emit Rebalance(
       topStrategy,
       lowStrategy,
       percent,
-      slippageTolerance,
-      slippage,
+      strategyLossOnWithdraw,
+      strategyLossOnInvest,
       lowStrategyBalance
     );
   }
@@ -444,9 +447,9 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     _onlyVault();
 
     if (strategies.length != 0) {
-      (address strategy, uint strategyLoss) = _investToTopStrategy(true);
+      (address strategy, uint strategyLoss, uint strategyBalanceAfterInvest) = _investToTopStrategy(true);
       if (strategyLoss > 0) {
-        ITetuVaultV2(msg.sender).coverLoss(strategyLoss);
+        _coverLoss(msg.sender, strategyLoss, INVEST_LOSS_TOLERANCE, strategyBalanceAfterInvest);
         emit Loss(strategy, strategyLoss);
       }
     }
@@ -456,26 +459,21 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   function withdrawAllToVault() external override {
     _onlyVault();
 
-    uint totalLoss;
+    address _vault = vault;
+    address _asset = asset;
     uint length = strategies.length;
     for (uint i = 0; i < length; i++) {
+      uint strategyBalance = IStrategyV2(strategies[i]).totalAssets();
       uint strategyLoss = IStrategyV2(strategies[i]).withdrawAllToSplitter();
       emit WithdrawFromStrategy(strategies[i]);
 
       // register possible loses
       if (strategyLoss != 0) {
+        _coverLoss(_vault, strategyLoss, WITHDRAW_LOSS_TOLERANCE, strategyBalance);
         emit Loss(strategies[i], strategyLoss);
-        totalLoss += strategyLoss;
       }
     }
 
-    address _vault = vault;
-
-    if (totalLoss != 0) {
-      ITetuVaultV2(_vault).coverLoss(totalLoss);
-    }
-
-    address _asset = asset;
     uint balanceAfter = IERC20(_asset).balanceOf(address(this));
     if (balanceAfter > 0) {
       IERC20(_asset).safeTransfer(_vault, balanceAfter);
@@ -487,8 +485,8 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   function withdrawToVault(uint256 amount) external override {
     _onlyVault();
 
-    uint totalLoss;
     address _asset = asset;
+    address _vault = vault;
     uint balance = IERC20(_asset).balanceOf(address(this));
     if (balance < amount) {
       uint remainingAmount = amount - balance;
@@ -511,22 +509,16 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
         remainingAmount = withdrew < remainingAmount ? remainingAmount - withdrew : 0;
 
-        // register loss
+        // if we withdrew less than expected try to cover loss from vault insurance
         if (strategyLoss != 0) {
+          _coverLoss(_vault, strategyLoss, WITHDRAW_LOSS_TOLERANCE, strategyBalance);
           emit Loss(address(strategy), strategyLoss);
-          totalLoss += strategyLoss;
         }
 
         if (balance >= amount) {
           break;
         }
       }
-    }
-
-    address _vault = vault;
-    // if we withdrew less than expected try to cover loss from vault insurance
-    if (totalLoss != 0) {
-      ITetuVaultV2(_vault).coverLoss(totalLoss);
     }
 
     if (balance != 0) {
@@ -594,7 +586,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
         }
         uint lostForCovering = lost > earned ? lost - earned : 0;
         if (lostForCovering > 0) {
-          ITetuVaultV2(vault).coverLoss(lostForCovering);
+          _coverLoss(vault, lostForCovering, HARDWORK_LOSS_TOLERANCE, tvl);
         }
 
         strategiesAPRHistory[strategy].push(apr);
@@ -683,7 +675,8 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     bool updateTotalAssetsBeforeInvest
   ) internal returns (
     address strategy,
-    uint strategyLoss
+    uint strategyLoss,
+    uint strategyBalanceAfterInvest
   ) {
     address _asset = asset;
     uint balance = IERC20(_asset).balanceOf(address(this));
@@ -709,13 +702,21 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
         if (toInvest != 0) {
           IERC20(_asset).safeTransfer(strategy, toInvest);
           strategyLoss = IStrategyV2(strategy).investAll(toInvest, updateTotalAssetsBeforeInvest);
+          strategyBalanceAfterInvest = strategyBalance + toInvest;
           emit Invested(strategy, toInvest);
           break;
         }
       }
     }
 
-    return (strategy, strategyLoss);
+    return (strategy, strategyLoss, strategyBalanceAfterInvest);
+  }
+
+  function _coverLoss(address _vault, uint amount, uint lossTolerance, uint strategyBalance) internal {
+    if (amount != 0) {
+      ITetuVaultV2(_vault).coverLoss(amount);
+      require(amount * 100_000 / strategyBalance <= lossTolerance, "SS: Loss too high");
+    }
   }
 
 }
