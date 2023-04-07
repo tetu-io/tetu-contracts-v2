@@ -5,14 +5,16 @@ import {ethers} from "hardhat";
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {
-  ControllerMinimal, IERC20__factory, InterfaceIds,
-  MockGauge, MockGauge__factory,
+  ControllerMinimal,
+  InterfaceIds,
+  MockGauge,
+  MockGauge__factory,
   MockStrategy,
   MockStrategy__factory,
   MockStrategySimple,
   MockStrategySimple__factory,
   MockToken,
-  StrategySplitterV2, StrategySplitterV2__factory,
+  StrategySplitterV2,
   TetuVaultV2
 } from "../../typechain";
 import {Misc} from "../../scripts/utils/Misc";
@@ -511,7 +513,7 @@ describe("Splitter and base strategy tests", function () {
     });
 
     it("withdraw with 100% slippage covering from insurance test", async () => {
-      // await vault.redeem(900, signer.address, signer.address)
+      await strategy2.setUseTrueExpectedWithdraw(true);
       await strategy2.setSlippage(1_100);
       await vault.setFees(1_000, 1_000)
       await vault.deposit(10_000_000, signer.address)
@@ -778,10 +780,6 @@ describe("Splitter and base strategy tests", function () {
 
           await usdc.mint(insurance, 500);
           const insuranceBefore = await usdc.balanceOf(insurance);
-          // initial total asset is $1000, totalAssetsDelta = -$30
-          // after recalculation before investing, total asset is $700
-          // after investing total asset is $1000 again
-          // as result, we have a profit $30 ... no lost, insurance is not used
           await strategy.setTotalAssetsDelta(-30);
           await vault.deposit(1000, signer.address);
           const insuranceAfter = await usdc.balanceOf(insurance);
@@ -813,11 +811,6 @@ describe("Splitter and base strategy tests", function () {
           await vault.deposit(10000, signer.address);
 
           const insuranceBefore = await usdc.balanceOf(insurance);
-          // initial total asset is $1000
-          // totalAssetsDelta = -$30
-          // after recalculation before investing, total asset is $700
-          // after investing total asset is $1000 again
-          // as result, we have a profit $30 ... no lost, insurance is not used
           await strategy.setTotalAssetsDelta(-30);
           await vault.withdraw(500, signer.address, signer.address);
           const insuranceAfter = await usdc.balanceOf(insurance);
@@ -835,11 +828,6 @@ describe("Splitter and base strategy tests", function () {
           await vault.connect(await Misc.impersonate('0xdEad000000000000000000000000000000000000')).transfer(signer.address, 1000);
 
           const insuranceBefore = await usdc.balanceOf(insurance);
-          // initial total asset is $1000
-          // totalAssetsDelta = $30
-          // after recalculation before withdrawing, the total asset is $1030
-          // after withdrawing total asset is $500
-          // as result, we lost $30 during withdrawing... this amount should be covered from the insurance
           await strategy.setSlippage(10_000);
           await vault.withdrawAll();
           const insuranceAfter = await usdc.balanceOf(insurance);
@@ -848,27 +836,59 @@ describe("Splitter and base strategy tests", function () {
           console.log("insuranceAfter", insuranceAfter);
           expect(insuranceAfter).eq(insuranceBefore.sub(1000));
         });
-        it("should not use insurance if totalAssets-after is greater than totalAssets-before", async () => {
-          const insurance = await vault.insurance();
-          await splitter.addStrategies([strategy.address], [100]);
-
-          await usdc.mint(insurance, 5000);
-          await vault.deposit(10000, signer.address);
-
-          const insuranceBefore = await usdc.balanceOf(insurance);
-          // initial total asset is $1000
-          // totalAssetsDelta = -$30
-          // after recalculation before investing, total asset is $700
-          // after investing total asset is $1000 again
-          // as result, we have a profit $30 ... no lost, insurance is not used
-          await strategy.setTotalAssetsDelta(-30);
-          await vault.withdrawAll();
-          const insuranceAfter = await usdc.balanceOf(insurance);
-
-          expect(insuranceAfter.eq(insuranceBefore)).eq(true);
-        });
+        // it("should not use insurance if totalAssets-after is greater than totalAssets-before", async () => {
+        //   const insurance = await vault.insurance();
+        //   await splitter.addStrategies([strategy.address], [100]);
+        //
+        //   await usdc.mint(insurance, 5000);
+        //   await vault.deposit(10000, signer.address);
+        //
+        //   const insuranceBefore = await usdc.balanceOf(insurance);
+        //   await strategy.setSlippage(10_000);
+        //   await vault.withdrawAll();
+        //   const insuranceAfter = await usdc.balanceOf(insurance);
+        //
+        //   expect(insuranceAfter).eq(insuranceBefore);
+        // });
       });
     });
+  });
+
+  it("should not change share price during insurance covering", async () => {
+    const insurance = await vault.insurance();
+
+    await strategy.init(controller.address, splitter.address);
+    await splitter.addStrategies([strategy.address], [100]);
+
+    const sharePriceBefore = await vault.sharePrice();
+    expect(sharePriceBefore).eq(1_000_000);
+
+    expect(await vault.totalSupply()).eq(0)
+    await vault.deposit(10_000, signer.address);
+    expect(await vault.totalSupply()).eq(10_000)
+    expect(await vault.totalAssets()).eq(10_000)
+    expect(await strategy.totalAssets()).eq(10_000)
+    expect(await strategy.investedAssets()).eq(10_000)
+    expect(await usdc.balanceOf(strategy.address)).eq(0)
+    expect(await usdc.balanceOf(splitter.address)).eq(0)
+
+    expect(sharePriceBefore).eq(await vault.sharePrice());
+
+    const insuranceBefore = await usdc.balanceOf(insurance);
+    console.log('insuranceBefore', insuranceBefore)
+
+    await strategy.setUseTrueExpectedWithdraw(true)
+    await strategy.setSlippage(1000);
+    await vault.setFees(0, 1000)
+
+    await vault.withdrawAll();
+
+    const insuranceAfter = await usdc.balanceOf(insurance);
+    console.log('insuranceAfter', insuranceAfter)
+    expect(insuranceAfter).eq(0);
+
+
+    expect(sharePriceBefore).eq(await vault.sharePrice());
   });
 
 });

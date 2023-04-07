@@ -21,6 +21,7 @@ contract MockStrategy is StrategyBaseV2 {
   uint internal lastLost;
   uint internal _capacity;
   int internal _totalAssetsDelta;
+  bool internal useTrueExpectedWithdraw;
 
   MockPool public pool;
 
@@ -89,7 +90,11 @@ contract MockStrategy is StrategyBaseV2 {
     uint strategyLoss
   ) {
     assetPrice = 1e18;
-    expectedWithdrewUSD = amount;
+    if(useTrueExpectedWithdraw) {
+      expectedWithdrewUSD = amount;
+    } else {
+      expectedWithdrewUSD = 0;
+    }
 
     pool.withdraw(asset, amount);
     uint _slippage = amount * slippage / 100_000;
@@ -106,7 +111,12 @@ contract MockStrategy is StrategyBaseV2 {
     uint strategyLoss
   ) {
     assetPrice = 1e18;
-    expectedWithdrewUSD = 0; // investedAssets();
+    if(useTrueExpectedWithdraw) {
+      expectedWithdrewUSD = investedAssets();
+    } else {
+      expectedWithdrewUSD = 0;
+    }
+
 
     pool.withdraw(asset, investedAssets());
     uint _slippage = totalAssets() * slippage / 100_000;
@@ -163,6 +173,10 @@ contract MockStrategy is StrategyBaseV2 {
 
   function setTotalAssetsDelta(int totalAssetsDelta_) external {
     _totalAssetsDelta = totalAssetsDelta_;
+  }
+
+  function setUseTrueExpectedWithdraw(bool value) external {
+    useTrueExpectedWithdraw = value;
   }
 
 

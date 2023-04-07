@@ -62,19 +62,18 @@ library StrategyLib {
   function checkWithdrawImpact(
     address _asset,
     uint balanceBefore,
-    uint investedAssetsUSD,
+    uint expectedWithdrewUSD,
     uint assetPrice,
     address _splitter
   ) external view returns (uint balance) {
     balance = IERC20(_asset).balanceOf(address(this));
-    if (assetPrice != 0 && investedAssetsUSD != 0) {
+    if (assetPrice != 0 && expectedWithdrewUSD != 0) {
 
       uint withdrew = balance > balanceBefore ? balance - balanceBefore : 0;
       uint withdrewUSD = withdrew * assetPrice / 1e18;
       uint priceChangeTolerance = ITetuVaultV2(ISplitter(_splitter).vault()).withdrawFee();
-      uint difference = investedAssetsUSD > withdrewUSD ? investedAssetsUSD - withdrewUSD : 0;
-
-      require(difference * FEE_DENOMINATOR / investedAssetsUSD <= priceChangeTolerance, TOO_HIGH);
+      uint difference = expectedWithdrewUSD > withdrewUSD ? expectedWithdrewUSD - withdrewUSD : 0;
+      require(difference * FEE_DENOMINATOR / expectedWithdrewUSD <= priceChangeTolerance, TOO_HIGH);
     }
   }
 
