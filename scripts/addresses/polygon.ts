@@ -26,6 +26,8 @@ export class PolygonAddresses {
     "0x9e059EdB32FC27430CfC8c9025a55B7C0FcFAbda",
   );
 
+  public static GOVERNANCE = "0xcc16d636dd05b52ff1d8b9ce09b09bc62b11412b".toLowerCase();
+
   // Additional TETU contracts
   public static TETU_EMITTER = "0x04eE7A5364803AAbE6021816146C34B4616c74D3".toLowerCase();
   public static HARDWORK_RESOLVER = "0xD578141F36BE210c90e8C734819db889e55A305b".toLowerCase();
