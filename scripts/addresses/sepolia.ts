@@ -13,6 +13,7 @@ export class SepoliaAddresses {
   "0x13d862a01d0AB241509A2e47e31d0db04e9b9F49", // platformVoter
   "0xbEB411eAD71713E7f2814326498Ff2a054242206", // forwarder
   "0xFC9b894D0b4a34AB41278Df5F2aBEEb5de95c9e4", // vaultFactory
+    "", // investFundV2
   );
 
 }

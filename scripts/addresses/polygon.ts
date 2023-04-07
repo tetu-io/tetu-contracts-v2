@@ -18,6 +18,7 @@ export class PolygonAddresses {
     "0x5576Fe01a9e6e0346c97E546919F5d15937Be92D", // platformVoter
     "0x88115b5eA38AF3ED6357a26D161307D7F28D2EC9", // forwarder
     "0xaAd7a2517b0d0d15E3Da5C37C5371F7283cCc074", // vaultFactory
+    "0x51c9A17660fC74a44A4aEf1474f100AdB789eeA5", // investFundV2
   );
 
   public static TOOLS_ADDRESSES = new ToolsAddresses(

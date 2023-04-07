@@ -10,9 +10,10 @@ export class CoreAddresses {
   public readonly platformVoter: string;
   public readonly forwarder: string;
   public readonly vaultFactory: string;
+  public readonly investFundV2: string;
 
 
-  constructor(tetu: string, controller: string, ve: string, veDist: string, gauge: string, bribe: string, tetuVoter: string, platformVoter: string, forwarder: string, vaultFactory: string) {
+  constructor(tetu: string, controller: string, ve: string, veDist: string, gauge: string, bribe: string, tetuVoter: string, platformVoter: string, forwarder: string, vaultFactory: string, investFundV2: string) {
     this.tetu = tetu;
     this.controller = controller;
     this.ve = ve;
@@ -23,5 +24,6 @@ export class CoreAddresses {
     this.platformVoter = platformVoter;
     this.forwarder = forwarder;
     this.vaultFactory = vaultFactory;
+    this.investFundV2 = investFundV2;
   }
 }

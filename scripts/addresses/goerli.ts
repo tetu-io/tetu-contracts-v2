@@ -13,6 +13,7 @@ export class GoerliAddresses {
   "0x422282F18CFE573e7dc6BEcC7242ffad43340aF8", // platformVoter
   "0xeFBc16b8c973DecA383aAAbAB07153D2EB676556", // forwarder
   "0xCF66857b468740d6dbF9cE11929A9c03DDA12988", // vaultFactory
+    "", // investFundV2
   );
 
 }
