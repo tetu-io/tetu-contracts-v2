@@ -12,6 +12,8 @@ import "../interfaces/ISplitter.sol";
 import "../interfaces/IProxyControlled.sol";
 import "../proxy/ControllableV3.sol";
 
+import "hardhat/console.sol";
+
 /// @title Proxy solution for connection a vault with multiple strategies
 ///        Version 2 has auto-rebalance logic adopted to strategies with fees.
 /// @author belbix
@@ -501,6 +503,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
         ? strategy.withdrawAllToSplitter()
         : strategy.withdrawToSplitter(remainingAmount);
         emit WithdrawFromStrategy(address(strategy));
+        console.log('withdrawToVault strategyLoss', strategyLoss);
 
         uint currentBalance = IERC20(_asset).balanceOf(address(this));
         // assume that we can not decrease splitter balance during withdraw process
@@ -714,6 +717,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
   function _coverLoss(address _vault, uint amount, uint lossTolerance, uint strategyBalance) internal {
     if (amount != 0) {
+      console.log('_coverLoss', amount);
       ITetuVaultV2(_vault).coverLoss(amount);
       require(amount * 100_000 / strategyBalance <= lossTolerance, "SS: Loss too high");
     }

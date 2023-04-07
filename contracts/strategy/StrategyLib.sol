@@ -56,7 +56,7 @@ library StrategyLib {
   /// @notice Calculate withdrawn amount in USD using the {assetPrice}.
   ///         Revert if the amount is different from expected too much (high price impact)
   /// @param balanceBefore Asset balance of the strategy before withdrawing
-  /// @param investedAssetsUSD Expected amount in USD, decimals are same to {_asset}
+  /// @param expectedWithdrewUSD Expected amount in USD, decimals are same to {_asset}
   /// @param assetPrice Price of the asset, decimals 18
   /// @return balance Current asset balance of the strategy
   function checkWithdrawImpact(
