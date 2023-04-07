@@ -442,9 +442,9 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
     require(msg.sender == address(splitter), "!SPLITTER");
     IVaultInsurance _insurance = insurance;
     uint balance = _asset.balanceOf(address(_insurance));
-    uint toRecover = Math.min(amount, balance);
-    _insurance.transferToVault(toRecover);
-    emit LossCovered(toRecover);
+    uint fromFees = Math.min(amount, balance);
+    _insurance.transferToVault(fromFees);
+    emit LossCovered(fromFees);
   }
 
   // *************************************************************

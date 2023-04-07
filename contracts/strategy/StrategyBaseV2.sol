@@ -9,8 +9,6 @@ import "../interfaces/IForwarder.sol";
 import "../proxy/ControllableV3.sol";
 import "./StrategyLib.sol";
 
-import "hardhat/console.sol";
-
 /// @title Abstract contract for base strategy functionality
 /// @author belbix
 abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
@@ -58,8 +56,8 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   //                        EVENTS
   // *************************************************************
 
-  event WithdrawAllToSplitter(uint amount, uint expectedWithdrewUSD, uint assetPrice, uint strategyLoss);
-  event WithdrawToSplitter(uint amount, uint sent, uint balance, uint expectedWithdrewUSD, uint assetPrice, uint strategyLoss);
+  event WithdrawAllToSplitter(uint amount);
+  event WithdrawToSplitter(uint amount, uint sent, uint balance);
   event EmergencyExit(address sender, uint amount);
   event ManualClaim(address sender);
   event InvestAll(uint balance);
@@ -211,23 +209,23 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
     if (balance != 0) {
       IERC20(_asset).safeTransfer(_splitter, balance);
     }
-    emit WithdrawAllToSplitter(balance, expectedWithdrewUSD, assetPrice, _strategyLoss);
-    console.log('withdrawAllToSplitter strategyLoss', _strategyLoss);
+    emit WithdrawAllToSplitter(balance);
+
     return _strategyLoss;
   }
 
   /// @dev Withdraws some assets to the splitter
   /// @return strategyLoss Loss should be covered from Insurance
   function withdrawToSplitter(uint amount) external override returns (uint strategyLoss) {
-    strategyLoss = 0;
     address _splitter = splitter;
     address _asset = asset;
     StrategyLib.onlySplitter(_splitter);
 
-    uint expectedWithdrewUSD;
-    uint assetPrice;
+
     uint balance = IERC20(_asset).balanceOf(address(this));
     if (amount > balance) {
+      uint expectedWithdrewUSD;
+      uint assetPrice;
 
       (expectedWithdrewUSD, assetPrice, strategyLoss) = _withdrawFromPool(amount - balance);
       balance = StrategyLib.checkWithdrawImpact(
@@ -243,8 +241,9 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
     if (amountAdjusted != 0) {
       IERC20(_asset).safeTransfer(_splitter, amountAdjusted);
     }
-    emit WithdrawToSplitter(amount, amountAdjusted, balance, expectedWithdrewUSD, assetPrice, strategyLoss);
-    console.log('withdrawToSplitter strategyLoss', strategyLoss);
+    emit WithdrawToSplitter(amount, amountAdjusted, balance);
+
+    return strategyLoss;
   }
 
   // *************************************************************
