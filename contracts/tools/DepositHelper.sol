@@ -23,7 +23,14 @@ contract DepositHelper is ReentrancyGuard {
     IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
     _approveIfNeeds(asset, amount, vault);
     uint sharesOut = IERC4626(vault).deposit(amount, msg.sender);
-    require (sharesOut >= minSharesOut, "SLIPPAGE");
+    require(sharesOut >= minSharesOut, "SLIPPAGE");
+
+    // send back possible tokens
+    uint balance = IERC20(asset).balanceOf(address(this));
+    if (balance != 0) {
+      IERC20(asset).safeTransfer(msg.sender, balance);
+    }
+
     return sharesOut;
   }
 
@@ -34,6 +41,13 @@ contract DepositHelper is ReentrancyGuard {
   ) external nonReentrant returns (uint) {
     uint amountOut = IERC4626(vault).redeem(shareAmount, msg.sender, msg.sender);
     require(amountOut >= minAmountOut, "SLIPPAGE");
+
+    // send back possible tokens
+    uint balance = IERC20(vault).balanceOf(address(this));
+    if (balance != 0) {
+      IERC20(vault).safeTransfer(msg.sender, balance);
+    }
+
     return amountOut;
   }
 
@@ -58,7 +72,14 @@ contract DepositHelper is ReentrancyGuard {
     require(balance != 0, "Zero result balance");
     _approveIfNeeds(asset, balance, vault);
     uint sharesOut = IERC4626(vault).deposit(balance, msg.sender);
-    require (sharesOut >= minSharesOut, "SLIPPAGE");
+    require(sharesOut >= minSharesOut, "SLIPPAGE");
+
+    // send back possible tokens
+    uint b = IERC20(tokenIn).balanceOf(address(this));
+    if (b != 0) {
+      IERC20(tokenIn).safeTransfer(msg.sender, b);
+    }
+
     return sharesOut;
   }
 
@@ -73,7 +94,8 @@ contract DepositHelper is ReentrancyGuard {
   ) external nonReentrant returns (uint) {
     uint amountIn = IERC4626(vault).redeem(shareAmount, address(this), msg.sender);
 
-    _approveIfNeeds(address(IERC4626(vault).asset()), amountIn, oneInchRouter);
+    address asset = address(IERC4626(vault).asset());
+    _approveIfNeeds(asset, amountIn, oneInchRouter);
     (bool success,) = oneInchRouter.call(swapData);
     require(success, "Swap error");
 
@@ -81,6 +103,17 @@ contract DepositHelper is ReentrancyGuard {
     require(balance != 0, "Zero result balance");
     require(balance >= minAmountOut, "SLIPPAGE");
     IERC20(tokenOut).safeTransfer(msg.sender, balance);
+
+    // send back possible tokens
+    uint balanceVault = IERC20(vault).balanceOf(address(this));
+    if (balanceVault != 0) {
+      IERC20(vault).safeTransfer(msg.sender, balanceVault);
+    }
+    uint balanceAsset = IERC20(asset).balanceOf(address(this));
+    if (balanceAsset != 0) {
+      IERC20(asset).safeTransfer(msg.sender, balanceAsset);
+    }
+
     return balance;
   }
 
@@ -97,6 +130,12 @@ contract DepositHelper is ReentrancyGuard {
     lockedAmount = ve.lockedAmounts(tokenId, token);
     power = ve.balanceOfNFT(tokenId);
     unlockDate = ve.lockedEnd(tokenId);
+
+    // send back possible tokens
+    uint balance = IERC20(token).balanceOf(address(this));
+    if (balance != 0) {
+      IERC20(token).safeTransfer(msg.sender, balance);
+    }
   }
 
   function increaseAmount(IVeTetu ve, address token, uint tokenId, uint value) external nonReentrant returns (
@@ -111,6 +150,12 @@ contract DepositHelper is ReentrancyGuard {
     lockedAmount = ve.lockedAmounts(tokenId, token);
     power = ve.balanceOfNFT(tokenId);
     unlockDate = ve.lockedEnd(tokenId);
+
+    // send back possible tokens
+    uint balance = IERC20(token).balanceOf(address(this));
+    if (balance != 0) {
+      IERC20(token).safeTransfer(msg.sender, balance);
+    }
   }
 
   function _approveIfNeeds(address token, uint amount, address spender) internal {

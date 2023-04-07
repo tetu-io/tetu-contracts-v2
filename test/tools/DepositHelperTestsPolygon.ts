@@ -39,7 +39,7 @@ describe("Deposit helper Tests poly", function () {
     tetu = await DeployerUtils.deployMockToken(signer);
     const controller = await DeployerUtils.deployMockController(signer);
     vault = await DeployerUtils.deployMockVault(signer, controller.address, vaultAsset, 'V', strategy.address, 1);
-    helper = await DeployerUtils.deployContract(signer, 'DepositHelper', PolygonAddresses.ONE_INCH_ROUTER) as DepositHelper;
+    helper = await DeployerUtils.deployContract(signer, 'DepositHelper', PolygonAddresses.ONE_INCH_ROUTER_V5) as DepositHelper;
 
     ve = await DeployerUtils.deployVeTetu(signer, tetu.address, controller.address);
 
@@ -165,7 +165,7 @@ describe("Deposit helper Tests poly", function () {
 
 function apiRequestUrl(methodName: string, queryParams: string) {
   const chainId = hre.network.config.chainId;
-  const apiBaseUrl = 'https://api.1inch.io/v4.0/' + chainId;
+  const apiBaseUrl = 'https://api.1inch.io/v5.0/' + chainId;
   const r = (new URLSearchParams(JSON.parse(queryParams))).toString();
   return apiBaseUrl + methodName + '?' + r;
 }

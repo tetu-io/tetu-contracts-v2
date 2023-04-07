@@ -34,7 +34,7 @@ export class PolygonAddresses {
   public static FORWARDER_RESOLVER = "0x6d16Fa76f61F2BEe0093D1DCbab29bcA4FBC8628".toLowerCase();
 
   // PROTOCOL ADRS
-  public static DEPOSIT_HELPER_V1 = "0xBe866e2F1A292f37711a2A91A1B5C3CfB517C00d".toLowerCase();
+  public static DEPOSIT_HELPER_V2 = "0xf71bfcB5a00032A2F80E44b9ddF80BdC2C85a56f".toLowerCase();
   public static TETU_CONVERTER = "0x8190db4549E382dECD94aEe211eAeB5F3DbC6836".toLowerCase();
   public static tUSDC = "0x0D397F4515007AE4822703b74b9922508837A04E".toLowerCase();
   public static TETU_USDC_BPT_VAULT = "0x6922201f0d25Aba8368e7806642625879B35aB84".toLowerCase();
@@ -51,7 +51,8 @@ export class PolygonAddresses {
   public static V2_SPLITTER_WETH = "0xb4e9CD554F14d3CB2d45300ed6464d462c017894";
   public static V2_SPLITTER_WBTC = "0x217dB66Dc9300AaCE215beEdc1Aa26741e58CC67";
 
-  public static ONE_INCH_ROUTER = "0x1111111254fb6c44bAC0beD2854e76F90643097d".toLowerCase();
+  public static ONE_INCH_ROUTER_V4 = "0x1111111254fb6c44bAC0beD2854e76F90643097d".toLowerCase();
+  public static ONE_INCH_ROUTER_V5 = "0x1111111254EEB25477B68fb85Ed929f73A960582".toLowerCase();
 
   // tokens
   public static WETH_TOKEN = "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619".toLowerCase();
