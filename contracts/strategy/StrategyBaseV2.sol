@@ -290,6 +290,6 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   function _emergencyExitFromPool() internal virtual;
 
   /// @dev Claim all possible rewards.
-  function _claim() internal virtual;
+  function _claim() internal virtual returns (address[] memory rewardTokens, uint[] memory amounts);
 
 }
