@@ -37,10 +37,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   address public override splitter;
   /// @dev Percent of profit for autocompound inside this strategy.
   uint public override compoundRatio;
-  /// @notice DEPRECATED Balances of not-reward amounts
-  /// @dev Any amounts transferred to the strategy for investing or withdrawn back are registered here
-  ///      As result it's possible to distinct invested amounts from rewards, airdrops and other profits
-  mapping(address => uint) public baseAmounts;
+  uint private __deprecatedSlot1;
 
   /// @notice {performanceFee}% of total profit is sent to {performanceReceiver} before compounding
   /// @dev governance by default
