@@ -19,7 +19,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant STRATEGY_BASE_VERSION = "2.2.1";
+  string public constant STRATEGY_BASE_VERSION = "2.2.2";
   /// @dev Denominator for compound ratio
   uint internal constant COMPOUND_DENOMINATOR = 100_000;
   /// @notice 10% of total profit is sent to {performanceReceiver} before compounding
