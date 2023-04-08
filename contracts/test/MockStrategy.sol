@@ -32,7 +32,8 @@ contract MockStrategy is StrategyBaseV2 {
     __StrategyBase_init(controller_, _splitter);
     splitter = _splitter;
     isReadyToHardWork = true;
-    _capacity = type(uint).max; // unlimited capacity by default
+    _capacity = type(uint).max;
+    // unlimited capacity by default
     pool = new MockPool();
   }
 
@@ -90,7 +91,7 @@ contract MockStrategy is StrategyBaseV2 {
     uint strategyLoss
   ) {
     assetPrice = 1e18;
-    if(useTrueExpectedWithdraw) {
+    if (useTrueExpectedWithdraw) {
       expectedWithdrewUSD = amount;
     } else {
       expectedWithdrewUSD = 0;
@@ -111,7 +112,7 @@ contract MockStrategy is StrategyBaseV2 {
     uint strategyLoss
   ) {
     assetPrice = 1e18;
-    if(useTrueExpectedWithdraw) {
+    if (useTrueExpectedWithdraw) {
       expectedWithdrewUSD = investedAssets();
     } else {
       expectedWithdrewUSD = 0;
@@ -133,8 +134,8 @@ contract MockStrategy is StrategyBaseV2 {
   }
 
   /// @dev Claim all possible rewards.
-  function _claim() internal override {
-    // noop
+  function _claim() internal pure override returns (address[] memory rewardTokens, uint[] memory amounts) {
+    return (rewardTokens, amounts);
   }
 
   function setLast(uint earned, uint lost) external {
