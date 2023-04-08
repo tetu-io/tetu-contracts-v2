@@ -19,7 +19,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant STRATEGY_BASE_VERSION = "2.2.1";
+  string public constant STRATEGY_BASE_VERSION = "2.2.2";
   /// @dev Denominator for compound ratio
   uint internal constant COMPOUND_DENOMINATOR = 100_000;
   /// @notice 10% of total profit is sent to {performanceReceiver} before compounding
@@ -37,10 +37,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   address public override splitter;
   /// @dev Percent of profit for autocompound inside this strategy.
   uint public override compoundRatio;
-  /// @notice DEPRECATED Balances of not-reward amounts
-  /// @dev Any amounts transferred to the strategy for investing or withdrawn back are registered here
-  ///      As result it's possible to distinct invested amounts from rewards, airdrops and other profits
-  mapping(address => uint) public baseAmounts;
+  uint private __deprecatedSlot1;
 
   /// @notice {performanceFee}% of total profit is sent to {performanceReceiver} before compounding
   /// @dev governance by default
@@ -290,6 +287,6 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   function _emergencyExitFromPool() internal virtual;
 
   /// @dev Claim all possible rewards.
-  function _claim() internal virtual;
+  function _claim() internal virtual returns (address[] memory rewardTokens, uint[] memory amounts);
 
 }
