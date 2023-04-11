@@ -19,11 +19,12 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant STRATEGY_BASE_VERSION = "2.2.2";
+  string public constant STRATEGY_BASE_VERSION = "2.2.3";
   /// @dev Denominator for compound ratio
   uint internal constant COMPOUND_DENOMINATOR = 100_000;
   /// @notice 10% of total profit is sent to {performanceReceiver} before compounding
   uint internal constant DEFAULT_PERFORMANCE_FEE = 10_000;
+  address internal constant DEFAULT_PERF_FEE_RECEIVER = 0x9Cc199D4353b5FB3e6C8EEBC99f5139e0d8eA06b;
 
   // *************************************************************
   //                        VARIABLES
@@ -82,7 +83,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
     asset = ISplitter(_splitter).asset();
     splitter = _splitter;
 
-    performanceReceiver = IController(controller_).governance();
+    performanceReceiver = DEFAULT_PERF_FEE_RECEIVER;
     performanceFee = DEFAULT_PERFORMANCE_FEE;
   }
 

@@ -282,7 +282,7 @@ describe("StrategyBaseV2Tests", function () {
         ].join();
         const expected = [
           10_000, // strategyAsSplitter.DEFAULT_PERFORMANCE_FEE
-          await IController__factory.connect(await strategyAsSplitter.controller(), signer).governance()
+          '0x9Cc199D4353b5FB3e6C8EEBC99f5139e0d8eA06b'
         ].join();
         expect(ret).eq(expected);
       });
