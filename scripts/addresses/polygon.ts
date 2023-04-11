@@ -33,6 +33,7 @@ export class PolygonAddresses {
   public static TETU_EMITTER = "0x04eE7A5364803AAbE6021816146C34B4616c74D3".toLowerCase();
   public static HARDWORK_RESOLVER = "0xD578141F36BE210c90e8C734819db889e55A305b".toLowerCase();
   public static FORWARDER_RESOLVER = "0x6d16Fa76f61F2BEe0093D1DCbab29bcA4FBC8628".toLowerCase();
+  public static PERF_FEE_TREASURY = "0x9Cc199D4353b5FB3e6C8EEBC99f5139e0d8eA06b".toLowerCase();
 
   // PROTOCOL ADRS
   public static DEPOSIT_HELPER_V2 = "0xf71bfcB5a00032A2F80E44b9ddF80BdC2C85a56f".toLowerCase();
