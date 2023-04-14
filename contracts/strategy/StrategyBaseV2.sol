@@ -93,7 +93,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   /// @notice Set performance fee and receiver
   function setupPerformanceFee(uint fee_, address receiver_) external {
     StrategyLib.onlyGovernance(controller());
-    require(fee_ <= DEFAULT_PERFORMANCE_FEE, StrategyLib.TOO_HIGH);
+    require(fee_ <= 100_000, StrategyLib.TOO_HIGH);
     require(receiver_ != address(0), StrategyLib.WRONG_VALUE);
 
     performanceFee = fee_;
