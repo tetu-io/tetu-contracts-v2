@@ -6,6 +6,7 @@ import "../interfaces/ITetuVaultV2.sol";
 import "../interfaces/ISplitter.sol";
 import "../interfaces/IStrategyV2.sol";
 import "../proxy/ControllableV3.sol";
+import "./../lib/StringLib.sol";
 
 /// @title Gelato resolver for hardworks
 /// @author a17
@@ -113,9 +114,9 @@ contract HardWorkResolver is ControllableV3 {
       ISplitter splitter = ITetuVaultV2(vault).splitter();
 
       try splitter.doHardWork() {} catch Error(string memory _err) {
-        revert(string(abi.encodePacked("Vault error: 0x", _toAsciiString(vault), " ", _err)));
+        revert(string(abi.encodePacked("Vault error: 0x", StringLib._toAsciiString(vault), " ", _err)));
       } catch (bytes memory _err) {
-        revert(string(abi.encodePacked("Vault low-level error: 0x", _toAsciiString(vault), " ", string(_err))));
+        revert(string(abi.encodePacked("Vault low-level error: 0x", StringLib._toAsciiString(vault), " ", string(_err))));
       }
       counter++;
       if (counter >= _maxHwPerCall) {
@@ -137,7 +138,7 @@ contract HardWorkResolver is ControllableV3 {
 
   function checker() external view returns (bool canExec, bytes memory execPayload) {
     if (tx.gasprice > maxGasAdjusted()) {
-      return (false, abi.encodePacked("Too high gas: ", _toString(tx.gasprice / 1e9)));
+      return (false, abi.encodePacked("Too high gas: ", StringLib._toString(tx.gasprice / 1e9)));
     }
 
     IController _controller = IController(controller());
@@ -191,41 +192,4 @@ contract HardWorkResolver is ControllableV3 {
     }
   }
 
-  /// @dev Inspired by OraclizeAPI's implementation - MIT license
-  ///      https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
-  function _toString(uint value) internal pure returns (string memory) {
-    if (value == 0) {
-      return "0";
-    }
-    uint temp = value;
-    uint digits;
-    while (temp != 0) {
-      digits++;
-      temp /= 10;
-    }
-    bytes memory buffer = new bytes(digits);
-    while (value != 0) {
-      digits -= 1;
-      buffer[digits] = bytes1(uint8(48 + uint(value % 10)));
-      value /= 10;
-    }
-    return string(buffer);
-  }
-
-  function _toAsciiString(address x) internal pure returns (string memory) {
-    bytes memory s = new bytes(40);
-    for (uint i = 0; i < 20; i++) {
-      bytes1 b = bytes1(uint8(uint(uint160(x)) / (2 ** (8 * (19 - i)))));
-      bytes1 hi = bytes1(uint8(b) / 16);
-      bytes1 lo = bytes1(uint8(b) - 16 * uint8(hi));
-      s[2 * i] = _char(hi);
-      s[2 * i + 1] = _char(lo);
-    }
-    return string(s);
-  }
-
-  function _char(bytes1 b) internal pure returns (bytes1 c) {
-    if (uint8(b) < 10) return bytes1(uint8(b) + 0x30);
-    else return bytes1(uint8(b) + 0x57);
-  }
 }
