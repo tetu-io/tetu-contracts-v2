@@ -312,7 +312,7 @@ describe("StrategyBaseV2Tests", function () {
         const governance = await IController__factory.connect(await strategyAsSplitter.controller(), signer).governance();
         const receiver = ethers.Wallet.createRandom();
         await expect(
-          strategyAsSplitter.connect(await Misc.impersonate(governance)).setupPerformanceFee(11_000, receiver.address)
+          strategyAsSplitter.connect(await Misc.impersonate(governance)).setupPerformanceFee(101_000, receiver.address)
         ).revertedWith("SB: Too high"); // TOO_HIGH
       });
       it("should revert if the receiver is zero", async () => {
