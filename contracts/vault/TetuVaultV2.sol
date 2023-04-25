@@ -20,7 +20,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant VAULT_VERSION = "2.1.1";
+  string public constant VAULT_VERSION = "2.1.2";
   /// @dev Denominator for buffer calculation. 100% of the buffer amount.
   uint constant public BUFFER_DENOMINATOR = 100_000;
   /// @dev Denominator for fee calculation.
@@ -348,7 +348,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
 
   function maxWithdraw(address owner) public view override returns (uint) {
     uint assets = convertToAssets(balanceOf(owner));
-    assets -= assets * withdrawFee / FEE_DENOMINATOR;
+    assets -= assets.mulDivUp(withdrawFee, FEE_DENOMINATOR);
     return Math.min(maxWithdrawAssets, assets);
   }
 
