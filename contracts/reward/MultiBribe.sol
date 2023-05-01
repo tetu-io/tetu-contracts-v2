@@ -18,7 +18,7 @@ contract MultiBribe is StakelessMultiPoolBase, IBribe {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant MULTI_BRIBE_VERSION = "1.0.0";
+  string public constant MULTI_BRIBE_VERSION = "1.0.1";
 
   // *************************************************************
   //                        VARIABLES
@@ -172,7 +172,7 @@ contract MultiBribe is StakelessMultiPoolBase, IBribe {
 
   /// @dev Notify delayed rewards
   function notifyDelayedRewards(address vault, address token, uint _epoch) external nonReentrant override {
-    require(epoch == _epoch, "!epoch");
+    require(epoch >= _epoch, "!epoch");
     _notifyDelayedRewards(vault, token, _epoch);
   }
 
