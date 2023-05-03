@@ -19,7 +19,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant STRATEGY_BASE_VERSION = "2.2.4";
+  string public constant STRATEGY_BASE_VERSION = "2.2.5";
   /// @dev Denominator for compound ratio
   uint internal constant COMPOUND_DENOMINATOR = 100_000;
   /// @notice 10% of total profit is sent to {performanceReceiver} before compounding
@@ -290,4 +290,8 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   /// @dev Claim all possible rewards.
   function _claim() internal virtual returns (address[] memory rewardTokens, uint[] memory amounts);
 
+  /// @dev This empty reserved space is put in place to allow future versions to add new
+  ///      variables without shifting down storage in the inheritance chain.
+  ///      See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+  uint[43] private __gap;
 }
