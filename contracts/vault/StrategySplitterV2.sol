@@ -24,7 +24,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   // *********************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant SPLITTER_VERSION = "2.0.5";
+  string public constant SPLITTER_VERSION = "2.0.6";
   /// @dev APR denominator. Represent 100% APR.
   uint public constant APR_DENOMINATOR = 100_000;
   /// @dev Delay between hardwork calls for a strategy.
@@ -358,8 +358,8 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     uint strategyLossOnWithdraw;
     if (lowStrategyBalance != 0) {
       strategyLossOnWithdraw = (percent == 100)
-      ? IStrategyV2(lowStrategy).withdrawAllToSplitter()
-      : IStrategyV2(lowStrategy).withdrawToSplitter(lowStrategyBalance * percent / 100);
+        ? IStrategyV2(lowStrategy).withdrawAllToSplitter()
+        : IStrategyV2(lowStrategy).withdrawToSplitter(lowStrategyBalance * percent / 100);
     }
     // need to emit loss separately
     if (strategyLossOnWithdraw != 0) {
@@ -464,13 +464,15 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     uint length = strategies.length;
     for (uint i = 0; i < length; i++) {
       uint strategyBalance = IStrategyV2(strategies[i]).totalAssets();
-      uint strategyLoss = IStrategyV2(strategies[i]).withdrawAllToSplitter();
-      emit WithdrawFromStrategy(strategies[i]);
+      if (strategyBalance != 0) {
+        uint strategyLoss = IStrategyV2(strategies[i]).withdrawAllToSplitter();
+        emit WithdrawFromStrategy(strategies[i]);
 
-      // register possible loses
-      if (strategyLoss != 0) {
-        _coverLoss(_vault, strategyLoss, WITHDRAW_LOSS_TOLERANCE, strategyBalance);
-        emit Loss(strategies[i], strategyLoss);
+        // register possible loses
+        if (strategyLoss != 0) {
+          _coverLoss(_vault, strategyLoss, WITHDRAW_LOSS_TOLERANCE, strategyBalance);
+          emit Loss(strategies[i], strategyLoss);
+        }
       }
     }
 
@@ -496,27 +498,29 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
         uint strategyBalance = strategy.totalAssets();
 
-        // withdraw from strategy
-        uint strategyLoss = (strategyBalance <= remainingAmount)
-        ? strategy.withdrawAllToSplitter()
-        : strategy.withdrawToSplitter(remainingAmount);
-        emit WithdrawFromStrategy(address(strategy));
+        if (strategyBalance != 0) {
+          // withdraw from strategy
+          uint strategyLoss = (strategyBalance <= remainingAmount)
+            ? strategy.withdrawAllToSplitter()
+            : strategy.withdrawToSplitter(remainingAmount);
+          emit WithdrawFromStrategy(address(strategy));
 
-        uint currentBalance = IERC20(_asset).balanceOf(address(this));
-        // assume that we can not decrease splitter balance during withdraw process
-        uint withdrew = currentBalance - balance;
-        balance = currentBalance;
+          uint currentBalance = IERC20(_asset).balanceOf(address(this));
+          // assume that we can not decrease splitter balance during withdraw process
+          uint withdrew = currentBalance - balance;
+          balance = currentBalance;
 
-        remainingAmount = withdrew < remainingAmount ? remainingAmount - withdrew : 0;
+          remainingAmount = withdrew < remainingAmount ? remainingAmount - withdrew : 0;
 
-        // if we withdrew less than expected try to cover loss from vault insurance
-        if (strategyLoss != 0) {
-          _coverLoss(_vault, strategyLoss, WITHDRAW_LOSS_TOLERANCE, strategyBalance);
-          emit Loss(address(strategy), strategyLoss);
-        }
+          // if we withdrew less than expected try to cover loss from vault insurance
+          if (strategyLoss != 0) {
+            _coverLoss(_vault, strategyLoss, WITHDRAW_LOSS_TOLERANCE, strategyBalance);
+            emit Loss(address(strategy), strategyLoss);
+          }
 
-        if (balance >= amount) {
-          break;
+          if (balance >= amount) {
+            break;
+          }
         }
       }
     }
@@ -636,18 +640,18 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   ///      Based on https://medium.com/coinmonks/sorting-in-solidity-without-comparison-4eb47e04ff0d
   ///      Sort strategies array by APR values from strategiesAPR map. Highest to lowest.
   function _sortStrategiesByAPR() internal {
-  unchecked {
-    uint length = strategies.length;
-    for (uint i = 1; i < length; i++) {
-      address key = strategies[i];
-      uint j = i - 1;
-      while ((int(j) >= 0) && strategiesAPR[strategies[j]] < strategiesAPR[key]) {
-        strategies[j + 1] = strategies[j];
-        j--;
+    unchecked {
+      uint length = strategies.length;
+      for (uint i = 1; i < length; i++) {
+        address key = strategies[i];
+        uint j = i - 1;
+        while ((int(j) >= 0) && strategiesAPR[strategies[j]] < strategiesAPR[key]) {
+          strategies[j + 1] = strategies[j];
+          j--;
+        }
+        strategies[j + 1] = key;
       }
-      strategies[j + 1] = key;
     }
-  }
   }
 
   /// @dev Return true if given item found in address array
