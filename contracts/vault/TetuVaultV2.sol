@@ -20,7 +20,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant VAULT_VERSION = "2.1.2";
+  string public constant VAULT_VERSION = "2.1.3";
   /// @dev Denominator for buffer calculation. 100% of the buffer amount.
   uint constant public BUFFER_DENOMINATOR = 100_000;
   /// @dev Denominator for fee calculation.
@@ -460,8 +460,8 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   ) internal override {
     // refresh withdraw request if necessary
     if (withdrawRequestBlocks != 0) {
-      withdrawRequests[from] = block.timestamp;
-      withdrawRequests[to] = block.timestamp;
+      withdrawRequests[from] = block.number;
+      withdrawRequests[to] = block.number;
     }
     gauge.handleBalanceChange(from);
     gauge.handleBalanceChange(to);
