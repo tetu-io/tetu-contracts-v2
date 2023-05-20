@@ -20,7 +20,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant VAULT_VERSION = "2.1.3";
+  string public constant VAULT_VERSION = "2.1.4";
   /// @dev Denominator for buffer calculation. 100% of the buffer amount.
   uint constant public BUFFER_DENOMINATOR = 100_000;
   /// @dev Denominator for fee calculation.
@@ -230,8 +230,8 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
     uint units = 10 ** uint256(decimals());
     uint totalSupply_ = totalSupply();
     return totalSupply_ == 0
-    ? units
-    : units * totalAssets() / totalSupply_;
+      ? units
+      : units * totalAssets() / totalSupply_;
   }
 
   /// @dev See {IERC165-supportsInterface}.
@@ -262,7 +262,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   function afterDeposit(uint assets, uint /*shares*/, address receiver) internal override {
     // reset withdraw request if necessary
     if (withdrawRequestBlocks != 0) {
-      withdrawRequests[receiver] = block.timestamp;
+      withdrawRequests[receiver] = block.number;
     }
 
     address _splitter = address(splitter);
@@ -367,7 +367,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
     if (_withdrawRequestBlocks != 0) {
       uint wr = withdrawRequests[receiver];
       require(wr != 0 && wr + _withdrawRequestBlocks < block.number, "NOT_REQUESTED");
-      withdrawRequests[receiver] = 0;
+      withdrawRequests[receiver] = block.number;
     }
 
     uint _withdrawFee = withdrawFee;
