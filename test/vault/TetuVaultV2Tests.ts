@@ -744,6 +744,30 @@ describe("Tetu Vault V2 tests", function () {
           })).revertedWith("NOT_REQUESTED");
         });
       });
+      describe("withdraw max amount, signer != receiver != owner", () => {
+        const SECOND_ACCOUNT = ethers.Wallet.createRandom().address;
+        const THIRD_ACCOUNT = ethers.Wallet.createRandom().address;
+
+        /**
+         *  Deposit: A => S (depositor => receiver)
+         *  Withdraw: A => S => B (signer => owner => receiver)
+         */
+        it("should withdraw successfully", async () => {
+          const {receivedAmount} = await withdrawRequestsTest({
+            deposits: [
+              {amountToDeposit: "10", depositor: SECOND_ACCOUNT},
+            ],
+            withdrawRequestBlocks: 5,
+            countBlocks: 5,
+            withdraws: [{
+              amountToWithdraw: "MAX",
+              withdrawCaller: SECOND_ACCOUNT,
+              withdrawReceiver: THIRD_ACCOUNT
+            }],
+          });
+          expect(receivedAmount).eq(10);
+        });
+      });
       describe("Try to hack", () => {
         describe("Withdraw signer != withdraw receiver", () => {
           const RECEIVER_ADDRESS = ethers.Wallet.createRandom().address;
@@ -829,11 +853,7 @@ describe("Tetu Vault V2 tests", function () {
                 amountToWithdraw: "MAX",
                 withdrawOwner: SECOND_ACCOUNT,
                 withdrawCaller: SECOND_ACCOUNT
-              }],
-              actionsBefore: {
-                requestWithdrawCallers: [SECOND_ACCOUNT],
-                countBlocks: 5
-              }
+              }]
             });
             expect(receivedAmount).eq(10);
           });
