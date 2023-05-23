@@ -111,7 +111,7 @@ abstract contract ERC4626Upgradeable is ERC20PermitUpgradeable, ReentrancyGuard,
       }
     }
 
-    beforeWithdraw(assets, shares, owner);
+    beforeWithdraw(assets, shares, receiver, owner);
 
     _burn(owner, shares);
 
@@ -140,7 +140,7 @@ abstract contract ERC4626Upgradeable is ERC20PermitUpgradeable, ReentrancyGuard,
     // Check for rounding error since we round down in previewRedeem.
     require(assets != 0, "ZERO_ASSETS");
 
-    beforeWithdraw(assets, shares, owner);
+    beforeWithdraw(assets, shares, receiver, owner);
 
     _burn(owner, shares);
 
@@ -213,7 +213,7 @@ abstract contract ERC4626Upgradeable is ERC20PermitUpgradeable, ReentrancyGuard,
   ///////////////////////////////////////////////////////////////
 
   /// @param owner The owner of the amount to be withdrawn
-  function beforeWithdraw(uint assets, uint shares, address owner) internal virtual {}
+  function beforeWithdraw(uint assets, uint shares, address receiver, address owner) internal virtual {}
 
   /// @param receiver The receiver of the shares received after deposit
   function afterDeposit(uint assets, uint shares, address receiver) internal virtual {}

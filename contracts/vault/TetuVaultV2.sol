@@ -359,7 +359,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   }
 
   /// @dev Internal hook for getting necessary assets from splitter.
-  function beforeWithdraw(uint assets, uint shares, address owner_) internal override {
+  function beforeWithdraw(uint assets, uint shares, address /*receiver*/, address owner_) internal override {
     // check withdraw request if necessary
     uint _withdrawRequestBlocks = withdrawRequestBlocks;
     if (_withdrawRequestBlocks != 0) {
