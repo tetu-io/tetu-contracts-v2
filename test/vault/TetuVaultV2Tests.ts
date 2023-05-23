@@ -549,16 +549,19 @@ describe("Tetu Vault V2 tests", function () {
     describe("withdraw and withdrawAll", () => {
       interface IWithdrawRequestsTestParams {
         withdrawRequestBlocks?: number;
-        skipWithdrawRequests?: boolean;
+        makeWithdrawRequestsJustBeforeWithdraw?: boolean;
         countBlocks?: number;
-        deposit: {
+        deposits: {
           amountToDeposit: string;
           depositor?: string;
-        }
+          receiver?: string;
+          countBlocks?: number;
+        }[];
         withdraws?: {
           amountToWithdraw: string;
           withdrawReceiver?: string;
           withdrawCaller?: string;
+          withdrawOwner?: string;
           countBlocks?: number;
         }[];
         actionsBefore?: {
@@ -566,6 +569,7 @@ describe("Tetu Vault V2 tests", function () {
           requestWithdrawCallers?: string[];
         }
       }
+
       interface IWithdrawRequestsTestResults {
         receivedAmount: number;
       }
@@ -586,27 +590,35 @@ describe("Tetu Vault V2 tests", function () {
               await vault.connect(await Misc.impersonate(caller)).requestWithdraw();
             }
           }
-          console.log("advance blocks 1", p.actionsBefore.countBlocks);
+          console.log("advance blocks 1", p.actionsBefore.countBlocks ?? 5);
           await TimeUtils.advanceNBlocks(p.actionsBefore.countBlocks ?? 5);
         }
 
         // Signer deposits to vault
-        const depositor = await Misc.impersonate(p.deposit.depositor || signer.address);
-        const amountToDeposit = parseUnits(p.deposit.amountToDeposit, 6);
-        if (depositor.address !== signer.address) {
-          await usdc.mint(depositor.address, amountToDeposit);
-          await usdc.connect(depositor).approve(vault.address, amountToDeposit);
+        for (const d of p.deposits) {
+          const receiver = d.receiver || signer.address;
+          const depositor = await Misc.impersonate(d.depositor || signer.address);
+          const amountToDeposit = parseUnits(d.amountToDeposit, 6);
+          if (depositor.address !== signer.address) {
+            await usdc.mint(depositor.address, amountToDeposit);
+            await usdc.connect(depositor).approve(vault.address, amountToDeposit);
+          }
+          await vault.connect(depositor).deposit(amountToDeposit, receiver);
+          if (d.countBlocks) {
+            console.log("advance blocks 4", d.countBlocks);
+            await TimeUtils.advanceNBlocks(d.countBlocks);
+          }
         }
-        await vault.connect(depositor).deposit(amountToDeposit, signer.address);
 
-        // requestWithdraw and advance blocks
-        if (! p.skipWithdrawRequests) {
-          await vault.requestWithdraw();
-        }
-        console.log("advance blocks 2", p.countBlocks);
+        // advance blocks
+        console.log("advance blocks 2", p.countBlocks ?? 5);
         await TimeUtils.advanceNBlocks(p.countBlocks ?? 5);
 
         // Signer withdraws from vault
+
+        if (p.makeWithdrawRequestsJustBeforeWithdraw) {
+          await vault.requestWithdraw();
+        }
 
         // withdraw or withdrawAll; withdraw allows to use not equal owner and receiver
         let receivedAmount = 0;
@@ -614,7 +626,7 @@ describe("Tetu Vault V2 tests", function () {
           for (const w of p.withdraws) {
             const receiver = w.withdrawReceiver || signer.address;
             const caller = w.withdrawCaller || signer.address;
-            const owner = signer.address;
+            const owner = w.withdrawOwner || signer.address;
 
             const amount = w.amountToWithdraw === "MAX"
               ? await vault.maxWithdraw(owner)
@@ -642,12 +654,13 @@ describe("Tetu Vault V2 tests", function () {
           receivedAmount = +formatUnits(balanceAfter.sub(balanceBefore), 6);
         }
 
-        return { receivedAmount }
+        return {receivedAmount}
       }
+
       describe("withdrawAll", () => {
         it("should return expected amount, countBlocks == withdrawRequestBlocks", async () => {
           const {receivedAmount} = await withdrawRequestsTest({
-            deposit:{ amountToDeposit: "1"},
+            deposits: [{amountToDeposit: "1"}],
             withdrawRequestBlocks: 5,
             countBlocks: 6 // (!) > withdrawRequestBlocks
           });
@@ -655,18 +668,22 @@ describe("Tetu Vault V2 tests", function () {
         });
         it("should return expected amount, countBlocks > withdrawRequestBlocks", async () => {
           const {receivedAmount} = await withdrawRequestsTest({
-            deposit:{ amountToDeposit: "1"},
+            deposits: [{amountToDeposit: "1"}],
             withdrawRequestBlocks: 5,
             countBlocks: 5
           });
           expect(receivedAmount).eq(1);
         });
-        it.skip("todo: should revert if requestWithdraw() is not called", async () => {
-          await expect(withdrawRequestsTest({deposit:{ amountToDeposit: "1"}, skipWithdrawRequests: true})).revertedWith("NOT_REQUESTED");
+        it("should revert if requestWithdraw() is called just before withdraw", async () => {
+          await expect(withdrawRequestsTest({
+              deposits: [{amountToDeposit: "1"}],
+              makeWithdrawRequestsJustBeforeWithdraw: true
+            })
+          ).revertedWith("NOT_REQUESTED");
         });
         it("should revert if withdraw is called too early", async () => {
           await expect(withdrawRequestsTest({
-            deposit:{ amountToDeposit: "1"},
+            deposits: [{amountToDeposit: "1"}],
             withdrawRequestBlocks: 5,
             countBlocks: 4 // (!) too early
           })).revertedWith("NOT_REQUESTED");
@@ -675,7 +692,7 @@ describe("Tetu Vault V2 tests", function () {
       describe("withdraw max amount, receiver == owner", () => {
         it("should return expected amount, single withdraw, countBlocks == withdrawRequestBlocks", async () => {
           const {receivedAmount} = await withdrawRequestsTest({
-            deposit:{ amountToDeposit: "10"},
+            deposits: [{amountToDeposit: "10"}],
             withdrawRequestBlocks: 5,
             countBlocks: 6, // (!) > withdrawRequestBlocks
             withdraws: [{amountToWithdraw: "MAX"}]
@@ -684,7 +701,7 @@ describe("Tetu Vault V2 tests", function () {
         });
         it("should return expected amount, two withdraws, countBlocks == withdrawRequestBlocks", async () => {
           const {receivedAmount} = await withdrawRequestsTest({
-            deposit:{ amountToDeposit: "10"},
+            deposits: [{amountToDeposit: "10"}],
             withdrawRequestBlocks: 5,
             countBlocks: 6, // (!) > withdrawRequestBlocks
             withdraws: [{amountToWithdraw: "5", countBlocks: 5}, {amountToWithdraw: "MAX"}]
@@ -693,23 +710,23 @@ describe("Tetu Vault V2 tests", function () {
         });
         it("should return expected amount, countBlocks > withdrawRequestBlocks", async () => {
           const {receivedAmount} = await withdrawRequestsTest({
-            deposit:{ amountToDeposit: "10"},
+            deposits: [{amountToDeposit: "10"}],
             withdrawRequestBlocks: 5,
             countBlocks: 6, // (!) > withdrawRequestBlocks
             withdraws: [{amountToWithdraw: "MAX"}]
           });
           expect(receivedAmount).eq(10);
         });
-        it.skip("should revert if requestWithdraw() is not called", async () => {
+        it("should revert if requestWithdraw() is called just before withdraw", async () => {
           await expect(withdrawRequestsTest({
-            deposit:{ amountToDeposit: "1"},
-            skipWithdrawRequests: true,
+            deposits: [{amountToDeposit: "10"}],
+            makeWithdrawRequestsJustBeforeWithdraw: true,
             withdraws: [{amountToWithdraw: "10"}]
           })).revertedWith("NOT_REQUESTED");
         });
         it("should revert if withdraw is called too early", async () => {
           await expect(withdrawRequestsTest({
-            deposit:{ amountToDeposit: "1"},
+            deposits: [{amountToDeposit: "1"}],
             withdrawRequestBlocks: 5,
             countBlocks: 4, // (!) too early
             withdraws: [{amountToWithdraw: "MAX"}]
@@ -717,12 +734,12 @@ describe("Tetu Vault V2 tests", function () {
         });
         it("should revert if second withdraw is called too early", async () => {
           await expect(withdrawRequestsTest({
-            deposit:{ amountToDeposit: "10"},
+            deposits: [{amountToDeposit: "10"}],
             withdrawRequestBlocks: 5,
             countBlocks: 15,
             withdraws: [
               {amountToWithdraw: "5", countBlocks: 1}, // (!) too early
-              {amountToWithdraw: "MAX", },
+              {amountToWithdraw: "MAX",},
             ]
           })).revertedWith("NOT_REQUESTED");
         });
@@ -744,7 +761,7 @@ describe("Tetu Vault V2 tests", function () {
            */
           it("should return expected amount, single withdraw, countBlocks == withdrawRequestBlocks", async () => {
             await expect(withdrawRequestsTest({
-              deposit:{ amountToDeposit: "10"},
+              deposits: [{amountToDeposit: "10"}],
               withdrawRequestBlocks: 5,
               countBlocks: 0, // (!)
               withdraws: [{amountToWithdraw: "MAX", withdrawReceiver: RECEIVER_ADDRESS}],
@@ -772,10 +789,10 @@ describe("Tetu Vault V2 tests", function () {
            */
           it("should return expected amount, single withdraw, countBlocks == withdrawRequestBlocks", async () => {
             await expect(withdrawRequestsTest({
-              deposit: {
+              deposits: [{
                 amountToDeposit: "10",
                 depositor: SECOND_ACCOUNT
-              },
+              }],
               withdrawRequestBlocks: 5,
               countBlocks: 0, // (!)
               withdraws: [{
@@ -788,6 +805,37 @@ describe("Tetu Vault V2 tests", function () {
                 countBlocks: 5
               }
             })).revertedWith("NOT_REQUESTED");
+          });
+        });
+
+        describe("A withdraws to S, S is not allowed to withdraw at this moment", () => {
+          const SECOND_ACCOUNT = ethers.Wallet.createRandom().address;
+
+          /**
+           *  "A" makes deposit on account of "S" and immediately withdraw amount from his account in favor of "S"
+           *
+           *  Deposit: A => S (depositor => receiver)
+           *  Withdraw: A => A => S (signer => owner => receiver)
+           */
+          it("should withdraw successfully", async () => {
+            const {receivedAmount} = await withdrawRequestsTest({
+              deposits: [
+                {amountToDeposit: "10", depositor: SECOND_ACCOUNT, receiver: SECOND_ACCOUNT, countBlocks: 5},
+                {amountToDeposit: "10"}, // signer => signer
+              ],
+              withdrawRequestBlocks: 5,
+              countBlocks: 0,
+              withdraws: [{
+                amountToWithdraw: "MAX",
+                withdrawOwner: SECOND_ACCOUNT,
+                withdrawCaller: SECOND_ACCOUNT
+              }],
+              actionsBefore: {
+                requestWithdrawCallers: [SECOND_ACCOUNT],
+                countBlocks: 5
+              }
+            });
+            expect(receivedAmount).eq(10);
           });
         });
       });
