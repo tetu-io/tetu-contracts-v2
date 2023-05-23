@@ -106,10 +106,12 @@ abstract contract ERC4626Upgradeable is ERC20PermitUpgradeable, ReentrancyGuard,
     if (msg.sender != owner) {
       uint allowed = _allowances[owner][msg.sender];
       // Saves gas for limited approvals.
-      if (allowed != type(uint).max) _allowances[owner][msg.sender] = allowed - shares;
+      if (allowed != type(uint).max) {
+        _allowances[owner][msg.sender] = allowed - shares;
+      }
     }
 
-    beforeWithdraw(assets, shares, receiver);
+    beforeWithdraw(assets, shares, owner);
 
     _burn(owner, shares);
 
@@ -129,14 +131,16 @@ abstract contract ERC4626Upgradeable is ERC20PermitUpgradeable, ReentrancyGuard,
     if (msg.sender != owner) {
       uint allowed = _allowances[owner][msg.sender];
       // Saves gas for limited approvals.
-      if (allowed != type(uint).max) _allowances[owner][msg.sender] = allowed - shares;
+      if (allowed != type(uint).max) {
+        _allowances[owner][msg.sender] = allowed - shares;
+      }
     }
 
     assets = previewRedeem(shares);
     // Check for rounding error since we round down in previewRedeem.
     require(assets != 0, "ZERO_ASSETS");
 
-    beforeWithdraw(assets, shares, receiver);
+    beforeWithdraw(assets, shares, owner);
 
     _burn(owner, shares);
 
@@ -208,8 +212,10 @@ abstract contract ERC4626Upgradeable is ERC20PermitUpgradeable, ReentrancyGuard,
   //                INTERNAL HOOKS LOGIC
   ///////////////////////////////////////////////////////////////
 
-  function beforeWithdraw(uint assets, uint shares, address receiver) internal virtual {}
+  /// @param owner The owner of the amount to be withdrawn
+  function beforeWithdraw(uint assets, uint shares, address owner) internal virtual {}
 
+  /// @param receiver The receiver of the shares received after deposit
   function afterDeposit(uint assets, uint shares, address receiver) internal virtual {}
 
   /**

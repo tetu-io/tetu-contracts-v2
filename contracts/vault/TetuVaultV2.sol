@@ -58,9 +58,11 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
 
   /// @dev Trigger doHardwork on invest action. Enabled by default.
   bool public doHardWorkOnInvest;
+
   /// @dev msg.sender => block when request sent. Should be cleared on deposit/withdraw action
   ///      For simplification we are setup new withdraw request on each deposit/transfer
   mapping(address => uint) public withdrawRequests;
+
   /// @dev A user should wait this block amounts before able to withdraw.
   uint public withdrawRequestBlocks;
 
@@ -357,17 +359,14 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   }
 
   /// @dev Internal hook for getting necessary assets from splitter.
-  function beforeWithdraw(
-    uint assets,
-    uint shares,
-    address receiver
-  ) internal override {
+  function beforeWithdraw(uint assets, uint shares, address owner_) internal override {
     // check withdraw request if necessary
     uint _withdrawRequestBlocks = withdrawRequestBlocks;
     if (_withdrawRequestBlocks != 0) {
-      uint wr = withdrawRequests[receiver];
+      // ensure that at least {_withdrawRequestBlocks} blocks were passed since last deposit/withdraw of the owner
+      uint wr = withdrawRequests[owner_];
       require(wr != 0 && wr + _withdrawRequestBlocks < block.number, "NOT_REQUESTED");
-      withdrawRequests[receiver] = block.number;
+      withdrawRequests[owner_] = block.number;
     }
 
     uint _withdrawFee = withdrawFee;

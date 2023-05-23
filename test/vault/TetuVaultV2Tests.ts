@@ -5,7 +5,7 @@ import {ethers} from "hardhat";
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {
-  ControllerMinimal,
+  ControllerMinimal, IERC20__factory,
   MockGauge,
   MockGauge__factory,
   MockSplitter,
@@ -586,18 +586,25 @@ describe("Tetu Vault V2 tests", function () {
               await vault.connect(await Misc.impersonate(caller)).requestWithdraw();
             }
           }
-          await TimeUtils.advanceNBlocks(p.actionsBefore.countBlocks || 5);
+          console.log("advance blocks 1", p.actionsBefore.countBlocks);
+          await TimeUtils.advanceNBlocks(p.actionsBefore.countBlocks ?? 5);
         }
 
         // Signer deposits to vault
-        const depositor = p.deposit.depositor || signer.address;
-        await vault.connect(await Misc.impersonate(depositor)).deposit(parseUnits(p.deposit.amountToDeposit, 6), signer.address);
+        const depositor = await Misc.impersonate(p.deposit.depositor || signer.address);
+        const amountToDeposit = parseUnits(p.deposit.amountToDeposit, 6);
+        if (depositor.address !== signer.address) {
+          await usdc.mint(depositor.address, amountToDeposit);
+          await usdc.connect(depositor).approve(vault.address, amountToDeposit);
+        }
+        await vault.connect(depositor).deposit(amountToDeposit, signer.address);
 
         // requestWithdraw and advance blocks
         if (! p.skipWithdrawRequests) {
           await vault.requestWithdraw();
         }
-        await TimeUtils.advanceNBlocks(p.countBlocks || 5);
+        console.log("advance blocks 2", p.countBlocks);
+        await TimeUtils.advanceNBlocks(p.countBlocks ?? 5);
 
         // Signer withdraws from vault
 
@@ -614,7 +621,7 @@ describe("Tetu Vault V2 tests", function () {
               : parseUnits(w.amountToWithdraw, 6);
             console.log("Amount to withdraw", amount);
             if (owner !== caller) {
-              await vault.approve(caller, amount);
+              await vault.connect(await Misc.impersonate(owner)).approve(caller, amount);
             }
 
             const balanceBefore = await usdc.balanceOf(receiver);
@@ -623,6 +630,7 @@ describe("Tetu Vault V2 tests", function () {
             receivedAmount += +formatUnits(balanceAfter.sub(balanceBefore), 6);
 
             if (w.countBlocks) {
+              console.log("advance blocks 3", w.countBlocks);
               await TimeUtils.advanceNBlocks(w.countBlocks);
             }
           }
@@ -732,7 +740,7 @@ describe("Tetu Vault V2 tests", function () {
            *  Deposit: S => S (depositor => receiver)
            *  Withdraw: S => S => R* (signer => owner => receiver)
            *
-           *  R* is prepared (requestWithdraw is called 5 blocks before depositting)
+           *  R* is prepared (requestWithdraw is called 5 blocks before depositing)
            */
           it("should return expected amount, single withdraw, countBlocks == withdrawRequestBlocks", async () => {
             await expect(withdrawRequestsTest({
@@ -741,7 +749,8 @@ describe("Tetu Vault V2 tests", function () {
               countBlocks: 0, // (!)
               withdraws: [{amountToWithdraw: "MAX", withdrawReceiver: RECEIVER_ADDRESS}],
               actionsBefore: {
-                requestWithdrawCallers: [RECEIVER_ADDRESS]
+                requestWithdrawCallers: [RECEIVER_ADDRESS],
+                countBlocks: 5
               }
             })).revertedWith("NOT_REQUESTED");
           });
@@ -759,7 +768,7 @@ describe("Tetu Vault V2 tests", function () {
            *  Deposit: A => S (depositor => receiver)
            *  Withdraw: A => S => A* (signer => owner => receiver)
            *
-           *  A* is prepared (requestWithdraw is called 5 blocks before depositting)
+           *  A* is prepared (requestWithdraw is called 5 blocks before depositing)
            */
           it("should return expected amount, single withdraw, countBlocks == withdrawRequestBlocks", async () => {
             await expect(withdrawRequestsTest({
@@ -769,9 +778,14 @@ describe("Tetu Vault V2 tests", function () {
               },
               withdrawRequestBlocks: 5,
               countBlocks: 0, // (!)
-              withdraws: [{amountToWithdraw: "MAX", withdrawReceiver: SECOND_ACCOUNT, withdrawCaller: SECOND_ACCOUNT}],
+              withdraws: [{
+                amountToWithdraw: "MAX",
+                withdrawReceiver: SECOND_ACCOUNT,
+                withdrawCaller: SECOND_ACCOUNT
+              }],
               actionsBefore: {
-                requestWithdrawCallers: [SECOND_ACCOUNT]
+                requestWithdrawCallers: [SECOND_ACCOUNT],
+                countBlocks: 5
               }
             })).revertedWith("NOT_REQUESTED");
           });
