@@ -11,10 +11,10 @@ import "./../lib/StringLib.sol";
 
 /// @title Gelato resolver for distribute pending tokens in ForwarderV3
 /// @author belbix
-contract ForwarderDistributeResolver is ControllableV3{
+contract ForwarderDistributeResolver is ControllableV3 {
   // --- CONSTANTS ---
 
-  string public constant VERSION = "1.0.1";
+  string public constant VERSION = "1.0.2";
   uint public constant DELAY_RATE_DENOMINATOR = 100_000;
 
   // --- VARIABLES ---
@@ -100,13 +100,14 @@ contract ForwarderDistributeResolver is ControllableV3{
 
   function isReadyToDistribute(address vault, IForwarder _forwarder, ITetuLiquidator _liquidator, address tetu, uint threshold) public view returns (bool) {
     uint rtLength = _forwarder.tokenPerDestinationLength(vault);
-    uint tetuAmountOut;
     for (uint i; i < rtLength; ++i) {
       address rt = _forwarder.tokenPerDestinationAt(vault, i);
       uint rtAmount = _forwarder.amountPerDestination(rt, vault);
-      tetuAmountOut += _liquidator.getPrice(rt, tetu, rtAmount);
+      if (_liquidator.getPrice(rt, tetu, rtAmount) > threshold) {
+        return true;
+      }
     }
-    return tetuAmountOut > threshold;
+    return false;
   }
 
   function call(address[] memory _vaults) external returns (uint amountOfCalls) {
@@ -156,7 +157,8 @@ contract ForwarderDistributeResolver is ControllableV3{
     IForwarder _forwarder = forwarder;
     ITetuLiquidator _liquidator = liquidator;
     address tetu = _forwarder.tetu();
-    uint threshold = _forwarder.tetuThreshold();
+    // use double threshold for not so frequent calls, assume distribution should be called by hard works
+    uint threshold = _forwarder.tetuThreshold() * 2;
     uint counter;
     for (uint i; i < vaultsLength; ++i) {
       address vault = _controller.vaults(i);
