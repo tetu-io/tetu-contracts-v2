@@ -33,12 +33,12 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   uint public constant HISTORY_DEEP = 3;
   /// @dev Time lock for adding new strategies.
   uint public constant TIME_LOCK = 18 hours;
-  /// @dev 0.1% of max loss for strategy TVL
-  uint public constant INVEST_LOSS_TOLERANCE = 100;
-  /// @dev 0.3%  of max loss for strategy TVL
-  uint public constant WITHDRAW_LOSS_TOLERANCE = 300;
-  /// @dev 0.03% of max loss for strategy TVL
-  uint public constant HARDWORK_LOSS_TOLERANCE = 30;
+  /// @dev 0.5% of max loss for strategy TVL
+  uint public constant INVEST_LOSS_TOLERANCE = 500;
+  /// @dev 0.5%  of max loss for strategy TVL
+  uint public constant WITHDRAW_LOSS_TOLERANCE = 500;
+  /// @dev 0.5% of max loss for strategy TVL
+  uint public constant HARDWORK_LOSS_TOLERANCE = 500;
 
 
   // *********************************************
