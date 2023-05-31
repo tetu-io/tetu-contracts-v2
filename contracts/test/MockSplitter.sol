@@ -23,6 +23,10 @@ contract MockSplitter is ISplitter, ControllableV3 {
     vault = _vault;
   }
 
+  function coverPossibleStrategyLoss(uint /*earned*/, uint /*lost*/) external pure {
+    // noop
+  }
+
   function pauseInvesting(address strategy) external {
     require(!pausedStrategies[strategy], "SS: Paused");
     pausedStrategies[strategy] = true;
