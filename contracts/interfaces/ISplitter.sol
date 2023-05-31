@@ -11,6 +11,8 @@ interface ISplitter {
 
   function withdrawToVault(uint256 amount) external;
 
+  function coverPossibleStrategyLoss(uint earned, uint lost) external;
+
   function doHardWork() external;
 
   function investAll() external;
@@ -29,11 +31,11 @@ interface ISplitter {
 
   function strategiesLength() external view returns (uint);
 
-  function HARDWORK_DELAY() external view returns(uint);
+  function HARDWORK_DELAY() external view returns (uint);
 
-  function lastHardWorks(address strategy) external view returns(uint);
+  function lastHardWorks(address strategy) external view returns (uint);
 
-  function pausedStrategies(address strategy) external view returns(bool);
+  function pausedStrategies(address strategy) external view returns (bool);
 
   function pauseInvesting(address strategy) external;
 

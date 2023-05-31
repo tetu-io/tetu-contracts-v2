@@ -24,7 +24,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   // *********************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant SPLITTER_VERSION = "2.0.6";
+  string public constant SPLITTER_VERSION = "2.1.0";
   /// @dev APR denominator. Represent 100% APR.
   uint public constant APR_DENOMINATOR = 100_000;
   /// @dev Delay between hardwork calls for a strategy.
@@ -33,12 +33,12 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   uint public constant HISTORY_DEEP = 3;
   /// @dev Time lock for adding new strategies.
   uint public constant TIME_LOCK = 18 hours;
-  /// @dev 1% of max loss for strategy TVL
-  uint public constant INVEST_LOSS_TOLERANCE = 1_000;
-  /// @dev 10%  of max loss for strategy TVL
-  uint public constant WITHDRAW_LOSS_TOLERANCE = 10_000;
-  /// @dev 5%  of max loss for strategy TVL
-  uint public constant HARDWORK_LOSS_TOLERANCE = 5_000;
+  /// @dev 0.5% of max loss for strategy TVL
+  uint public constant INVEST_LOSS_TOLERANCE = 500;
+  /// @dev 0.5%  of max loss for strategy TVL
+  uint public constant WITHDRAW_LOSS_TOLERANCE = 500;
+  /// @dev 0.5% of max loss for strategy TVL
+  uint public constant HARDWORK_LOSS_TOLERANCE = 500;
 
 
   // *********************************************
@@ -67,6 +67,8 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   bool internal inited;
   /// @dev How much underlying can be invested to the strategy
   mapping(address => uint) public strategyCapacity;
+  /// @dev Return true for registered strategy
+  mapping(address => bool) public isValidStrategy;
 
   // *********************************************
   //                  EVENTS
@@ -249,8 +251,8 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
       require(IStrategyV2(strategy).asset() == asset, "SS: Wrong asset");
       require(IStrategyV2(strategy).splitter() == address(this), "SS: Wrong splitter");
       require(IControllable(strategy).isController(controller()), "SS: Wrong controller");
-      require(!_contains(existStrategies, strategy), "SS: Already exist");
       require(!_contains(addedStrategies, strategy), "SS: Duplicate");
+      require(!_contains(existStrategies, strategy) && !isValidStrategy[strategy], "SS: Already exist");
       require(IProxyControlled(strategy).implementation() != address(0), "SS: Wrong proxy");
       // allow add strategies without time lock only for the fist call (assume the splitter is new)
       if (_inited) {
@@ -263,6 +265,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
       }
       // ----------------------------
 
+      isValidStrategy[strategy] = true;
       strategies.push(strategy);
       _setStrategyAPR(strategy, apr);
       addedStrategies[i] = strategy;
@@ -304,6 +307,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     strategies.pop();
 
     _setStrategyAPR(strategy, 0);
+    delete isValidStrategy[strategy];
 
     // for expensive strategies should be called before removing
     // without loss covering
@@ -311,13 +315,27 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     emit StrategyRemoved(strategy);
   }
 
+  // *********************************************
+  //                OPERATOR ACTIONS
+  // *********************************************
+
+  /// @dev Valid strategies was added after initialisation. It is a way for refreshing them.
+  function refreshValidStrategies() external {
+    _onlyOperators();
+
+    uint length = strategies.length;
+    for (uint i = 0; i < length; i++) {
+      isValidStrategy[strategies[i]] = true;
+    }
+  }
+
   /// @dev Withdraw some percent from strategy with lowest APR and deposit to strategy with highest APR.
-  ///      Strict access because possible losses during deposit/withdraw.
   /// @param percent Range of 1-100
   /// @param lossTolerance Range of 0-100_000
   function rebalance(uint percent, uint lossTolerance) external {
-    _onlyGov();
+    _onlyOperators();
 
+    require(lossTolerance <= HARDWORK_LOSS_TOLERANCE, "SS: Too high tolerance");
     uint length = strategies.length;
     require(length > 1, "SS: Length");
     require(percent <= 100, "SS: Percent");
@@ -390,15 +408,12 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     );
   }
 
-  // *********************************************
-  //                OPERATOR ACTIONS
-  // *********************************************
-
   function setAPRs(address[] memory _strategies, uint[] memory aprs) external {
     _onlyOperators();
     require(_strategies.length == aprs.length, "WRONG_INPUT");
     for (uint i; i < aprs.length; i++) {
       address strategy = _strategies[i];
+      require(isValidStrategy[strategy], "SS: Invalid strategy");
       require(!pausedStrategies[strategy], "SS: Paused");
       uint oldAPR = strategiesAPR[strategy];
       _setStrategyAPR(strategy, aprs[i]);
@@ -411,6 +426,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   function pauseInvesting(address strategy) external {
     _onlyOperators();
     require(!pausedStrategies[strategy], "SS: Paused");
+    require(isValidStrategy[strategy], "SS: Invalid strategy");
 
     pausedStrategies[strategy] = true;
     uint oldAPR = strategiesAPR[strategy];
@@ -424,6 +440,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   function continueInvesting(address strategy, uint apr) external {
     _onlyOperators();
     require(pausedStrategies[strategy], "SS: Not paused");
+    require(isValidStrategy[strategy], "SS: Invalid strategy");
 
     pausedStrategies[strategy] = false;
     _setStrategyAPR(strategy, apr);
@@ -434,6 +451,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
   function setStrategyCapacity(address strategy, uint capacity) external {
     _onlyOperators();
+    require(isValidStrategy[strategy], "SS: Invalid strategy");
     strategyCapacity[strategy] = capacity;
     emit SetStrategyCapacity(strategy, capacity);
   }
@@ -534,6 +552,18 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   //                HARD WORKS
   // *********************************************
 
+  /// @dev Register profit/loss data for the strategy.
+  ///      Sender assume to be a registered strategy.
+  ///      Suppose to be used in actions where we updated assets price and need to cover the price diff gap.
+  function coverPossibleStrategyLoss(uint earned, uint lost) external override {
+    address strategy = msg.sender;
+    require(isValidStrategy[strategy], "SS: Invalid strategy");
+
+    uint tvl = IStrategyV2(strategy).totalAssets();
+    _declareStrategyIncomeAndCoverLoss(strategy, tvl, 0, earned, lost, false);
+  }
+
+
   /// @dev Call hard works for all strategies.
   function doHardWork() external override {
     _onlyOperatorsOrVault();
@@ -558,6 +588,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   /// @dev Call hard work for given strategy.
   function doHardWorkForStrategy(address strategy, bool push) external {
     _onlyOperators();
+    require(isValidStrategy[strategy], "SS: Invalid strategy");
 
     // prevent recursion
     require(!isHardWorking, "SS: Already in hard work");
@@ -574,9 +605,9 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
     if (
       (
-      lastHardWork + HARDWORK_DELAY < block.timestamp
-      && IStrategyV2(strategy).isReadyToHardWork()
-      && !pausedStrategies[strategy]
+        lastHardWork + HARDWORK_DELAY < block.timestamp
+        && IStrategyV2(strategy).isReadyToHardWork()
+        && !pausedStrategies[strategy]
       )
       || push
     ) {
@@ -584,18 +615,9 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
       uint tvl = IStrategyV2(strategy).totalAssets();
       if (tvl != 0) {
         (uint earned, uint lost) = IStrategyV2(strategy).doHardWork();
-        uint apr;
-        if (earned > lost) {
-          apr = computeApr(tvl, earned - lost, sinceLastHardWork);
-        }
-        uint lostForCovering = lost > earned ? lost - earned : 0;
-        if (lostForCovering > 0) {
-          _coverLoss(vault, lostForCovering, HARDWORK_LOSS_TOLERANCE, tvl);
-        }
 
-        strategiesAPRHistory[strategy].push(apr);
-        uint avgApr = averageApr(strategy);
-        strategiesAPR[strategy] = avgApr;
+        (uint apr, uint avgApr) = _declareStrategyIncomeAndCoverLoss(strategy, tvl, sinceLastHardWork, earned, lost, true);
+
         lastHardWorks[strategy] = block.timestamp;
 
         emit HardWork(
@@ -611,6 +633,31 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
       }
     }
     return false;
+  }
+
+  function _declareStrategyIncomeAndCoverLoss(
+    address strategy,
+    uint strategyTvl,
+    uint sinceLastHardWork,
+    uint earned,
+    uint lost,
+    bool registerApr
+  ) internal returns (uint apr, uint avgApr) {
+    apr = 0;
+    avgApr = 0;
+    uint lostForCovering = lost > earned ? lost - earned : 0;
+    if (lostForCovering > 0) {
+      _coverLoss(vault, lostForCovering, HARDWORK_LOSS_TOLERANCE, strategyTvl);
+    }
+
+    if (registerApr) {
+      if (earned > lost) {
+        apr = computeApr(strategyTvl, earned - lost, sinceLastHardWork);
+      }
+      strategiesAPRHistory[strategy].push(apr);
+      avgApr = averageApr(strategy);
+      strategiesAPR[strategy] = avgApr;
+    }
   }
 
   function averageApr(address strategy) public view returns (uint) {
@@ -718,8 +765,9 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
   function _coverLoss(address _vault, uint amount, uint lossTolerance, uint strategyBalance) internal {
     if (amount != 0) {
-      ITetuVaultV2(_vault).coverLoss(amount);
+      require(strategyBalance != 0, "SS: Strategy balance should not be zero");
       require(amount * 100_000 / strategyBalance <= lossTolerance, "SS: Loss too high");
+      ITetuVaultV2(_vault).coverLoss(amount);
     }
   }
 
