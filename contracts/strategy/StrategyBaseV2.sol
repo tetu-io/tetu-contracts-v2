@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "../openzeppelin/SafeERC20.sol";
-import "../openzeppelin/Math.sol";
 import "../interfaces/IStrategyV2.sol";
 import "../interfaces/ISplitter.sol";
 import "../interfaces/IForwarder.sol";
@@ -19,9 +17,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant STRATEGY_BASE_VERSION = "2.2.5";
-  /// @dev Denominator for compound ratio
-  uint internal constant COMPOUND_DENOMINATOR = 100_000;
+  string public constant STRATEGY_BASE_VERSION = "2.3.0";
   /// @notice 10% of total profit is sent to {performanceReceiver} before compounding
   uint internal constant DEFAULT_PERFORMANCE_FEE = 10_000;
   address internal constant DEFAULT_PERF_FEE_RECEIVER = 0x9Cc199D4353b5FB3e6C8EEBC99f5139e0d8eA06b;
@@ -51,22 +47,6 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   string public override strategySpecificName;
 
   // *************************************************************
-  //                        EVENTS
-  // *************************************************************
-
-  event WithdrawAllToSplitter(uint amount);
-  event WithdrawToSplitter(uint amount, uint sent, uint balance);
-  event EmergencyExit(address sender, uint amount);
-  event ManualClaim(address sender);
-  event InvestAll(uint balance);
-  event DepositToPool(uint amount);
-  event WithdrawFromPool(uint amount);
-  event WithdrawAllFromPool(uint amount);
-  event Claimed(address token, uint amount);
-  event CompoundRatioChanged(uint oldValue, uint newValue);
-  event StrategySpecificNameChanged(string name);
-
-  // *************************************************************
   //                        INIT
   // *************************************************************
 
@@ -92,10 +72,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   // *************************************************************
   /// @notice Set performance fee and receiver
   function setupPerformanceFee(uint fee_, address receiver_) external {
-    StrategyLib.onlyGovernance(controller());
-    require(fee_ <= 100_000, StrategyLib.TOO_HIGH);
-    require(receiver_ != address(0), StrategyLib.WRONG_VALUE);
-
+    StrategyLib._checkSetupPerformanceFee(controller(), fee_, receiver_);
     performanceFee = fee_;
     performanceReceiver = receiver_;
   }
@@ -121,9 +98,7 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   /// @dev PlatformVoter can change compound ratio for some strategies.
   ///      A strategy can implement another logic for some uniq cases.
   function setCompoundRatio(uint value) external virtual override {
-    StrategyLib.onlyPlatformVoter(controller());
-    require(value <= COMPOUND_DENOMINATOR, StrategyLib.TOO_HIGH);
-    emit CompoundRatioChanged(compoundRatio, value);
+    StrategyLib._checkCompoundRatioChanged(controller(), compoundRatio, value);
     compoundRatio = value;
   }
 
@@ -132,30 +107,23 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   // *************************************************************
 
   /// @dev The name will be used for UI.
-  function setStrategySpecificName(string memory name) external {
-    StrategyLib.onlyOperators(controller());
+  function setStrategySpecificName(string calldata name) external {
+    StrategyLib._checkStrategySpecificNameChanged(controller(), name);
     strategySpecificName = name;
-    emit StrategySpecificNameChanged(name);
   }
 
   /// @dev In case of any issue operator can withdraw all from pool.
   function emergencyExit() external {
-    StrategyLib.onlyOperators(controller());
+    // check inside lib call
 
     _emergencyExitFromPool();
-
-    address _asset = asset;
-    uint balance = IERC20(_asset).balanceOf(address(this));
-    IERC20(_asset).safeTransfer(splitter, balance);
-    emit EmergencyExit(msg.sender, balance);
+    StrategyLib.sendOnEmergencyExit(controller(), asset, splitter);
   }
 
   /// @dev Manual claim rewards.
   function claim() external {
-    StrategyLib.onlyOperators(controller());
-
+    StrategyLib._checkManualClaim(controller());
     _claim();
-    emit ManualClaim(msg.sender);
   }
 
   // *************************************************************
@@ -173,14 +141,11 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   ) external override returns (
     uint strategyLoss
   ) {
-    StrategyLib.onlySplitter(splitter);
-
-    uint balance = IERC20(asset).balanceOf(address(this));
+    uint balance = StrategyLib._checkInvestAll(splitter, asset);
 
     if (balance > 0) {
       strategyLoss = _depositToPool(balance, updateTotalAssetsBeforeInvest_);
     }
-    emit InvestAll(balance);
 
     return strategyLoss;
   }
@@ -190,25 +155,18 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   function withdrawAllToSplitter() external override returns (uint strategyLoss) {
     address _splitter = splitter;
     address _asset = asset;
-    StrategyLib.onlySplitter(_splitter);
 
-    uint balance = IERC20(_asset).balanceOf(address(this));
+    uint balance = StrategyLib._checkSplitterSenderAndGetBalance(_splitter, _asset);
 
     (uint expectedWithdrewUSD, uint assetPrice, uint _strategyLoss) = _withdrawAllFromPool();
 
-    balance = StrategyLib.checkWithdrawImpact(
+    StrategyLib._withdrawAllToSplitterPostActions(
       _asset,
       balance,
       expectedWithdrewUSD,
       assetPrice,
       _splitter
     );
-
-    if (balance != 0) {
-      IERC20(_asset).safeTransfer(_splitter, balance);
-    }
-    emit WithdrawAllToSplitter(balance);
-
     return _strategyLoss;
   }
 
@@ -217,10 +175,9 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
   function withdrawToSplitter(uint amount) external override returns (uint strategyLoss) {
     address _splitter = splitter;
     address _asset = asset;
-    StrategyLib.onlySplitter(_splitter);
 
+    uint balance = StrategyLib._checkSplitterSenderAndGetBalance(_splitter, _asset);
 
-    uint balance = IERC20(_asset).balanceOf(address(this));
     if (amount > balance) {
       uint expectedWithdrewUSD;
       uint assetPrice;
@@ -235,12 +192,12 @@ abstract contract StrategyBaseV2 is IStrategyV2, ControllableV3 {
       );
     }
 
-    uint amountAdjusted = Math.min(amount, balance);
-    if (amountAdjusted != 0) {
-      IERC20(_asset).safeTransfer(_splitter, amountAdjusted);
-    }
-    emit WithdrawToSplitter(amount, amountAdjusted, balance);
-
+    StrategyLib._withdrawToSplitterPostActions(
+      amount,
+      balance,
+      _asset,
+      _splitter
+    );
     return strategyLoss;
   }
 
