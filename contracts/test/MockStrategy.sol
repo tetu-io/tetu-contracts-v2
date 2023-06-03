@@ -44,7 +44,7 @@ contract MockStrategy is StrategyBaseV2 {
       IERC20(asset).transfer(controller(), _slippage);
     }
     if (lastEarned != 0) {
-      uint toCompound = lastEarned * compoundRatio / COMPOUND_DENOMINATOR;
+      uint toCompound = lastEarned * compoundRatio / StrategyLib.COMPOUND_DENOMINATOR;
       MockToken(asset).mint(address(this), toCompound);
       address forwarder = IController(controller()).forwarder();
       if (forwarder != address(0)) {
