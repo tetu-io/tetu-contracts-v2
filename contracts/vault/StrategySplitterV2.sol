@@ -24,7 +24,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   // *********************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant SPLITTER_VERSION = "2.1.0";
+  string public constant SPLITTER_VERSION = "2.1.1";
   /// @dev APR denominator. Represent 100% APR.
   uint public constant APR_DENOMINATOR = 100_000;
   /// @dev Delay between hardwork calls for a strategy.
@@ -39,7 +39,6 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   uint public constant WITHDRAW_LOSS_TOLERANCE = 500;
   /// @dev 0.5% of max loss for strategy TVL
   uint public constant HARDWORK_LOSS_TOLERANCE = 500;
-
 
   // *********************************************
   //                 VARIABLES
@@ -563,7 +562,6 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     _declareStrategyIncomeAndCoverLoss(strategy, tvl, 0, earned, lost, false);
   }
 
-
   /// @dev Call hard works for all strategies.
   function doHardWork() external override {
     _onlyOperatorsOrVault();
@@ -574,6 +572,9 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     uint length = strategies.length;
     bool needReorder;
     for (uint i = 0; i < length; i++) {
+      if (pausedStrategies[strategies[i]]) {
+        continue;
+      }
       bool result = _doHardWorkForStrategy(strategies[i], false);
       if (result) {
         needReorder = true;
