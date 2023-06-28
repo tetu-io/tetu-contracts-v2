@@ -7,10 +7,16 @@ import "../interfaces/IERC20.sol";
 import "../interfaces/IVeTetu.sol";
 import "../openzeppelin/SafeERC20.sol";
 import "../openzeppelin/ReentrancyGuard.sol";
+import "../interfaces/IBVault.sol";
 
 contract DepositHelper is ReentrancyGuard {
   using SafeERC20 for IERC20;
 
+  address public constant BALANCER_VAULT = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
+  bytes32 public constant BALANCER_POOL_ID = 0xe2f706ef1f7240b803aae877c9c762644bb808d80002000000000000000008c2; // poolId of 80TETU-20USDC
+  address public constant BALANCER_POOL_TOKEN = 0xE2f706EF1f7240b803AAe877C9C762644bb808d8; // 80TETU-20USDC
+  address public constant ASSET0 = 0x255707B70BF90aa112006E1b07B9AeA6De021424; // TETU
+  address public constant ASSET1 = 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174; // USDC
   address public immutable oneInchRouter;
 
   constructor(address _oneInchRouter) {
@@ -117,6 +123,51 @@ contract DepositHelper is ReentrancyGuard {
     return balance;
   }
 
+  function convertAndCreateLock(
+    bytes memory asset0SwapData,
+    bytes memory asset1SwapData,
+    address tokenIn,
+    uint amountIn,
+    IVeTetu ve,
+    uint lockDuration
+  ) external nonReentrant returns (
+    uint tokenId,
+    uint lockedAmount,
+    uint power,
+    uint unlockDate
+  ) {
+    IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
+
+    _approveIfNeeds(tokenIn, amountIn, oneInchRouter);
+    if (tokenIn != ASSET0) {
+      (bool success,bytes memory result) = oneInchRouter.call(asset0SwapData);
+      require(success, string(result));
+    }
+
+    if (tokenIn != ASSET1) {
+      (bool success,bytes memory result) = oneInchRouter.call(asset0SwapData);
+      require(success, string(result));
+    }
+
+    // add liquidity
+    joinBalancerPool(BALANCER_VAULT, BALANCER_POOL_ID, ASSET0, ASSET1, IERC20(ASSET0).balanceOf(address(this)), IERC20(ASSET1).balanceOf(address(this)));
+
+    uint bptBalance = IERC20(BALANCER_POOL_TOKEN).balanceOf(address(this));
+
+    _approveIfNeeds(BALANCER_POOL_TOKEN, bptBalance, address(ve));
+    tokenId = ve.createLockFor(BALANCER_POOL_TOKEN, bptBalance, lockDuration, msg.sender);
+
+    lockedAmount = ve.lockedAmounts(tokenId, BALANCER_POOL_TOKEN);
+    power = ve.balanceOfNFT(tokenId);
+    unlockDate = ve.lockedEnd(tokenId);
+
+    // send back possible tokens
+    uint balance = IERC20(tokenIn).balanceOf(address(this));
+    if (balance != 0) {
+      IERC20(tokenIn).safeTransfer(msg.sender, balance);
+    }
+  }
+
   function createLock(IVeTetu ve, address token, uint value, uint lockDuration) external nonReentrant returns (
     uint tokenId,
     uint lockedAmount,
@@ -163,5 +214,32 @@ contract DepositHelper is ReentrancyGuard {
       IERC20(token).safeApprove(spender, 0);
       IERC20(token).safeApprove(spender, type(uint).max);
     }
+  }
+
+  function joinBalancerPool(address _bVault, bytes32 _poolId, address _token0, address _token1, uint _amount0, uint _amount1) internal {
+    require(_amount0 != 0 || _amount1 != 0, "ZC: zero amounts");
+
+    _approveIfNeeds(_token0, _amount0, _bVault);
+    _approveIfNeeds(_token1, _amount1, _bVault);
+
+    IAsset[] memory _poolTokens = new IAsset[](2);
+    _poolTokens[0] = IAsset(_token0);
+    _poolTokens[1] = IAsset(_token1);
+
+    uint[] memory amounts = new uint[](2);
+    amounts[0] = _amount0;
+    amounts[1] = _amount1;
+
+    IBVault(_bVault).joinPool(
+      _poolId,
+      address(this),
+      address(this),
+      IBVault.JoinPoolRequest({
+    assets : _poolTokens,
+    maxAmountsIn : amounts,
+    userData : abi.encode(1, amounts, 1),
+    fromInternalBalance : false
+    })
+    );
   }
 }
