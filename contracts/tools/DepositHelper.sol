@@ -145,7 +145,7 @@ contract DepositHelper is ReentrancyGuard {
     }
 
     if (tokenIn != ASSET1) {
-      (bool success,bytes memory result) = oneInchRouter.call(asset0SwapData);
+      (bool success,bytes memory result) = oneInchRouter.call(asset1SwapData);
       require(success, string(result));
     }
 
@@ -165,6 +165,16 @@ contract DepositHelper is ReentrancyGuard {
     uint balance = IERC20(tokenIn).balanceOf(address(this));
     if (balance != 0) {
       IERC20(tokenIn).safeTransfer(msg.sender, balance);
+    }
+
+    balance = IERC20(ASSET0).balanceOf(address(this));
+    if (balance != 0) {
+      IERC20(ASSET0).safeTransfer(msg.sender, balance);
+    }
+
+    balance = IERC20(ASSET1).balanceOf(address(this));
+    if (balance != 0) {
+      IERC20(ASSET1).safeTransfer(msg.sender, balance);
     }
   }
 
