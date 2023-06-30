@@ -1,7 +1,7 @@
 import {ethers, web3} from "hardhat";
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
-import {DepositHelper, IERC20__factory, MockToken, MockVault, VeTetu} from "../../typechain";
+import { DepositHelper, IERC20__factory, MockToken, MockVault, VeTetu, VeTetu__factory } from '../../typechain';
 import {TimeUtils} from "../TimeUtils";
 import {expect} from "chai";
 import fetch from "node-fetch";
@@ -41,7 +41,7 @@ describe("Deposit helper Tests poly", function () {
     vault = await DeployerUtils.deployMockVault(signer, controller.address, vaultAsset, 'V', strategy.address, 1);
     helper = await DeployerUtils.deployContract(signer, 'DepositHelper', PolygonAddresses.ONE_INCH_ROUTER_V5) as DepositHelper;
 
-    ve = await DeployerUtils.deployVeTetu(signer, tetu.address, controller.address);
+    ve = await DeployerUtils.deployVeTetu(signer, PolygonAddresses.BALANCER_TETU_USDC, controller.address);
 
     await IERC20__factory.connect(vaultAsset, strategy).approve(vault.address, Misc.MAX_UINT);
   });
@@ -161,6 +161,180 @@ describe("Deposit helper Tests poly", function () {
     expect((await IERC20__factory.connect(tokenOut, signer).balanceOf(signer.address)).isZero()).eq(false);
   });
 
+  it("test convert and create lock", async () => {
+    if (hre.network.config.chainId !== 137) {
+      return;
+    }
+
+    const tokenIn = PolygonAddresses.USDT_TOKEN;
+    const amountIn = parseUnits('1', 6);
+    await TokenUtils.getToken(tokenIn, signer.address, parseUnits('2', 6))
+
+    let params = {
+      fromTokenAddress: tokenIn,
+      toTokenAddress: PolygonAddresses.TETU_TOKEN,
+      amount: amountIn.mul(8).div(10).toString(),
+      fromAddress: signer.address,
+      slippage: 1,
+      disableEstimate: true,
+      allowPartialFill: false,
+      destReceiver: helper.address,
+      referrerAddress: referrer.address,
+      fee: 3
+    };
+
+    const swapQuoteAsset0 = await buildTxForSwap(JSON.stringify(params));
+    console.log('1inch tx for swap tokenIn asset0: ', swapQuoteAsset0);
+
+    params = {
+      fromTokenAddress: tokenIn,
+      toTokenAddress: PolygonAddresses.USDC_TOKEN,
+      amount: amountIn.mul(2).div(10).toString(),
+      fromAddress: signer.address,
+      slippage: 1,
+      disableEstimate: true,
+      allowPartialFill: false,
+      destReceiver: helper.address,
+      referrerAddress: referrer.address,
+      fee: 3
+    };
+
+    const swapQuoteAsset1 = await buildTxForSwap(JSON.stringify(params));
+    console.log('1inch tx for swap tokenIn asset1: ', swapQuoteAsset1);
+
+    // ethers.utils.defaultAbiCoder.decode()
+    const balance = await IERC20__factory.connect(tokenIn, signer).balanceOf(signer.address)
+    console.log('token in balance', formatUnits(balance, 6))
+    expect(balance.gte(amountIn)).eq(true);
+
+    await IERC20__factory.connect(tokenIn, signer).approve(helper.address, Misc.MAX_UINT)
+    await expect(helper.convertAndCreateLock(
+      swapQuoteAsset0.data,
+      swapQuoteAsset1.data,
+      tokenIn,
+      amountIn,
+      ve.address,
+      60 * 60 * 24 * 30
+    ))
+
+    await helper.convertAndCreateLock(
+      swapQuoteAsset0.data,
+      swapQuoteAsset1.data,
+      tokenIn,
+      amountIn,
+      ve.address,
+      60 * 60 * 24 * 30
+    )
+
+    expect((await ve.balanceOf(signer.address)).isZero()).eq(false);
+    expect((await VeTetu__factory.connect(ve.address, signer).balanceOf(signer.address)).isZero()).eq(false);
+  });
+
+  it("test convert Tetu and create lock", async () => {
+    if (hre.network.config.chainId !== 137) {
+      return;
+    }
+
+    const tokenIn = PolygonAddresses.TETU_TOKEN;
+    const amountIn = parseUnits('1', 18);
+    await TokenUtils.getToken(tokenIn, signer.address, parseUnits('2', 18))
+
+    const params = {
+      fromTokenAddress: tokenIn,
+      toTokenAddress: PolygonAddresses.USDC_TOKEN,
+      amount: amountIn.mul(2).div(10).toString(),
+      fromAddress: signer.address,
+      slippage: 1,
+      disableEstimate: true,
+      allowPartialFill: false,
+      destReceiver: helper.address,
+      referrerAddress: referrer.address,
+      fee: 3
+    };
+
+    const swapQuoteAsset1 = await buildTxForSwap(JSON.stringify(params));
+    console.log('1inch tx for swap tokenIn asset1: ', swapQuoteAsset1);
+
+    // ethers.utils.defaultAbiCoder.decode()
+    const balance = await IERC20__factory.connect(tokenIn, signer).balanceOf(signer.address)
+    console.log('token in balance', formatUnits(balance, 18))
+    expect(balance.gte(amountIn)).eq(true);
+
+    await IERC20__factory.connect(tokenIn, signer).approve(helper.address, Misc.MAX_UINT)
+    await expect(helper.convertAndCreateLock(
+      swapQuoteAsset1.data,
+      swapQuoteAsset1.data,
+      tokenIn,
+      amountIn,
+      ve.address,
+      60 * 60 * 24 * 30
+    ))
+
+    await helper.convertAndCreateLock(
+      swapQuoteAsset1.data,
+      swapQuoteAsset1.data,
+      tokenIn,
+      amountIn,
+      ve.address,
+      60 * 60 * 24 * 30
+    )
+
+    expect((await ve.balanceOf(signer.address)).isZero()).eq(false);
+    expect((await VeTetu__factory.connect(ve.address, signer).balanceOf(signer.address)).isZero()).eq(false);
+  });
+
+  it("test convert Usdc and create lock", async () => {
+    if (hre.network.config.chainId !== 137) {
+      return;
+    }
+
+    const tokenIn = PolygonAddresses.USDC_TOKEN;
+    const amountIn = parseUnits('1', 6);
+    await TokenUtils.getToken(tokenIn, signer.address, parseUnits('2', 6))
+
+    const params = {
+      fromTokenAddress: tokenIn,
+      toTokenAddress: PolygonAddresses.TETU_TOKEN,
+      amount: amountIn.mul(8).div(10).toString(),
+      fromAddress: signer.address,
+      slippage: 1,
+      disableEstimate: true,
+      allowPartialFill: false,
+      destReceiver: helper.address,
+      referrerAddress: referrer.address,
+      fee: 3
+    };
+
+    const swapQuoteAsset0 = await buildTxForSwap(JSON.stringify(params));
+    console.log('1inch tx for swap tokenIn asset0: ', swapQuoteAsset0);
+
+    // ethers.utils.defaultAbiCoder.decode()
+    const balance = await IERC20__factory.connect(tokenIn, signer).balanceOf(signer.address)
+    console.log('token in balance', formatUnits(balance, 6))
+    expect(balance.gte(amountIn)).eq(true);
+
+    await IERC20__factory.connect(tokenIn, signer).approve(helper.address, Misc.MAX_UINT)
+    await expect(helper.convertAndCreateLock(
+      swapQuoteAsset0.data,
+      swapQuoteAsset0.data,
+      tokenIn,
+      amountIn,
+      ve.address,
+      60 * 60 * 24 * 30
+    ))
+
+    await helper.convertAndCreateLock(
+      swapQuoteAsset0.data,
+      swapQuoteAsset0.data,
+      tokenIn,
+      amountIn,
+      ve.address,
+      60 * 60 * 24 * 30
+    )
+
+    expect((await ve.balanceOf(signer.address)).isZero()).eq(false);
+    expect((await VeTetu__factory.connect(ve.address, signer).balanceOf(signer.address)).isZero()).eq(false);
+  });
 })
 
 function apiRequestUrl(methodName: string, queryParams: string) {
