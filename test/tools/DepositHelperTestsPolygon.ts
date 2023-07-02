@@ -230,7 +230,7 @@ describe("Deposit helper Tests poly", function () {
     expect((await VeTetu__factory.connect(ve.address, signer).balanceOf(signer.address)).isZero()).eq(false);
   });
 
-  it("test convert Tetu and create lock", async () => {
+  it("test convert TETU and create lock", async () => {
     if (hre.network.config.chainId !== 137) {
       return;
     }
@@ -283,7 +283,7 @@ describe("Deposit helper Tests poly", function () {
     expect((await VeTetu__factory.connect(ve.address, signer).balanceOf(signer.address)).isZero()).eq(false);
   });
 
-  it("test convert Usdc and create lock", async () => {
+  it("test convert USDC and create lock", async () => {
     if (hre.network.config.chainId !== 137) {
       return;
     }
@@ -334,6 +334,190 @@ describe("Deposit helper Tests poly", function () {
 
     expect((await ve.balanceOf(signer.address)).isZero()).eq(false);
     expect((await VeTetu__factory.connect(ve.address, signer).balanceOf(signer.address)).isZero()).eq(false);
+  });
+
+  it("test convert USDT and increase amount", async () => {
+    if (hre.network.config.chainId !== 137) {
+      return;
+    }
+    const bptAmount = parseUnits('1', 18);
+    await TokenUtils.getToken(PolygonAddresses.BALANCER_TETU_USDC, signer.address, bptAmount);
+
+    await IERC20__factory.connect(PolygonAddresses.BALANCER_TETU_USDC, signer).approve(helper.address, Misc.MAX_UINT)
+    await helper.createLock(ve.address, PolygonAddresses.BALANCER_TETU_USDC, bptAmount, 60 * 60 * 24 * 30);
+
+
+    const tokenId = await VeTetu__factory.connect(ve.address, signer).tokenId();
+    const oldLockedDerivedAmount = await VeTetu__factory.connect(ve.address, signer).lockedDerivedAmount(tokenId)
+
+    const tokenIn = PolygonAddresses.USDT_TOKEN;
+    const amountIn = parseUnits('1', 6);
+    await TokenUtils.getToken(tokenIn, signer.address, parseUnits('2', 6))
+
+    let params = {
+      fromTokenAddress: tokenIn,
+      toTokenAddress: PolygonAddresses.TETU_TOKEN,
+      amount: amountIn.mul(8).div(10).toString(),
+      fromAddress: signer.address,
+      slippage: 1,
+      disableEstimate: true,
+      allowPartialFill: false,
+      destReceiver: helper.address,
+      referrerAddress: referrer.address,
+      fee: 3
+    };
+
+    const swapQuoteAsset0 = await buildTxForSwap(JSON.stringify(params));
+    console.log('1inch tx for swap tokenIn asset0: ', swapQuoteAsset0);
+
+    params = {
+      fromTokenAddress: tokenIn,
+      toTokenAddress: PolygonAddresses.USDC_TOKEN,
+      amount: amountIn.mul(2).div(10).toString(),
+      fromAddress: signer.address,
+      slippage: 1,
+      disableEstimate: true,
+      allowPartialFill: false,
+      destReceiver: helper.address,
+      referrerAddress: referrer.address,
+      fee: 3
+    };
+
+    const swapQuoteAsset1 = await buildTxForSwap(JSON.stringify(params));
+    console.log('1inch tx for swap tokenIn asset1: ', swapQuoteAsset1);
+
+    // ethers.utils.defaultAbiCoder.decode()
+    const balance = await IERC20__factory.connect(tokenIn, signer).balanceOf(signer.address)
+    console.log('token in balance', formatUnits(balance, 6))
+    expect(balance.gte(amountIn)).eq(true);
+
+    await IERC20__factory.connect(tokenIn, signer).approve(helper.address, Misc.MAX_UINT)
+
+
+    await helper.convertAndIncreaseAmount(
+      swapQuoteAsset0.data,
+      swapQuoteAsset1.data,
+      tokenIn,
+      amountIn,
+      ve.address,
+      tokenId
+    )
+
+    expect((await ve.balanceOf(signer.address)).isZero()).eq(false);
+    expect((await VeTetu__factory.connect(ve.address, signer).balanceOf(signer.address)).isZero()).eq(false);
+    expect((await VeTetu__factory.connect(ve.address, signer).lockedDerivedAmount(tokenId)).gt(oldLockedDerivedAmount));
+  });
+
+  it("test convert USDC and increase amount", async () => {
+    if (hre.network.config.chainId !== 137) {
+      return;
+    }
+    const bptAmount = parseUnits('1', 18);
+    await TokenUtils.getToken(PolygonAddresses.BALANCER_TETU_USDC, signer.address, bptAmount);
+
+    await IERC20__factory.connect(PolygonAddresses.BALANCER_TETU_USDC, signer).approve(helper.address, Misc.MAX_UINT)
+    await helper.createLock(ve.address, PolygonAddresses.BALANCER_TETU_USDC, bptAmount, 60 * 60 * 24 * 30);
+
+
+    const tokenId = await VeTetu__factory.connect(ve.address, signer).tokenId();
+    const oldLockedDerivedAmount = await VeTetu__factory.connect(ve.address, signer).lockedDerivedAmount(tokenId)
+
+    const tokenIn = PolygonAddresses.USDC_TOKEN;
+    const amountIn = parseUnits('1', 6);
+    await TokenUtils.getToken(tokenIn, signer.address, parseUnits('2', 6))
+
+    const params = {
+      fromTokenAddress: tokenIn,
+      toTokenAddress: PolygonAddresses.TETU_TOKEN,
+      amount: amountIn.mul(8).div(10).toString(),
+      fromAddress: signer.address,
+      slippage: 1,
+      disableEstimate: true,
+      allowPartialFill: false,
+      destReceiver: helper.address,
+      referrerAddress: referrer.address,
+      fee: 3
+    };
+
+    const swapQuoteAsset0 = await buildTxForSwap(JSON.stringify(params));
+    console.log('1inch tx for swap tokenIn asset0: ', swapQuoteAsset0);
+
+    // ethers.utils.defaultAbiCoder.decode()
+    const balance = await IERC20__factory.connect(tokenIn, signer).balanceOf(signer.address)
+    console.log('token in balance', formatUnits(balance, 6))
+    expect(balance.gte(amountIn)).eq(true);
+
+    await IERC20__factory.connect(tokenIn, signer).approve(helper.address, Misc.MAX_UINT)
+
+
+    await helper.convertAndIncreaseAmount(
+      swapQuoteAsset0.data,
+      swapQuoteAsset0.data,
+      tokenIn,
+      amountIn,
+      ve.address,
+      tokenId
+    )
+
+    expect((await ve.balanceOf(signer.address)).isZero()).eq(false);
+    expect((await VeTetu__factory.connect(ve.address, signer).balanceOf(signer.address)).isZero()).eq(false);
+    expect((await VeTetu__factory.connect(ve.address, signer).lockedDerivedAmount(tokenId)).gt(oldLockedDerivedAmount));
+  });
+
+  it("test convert TETU and increase amount", async () => {
+    if (hre.network.config.chainId !== 137) {
+      return;
+    }
+    const bptAmount = parseUnits('1', 18);
+    await TokenUtils.getToken(PolygonAddresses.BALANCER_TETU_USDC, signer.address, bptAmount);
+
+    await IERC20__factory.connect(PolygonAddresses.BALANCER_TETU_USDC, signer).approve(helper.address, Misc.MAX_UINT)
+    await helper.createLock(ve.address, PolygonAddresses.BALANCER_TETU_USDC, bptAmount, 60 * 60 * 24 * 30);
+
+
+    const tokenId = await VeTetu__factory.connect(ve.address, signer).tokenId();
+    const oldLockedDerivedAmount = await VeTetu__factory.connect(ve.address, signer).lockedDerivedAmount(tokenId)
+
+    const tokenIn = PolygonAddresses.TETU_TOKEN;
+    const amountIn = parseUnits('1', 18);
+    await TokenUtils.getToken(tokenIn, signer.address, parseUnits('2', 18))
+
+    const params = {
+      fromTokenAddress: tokenIn,
+      toTokenAddress: PolygonAddresses.USDC_TOKEN,
+      amount: amountIn.mul(2).div(10).toString(),
+      fromAddress: signer.address,
+      slippage: 1,
+      disableEstimate: true,
+      allowPartialFill: false,
+      destReceiver: helper.address,
+      referrerAddress: referrer.address,
+      fee: 3
+    };
+
+    const swapQuoteAsset1 = await buildTxForSwap(JSON.stringify(params));
+    console.log('1inch tx for swap tokenIn asset0: ', swapQuoteAsset1);
+
+    // ethers.utils.defaultAbiCoder.decode()
+    const balance = await IERC20__factory.connect(tokenIn, signer).balanceOf(signer.address)
+    console.log('token in balance', formatUnits(balance, 6))
+    expect(balance.gte(amountIn)).eq(true);
+
+    await IERC20__factory.connect(tokenIn, signer).approve(helper.address, Misc.MAX_UINT)
+
+
+    await helper.convertAndIncreaseAmount(
+      swapQuoteAsset1.data,
+      swapQuoteAsset1.data,
+      tokenIn,
+      amountIn,
+      ve.address,
+      tokenId
+    )
+
+    expect((await ve.balanceOf(signer.address)).isZero()).eq(false);
+    expect((await VeTetu__factory.connect(ve.address, signer).balanceOf(signer.address)).isZero()).eq(false);
+    expect((await VeTetu__factory.connect(ve.address, signer).lockedDerivedAmount(tokenId)).gt(oldLockedDerivedAmount));
   });
 })
 

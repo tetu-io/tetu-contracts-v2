@@ -20,6 +20,7 @@ export class TokenUtils {
     [MaticAddresses.BAL_TOKEN, '0xBA12222222228d8Ba445958a75a0704d566BF2C8'.toLowerCase()], // balancer
     [MaticAddresses.QI_TOKEN, '0x3FEACf904b152b1880bDE8BF04aC9Eb636fEE4d8'.toLowerCase()], // qidao gov
     [MaticAddresses.xTETU, '0x352f9fa490a86f625f53e581f0ec3bd649fd8bc9'.toLowerCase()],
+    [MaticAddresses.BALANCER_TETU_USDC, '0x2F5294b805f6c0b4B7942c88111d8fB3c0597051'.toLowerCase()]
   ]);
 
   public static async getToken(token: string, to: string, amount?: BigNumber) {
