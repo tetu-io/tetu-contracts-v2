@@ -136,25 +136,22 @@ contract DepositHelper is ReentrancyGuard {
     uint power,
     uint unlockDate
   ) {
-    IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
-
-    _approveIfNeeds(tokenIn, amountIn, oneInchRouter);
-    if (tokenIn != ASSET0) {
-      (bool success,bytes memory result) = oneInchRouter.call(asset0SwapData);
-      require(success, string(result));
-    }
-
-    if (tokenIn != ASSET1) {
-      (bool success,bytes memory result) = oneInchRouter.call(asset1SwapData);
-      require(success, string(result));
-    }
+    convertToTetuBalancerPoolToken(
+      asset0SwapData,
+      asset1SwapData,
+      tokenIn,
+      amountIn,
+      ASSET0,
+      ASSET1
+    );
 
     // add liquidity
     joinBalancerPool(BALANCER_VAULT, BALANCER_POOL_ID, ASSET0, ASSET1, IERC20(ASSET0).balanceOf(address(this)), IERC20(ASSET1).balanceOf(address(this)));
 
     uint bptBalance = IERC20(BALANCER_POOL_TOKEN).balanceOf(address(this));
 
-    _approveIfNeeds(BALANCER_POOL_TOKEN, bptBalance, address(ve));
+
+  _approveIfNeeds(BALANCER_POOL_TOKEN, bptBalance, address(ve));
     tokenId = ve.createLockFor(BALANCER_POOL_TOKEN, bptBalance, lockDuration, msg.sender);
 
     lockedAmount = ve.lockedAmounts(tokenId, BALANCER_POOL_TOKEN);
@@ -199,6 +196,58 @@ contract DepositHelper is ReentrancyGuard {
     }
   }
 
+  function convertAndIncreaseAmount(
+    bytes memory asset0SwapData,
+    bytes memory asset1SwapData,
+    address tokenIn,
+    uint amountIn,
+    IVeTetu ve,
+    uint tokenId
+  ) external nonReentrant returns (
+    uint lockedAmount,
+    uint power,
+    uint unlockDate,
+    uint bptBalance
+  ) {
+    convertToTetuBalancerPoolToken(
+      asset0SwapData,
+      asset1SwapData,
+      tokenIn,
+      amountIn,
+      ASSET0,
+      ASSET1
+    );
+
+    // add liquidity
+    joinBalancerPool(BALANCER_VAULT, BALANCER_POOL_ID, ASSET0, ASSET1, IERC20(ASSET0).balanceOf(address(this)), IERC20(ASSET1).balanceOf(address(this)));
+
+    bptBalance = IERC20(BALANCER_POOL_TOKEN).balanceOf(address(this));
+
+    _approveIfNeeds(BALANCER_POOL_TOKEN, bptBalance, address(ve));
+
+    ve.increaseAmount(BALANCER_POOL_TOKEN, tokenId, bptBalance);
+
+    lockedAmount = ve.lockedAmounts(tokenId, BALANCER_POOL_TOKEN);
+    power = ve.balanceOfNFT(tokenId);
+    unlockDate = ve.lockedEnd(tokenId);
+
+    // send back possible tokens
+    uint balance = IERC20(BALANCER_POOL_TOKEN).balanceOf(address(this));
+    if (balance != 0) {
+      IERC20(BALANCER_POOL_TOKEN).safeTransfer(msg.sender, balance);
+    }
+
+    balance = IERC20(ASSET0).balanceOf(address(this));
+    if (balance != 0) {
+      IERC20(ASSET0).safeTransfer(msg.sender, balance);
+    }
+
+    balance = IERC20(ASSET1).balanceOf(address(this));
+    if (balance != 0) {
+      IERC20(ASSET1).safeTransfer(msg.sender, balance);
+    }
+  }
+
   function increaseAmount(IVeTetu ve, address token, uint tokenId, uint value) external nonReentrant returns (
     uint lockedAmount,
     uint power,
@@ -223,6 +272,28 @@ contract DepositHelper is ReentrancyGuard {
     if (IERC20(token).allowance(address(this), spender) < amount) {
       IERC20(token).safeApprove(spender, 0);
       IERC20(token).safeApprove(spender, type(uint).max);
+    }
+  }
+
+  function convertToTetuBalancerPoolToken(
+    bytes memory asset0SwapData,
+    bytes memory asset1SwapData,
+    address tokenIn,
+    uint amountIn,
+    address asset0,
+    address asset1
+  ) internal {
+    IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
+
+    _approveIfNeeds(tokenIn, amountIn, oneInchRouter);
+    if (tokenIn != asset0) {
+      (bool success,bytes memory result) = oneInchRouter.call(asset0SwapData);
+      require(success, string(result));
+    }
+
+    if (tokenIn != asset1) {
+      (bool success,bytes memory result) = oneInchRouter.call(asset1SwapData);
+      require(success, string(result));
     }
   }
 
