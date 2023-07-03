@@ -136,19 +136,22 @@ contract DepositHelper is ReentrancyGuard {
     uint power,
     uint unlockDate
   ) {
-    uint bptBalance = convertToTetuBalancerPoolToken(
+    convertToTetuBalancerPoolToken(
       asset0SwapData,
       asset1SwapData,
       tokenIn,
       amountIn,
-      BALANCER_VAULT,
-      BALANCER_POOL_ID,
-      BALANCER_POOL_TOKEN,
       ASSET0,
       ASSET1
     );
 
-    _approveIfNeeds(BALANCER_POOL_TOKEN, bptBalance, address(ve));
+    // add liquidity
+    joinBalancerPool(BALANCER_VAULT, BALANCER_POOL_ID, ASSET0, ASSET1, IERC20(ASSET0).balanceOf(address(this)), IERC20(ASSET1).balanceOf(address(this)));
+
+    uint bptBalance = IERC20(BALANCER_POOL_TOKEN).balanceOf(address(this));
+
+
+  _approveIfNeeds(BALANCER_POOL_TOKEN, bptBalance, address(ve));
     tokenId = ve.createLockFor(BALANCER_POOL_TOKEN, bptBalance, lockDuration, msg.sender);
 
     lockedAmount = ve.lockedAmounts(tokenId, BALANCER_POOL_TOKEN);
@@ -206,17 +209,20 @@ contract DepositHelper is ReentrancyGuard {
     uint unlockDate,
     uint bptBalance
   ) {
-    bptBalance = convertToTetuBalancerPoolToken(
+    convertToTetuBalancerPoolToken(
       asset0SwapData,
       asset1SwapData,
       tokenIn,
       amountIn,
-      BALANCER_VAULT,
-      BALANCER_POOL_ID,
-      BALANCER_POOL_TOKEN,
       ASSET0,
       ASSET1
     );
+
+    // add liquidity
+    joinBalancerPool(BALANCER_VAULT, BALANCER_POOL_ID, ASSET0, ASSET1, IERC20(ASSET0).balanceOf(address(this)), IERC20(ASSET1).balanceOf(address(this)));
+
+    bptBalance = IERC20(BALANCER_POOL_TOKEN).balanceOf(address(this));
+
     _approveIfNeeds(BALANCER_POOL_TOKEN, bptBalance, address(ve));
 
     ve.increaseAmount(BALANCER_POOL_TOKEN, tokenId, bptBalance);
@@ -274,14 +280,9 @@ contract DepositHelper is ReentrancyGuard {
     bytes memory asset1SwapData,
     address tokenIn,
     uint amountIn,
-    address balancerVault,
-    bytes32 balancerPoolId,
-    address balancerPoolToken,
     address asset0,
     address asset1
-  ) internal returns(
-    uint bptBalance
-  ) {
+  ) internal {
     IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
 
     _approveIfNeeds(tokenIn, amountIn, oneInchRouter);
@@ -294,13 +295,6 @@ contract DepositHelper is ReentrancyGuard {
       (bool success,bytes memory result) = oneInchRouter.call(asset1SwapData);
       require(success, string(result));
     }
-
-    // add liquidity
-    joinBalancerPool(balancerVault, balancerPoolId, asset0, asset1, IERC20(asset0).balanceOf(address(this)), IERC20(asset1).balanceOf(address(this)));
-
-    uint bptBalance = IERC20(balancerPoolToken).balanceOf(address(this));
-
-    return bptBalance;
   }
 
   function joinBalancerPool(address _bVault, bytes32 _poolId, address _token0, address _token1, uint _amount0, uint _amount1) internal {
