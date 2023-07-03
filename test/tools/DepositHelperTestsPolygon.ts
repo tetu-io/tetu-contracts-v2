@@ -228,6 +228,8 @@ describe("Deposit helper Tests poly", function () {
 
     expect((await ve.balanceOf(signer.address)).isZero()).eq(false);
     expect((await VeTetu__factory.connect(ve.address, signer).balanceOf(signer.address)).isZero()).eq(false);
+    expect((await IERC20__factory.connect(PolygonAddresses.TETU_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
+    expect((await IERC20__factory.connect(PolygonAddresses.USDC_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
   });
 
   it("test convert TETU and create lock", async () => {
@@ -281,6 +283,8 @@ describe("Deposit helper Tests poly", function () {
 
     expect((await ve.balanceOf(signer.address)).isZero()).eq(false);
     expect((await VeTetu__factory.connect(ve.address, signer).balanceOf(signer.address)).isZero()).eq(false);
+    expect((await IERC20__factory.connect(PolygonAddresses.TETU_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
+    expect((await IERC20__factory.connect(PolygonAddresses.USDC_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
   });
 
   it("test convert USDC and create lock", async () => {
@@ -334,6 +338,8 @@ describe("Deposit helper Tests poly", function () {
 
     expect((await ve.balanceOf(signer.address)).isZero()).eq(false);
     expect((await VeTetu__factory.connect(ve.address, signer).balanceOf(signer.address)).isZero()).eq(false);
+    expect((await IERC20__factory.connect(PolygonAddresses.TETU_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
+    expect((await IERC20__factory.connect(PolygonAddresses.USDC_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
   });
 
   it("test convert USDT and increase amount", async () => {
@@ -406,6 +412,8 @@ describe("Deposit helper Tests poly", function () {
     expect((await ve.balanceOf(signer.address)).isZero()).eq(false);
     expect((await VeTetu__factory.connect(ve.address, signer).balanceOf(signer.address)).isZero()).eq(false);
     expect((await VeTetu__factory.connect(ve.address, signer).lockedDerivedAmount(tokenId)).gt(oldLockedDerivedAmount));
+    expect((await IERC20__factory.connect(PolygonAddresses.TETU_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
+    expect((await IERC20__factory.connect(PolygonAddresses.USDC_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
   });
 
   it("test convert USDC and increase amount", async () => {
@@ -462,6 +470,8 @@ describe("Deposit helper Tests poly", function () {
     expect((await ve.balanceOf(signer.address)).isZero()).eq(false);
     expect((await VeTetu__factory.connect(ve.address, signer).balanceOf(signer.address)).isZero()).eq(false);
     expect((await VeTetu__factory.connect(ve.address, signer).lockedDerivedAmount(tokenId)).gt(oldLockedDerivedAmount));
+    expect((await IERC20__factory.connect(PolygonAddresses.TETU_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
+    expect((await IERC20__factory.connect(PolygonAddresses.USDC_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
   });
 
   it("test convert TETU and increase amount", async () => {
@@ -518,6 +528,8 @@ describe("Deposit helper Tests poly", function () {
     expect((await ve.balanceOf(signer.address)).isZero()).eq(false);
     expect((await VeTetu__factory.connect(ve.address, signer).balanceOf(signer.address)).isZero()).eq(false);
     expect((await VeTetu__factory.connect(ve.address, signer).lockedDerivedAmount(tokenId)).gt(oldLockedDerivedAmount));
+    expect((await IERC20__factory.connect(PolygonAddresses.TETU_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
+    expect((await IERC20__factory.connect(PolygonAddresses.USDC_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
   });
 })
 

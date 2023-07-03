@@ -203,9 +203,10 @@ contract DepositHelper is ReentrancyGuard {
   ) external nonReentrant returns (
     uint lockedAmount,
     uint power,
-    uint unlockDate
+    uint unlockDate,
+    uint bptBalance
   ) {
-    uint bptBalance = convertToTetuBalancerPoolToken(
+    bptBalance = convertToTetuBalancerPoolToken(
       asset0SwapData,
       asset1SwapData,
       tokenIn,
@@ -228,6 +229,16 @@ contract DepositHelper is ReentrancyGuard {
     uint balance = IERC20(BALANCER_POOL_TOKEN).balanceOf(address(this));
     if (balance != 0) {
       IERC20(BALANCER_POOL_TOKEN).safeTransfer(msg.sender, balance);
+    }
+
+    balance = IERC20(ASSET0).balanceOf(address(this));
+    if (balance != 0) {
+      IERC20(ASSET0).safeTransfer(msg.sender, balance);
+    }
+
+    balance = IERC20(ASSET1).balanceOf(address(this));
+    if (balance != 0) {
+      IERC20(ASSET1).safeTransfer(msg.sender, balance);
     }
   }
 
