@@ -48,13 +48,11 @@
     "ethereum-waffle": "^3.4.4",
     "ethereumjs-tx": "^2.1.2",
     "ethers": "^5.7.2",
-    "hardhat": "^2.12.4",
+    "hardhat": "2.14.1",
     "hardhat-abi-exporter": "^2.10.1",
     "hardhat-contract-sizer": "^2.6.1",
     "hardhat-deploy": "^0.11.22",
     "hardhat-gas-reporter": "^1.0.9",
-    "hardhat-tracer": "^1.2.0",
-    "hardhat-typechain": "^0.3.5",
     "mocha": "^10.2.0",
     "solidity-coverage": "^0.8.2",
     "ts-generator": "^0.1.1",
@@ -66,6 +64,6 @@
     "yargs": "^17.6.2"
   },
   "engines": {
-    "node": "^14.18.1"
+    "node": "18.x.x"
   }
 }
