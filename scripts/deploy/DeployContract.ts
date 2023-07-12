@@ -13,6 +13,7 @@ export const WAIT_BLOCKS_BETWEEN_DEPLOY = 5;
 const libraries = new Map<string, string>([
   ['VeTetu', 'VeTetuLogo'],
   ['MockStrategy', 'StrategyLib'],
+  ['MockStrategyV3', 'StrategyLib2'],
   ['StringLibFacade', 'StringLib'],
 ]);
 
