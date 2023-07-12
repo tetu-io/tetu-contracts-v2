@@ -68,4 +68,11 @@ describe("Controllable Tests", function () {
     await expect(helper.increaseRevision(Misc.ZERO_ADDRESS)).revertedWith('Increase revision forbidden');
   });
 
+  it("read private variable", async () => {
+    const controller = await DeployerUtils.deployContract(signer, 'ControllerMinimal', signer.address) as ControllerMinimal;
+    await helper.init(controller.address);
+    const bytes32Result = await helper.getSlot(1)
+    const bytes32Expected = ethers.utils.hexZeroPad(ethers.utils.hexlify(333), 32)
+    expect(bytes32Result).eq(bytes32Expected);
+  });
 })

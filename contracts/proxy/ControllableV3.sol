@@ -18,7 +18,7 @@ abstract contract ControllableV3 is Initializable, TetuERC165, IControllable {
 
   /// @notice Version of the contract
   /// @dev Should be incremented when contract changed
-  string public constant CONTROLLABLE_VERSION = "3.0.0";
+  string public constant CONTROLLABLE_VERSION = "3.0.1";
 
   bytes32 internal constant _CONTROLLER_SLOT = bytes32(uint256(keccak256("eip1967.controllable.controller")) - 1);
   bytes32 internal constant _CREATED_SLOT = bytes32(uint256(keccak256("eip1967.controllable.created")) - 1);
@@ -101,4 +101,10 @@ abstract contract ControllableV3 is Initializable, TetuERC165, IControllable {
     emit RevisionIncreased(r, oldLogic);
   }
 
+  /// @dev Gets a slot as bytes32
+  function getSlot(uint slot) external view returns (bytes32 result) {
+    assembly {
+      result := sload(slot)
+    }
+  }
 }
