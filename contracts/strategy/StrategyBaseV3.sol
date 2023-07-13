@@ -246,5 +246,5 @@ abstract contract StrategyBaseV3 is IStrategyV3, ControllableV3 {
   /// @dev This empty reserved space is put in place to allow future versions to add new
   ///      variables without shifting down storage in the inheritance chain.
   ///      See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
-  uint[50 - 6] private __gap;
+  uint[50 - 7] private __gap;
 }
