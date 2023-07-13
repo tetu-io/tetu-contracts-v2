@@ -9,7 +9,6 @@ import {
   InterfaceIds,
   MockGauge,
   MockGauge__factory,
-  MockStrategy,
   MockStrategyV3__factory,
   MockStrategySimple,
   MockStrategySimple__factory, MockStrategyV3,
@@ -336,8 +335,8 @@ describe("SplitterForBaseStrategyV3Tests", function () {
   describe("with 3 strategies and assets by default", function () {
 
     let snapshotBefore2: string;
-    let strategy2: MockStrategy;
-    let strategy3: MockStrategy;
+    let strategy2: MockStrategyV3;
+    let strategy3: MockStrategyV3;
 
     before(async function () {
       snapshotBefore2 = await TimeUtils.snapshot();
