@@ -45,8 +45,8 @@ abstract contract StrategyBaseV3 is IStrategyV3, ControllableV3 {
   //                     PERFORMANCE FEE
   // *************************************************************
   /// @notice Set performance fee and receiver
-  function setupPerformanceFee(uint fee_, address receiver_) external {
-    StrategyLib2.setupPerformanceFee(baseState, fee_, receiver_, controller());
+  function setupPerformanceFee(uint fee_, address receiver_, uint ratio_) external {
+    StrategyLib2.setupPerformanceFee(baseState, fee_, receiver_, ratio_, controller());
   }
 
   // *************************************************************

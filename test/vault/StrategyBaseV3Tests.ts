@@ -3,7 +3,7 @@ import {
   ControllerMinimal, IController__factory,
   MockGauge,
   MockGauge__factory,
-  MockStrategy, MockStrategy__factory, MockStrategyV3,
+  MockStrategyV3, MockStrategyV3__factory,
   MockToken,
   StrategySplitterV2,
   TetuVaultV2
@@ -58,7 +58,7 @@ describe("StrategyBaseV3Tests", function () {
     await usdc.connect(signer1).approve(vault.address, Misc.MAX_UINT);
     await usdc.approve(vault.address, Misc.MAX_UINT);
 
-    strategyAsSplitter = MockStrategy__factory.connect(
+    strategyAsSplitter = MockStrategyV3__factory.connect(
       (await DeployerUtils.deployProxy(signer, 'MockStrategyV3')),
       await Misc.impersonate(splitter.address)
     );
@@ -107,7 +107,7 @@ describe("StrategyBaseV3Tests", function () {
       it("should return expected fee and receiver", async () => {
         const governance = await IController__factory.connect(await strategyAsSplitter.controller(), signer).governance();
         const receiver = ethers.Wallet.createRandom();
-        await strategyAsSplitter.connect(await Misc.impersonate(governance)).setupPerformanceFee(5_000, receiver.address);
+        await strategyAsSplitter.connect(await Misc.impersonate(governance)).setupPerformanceFee(5_000, receiver.address, 0);
 
         const ret = [
           await strategyAsSplitter.performanceFee(),
@@ -119,25 +119,31 @@ describe("StrategyBaseV3Tests", function () {
     });
     describe("Bad paths", () => {
       it("should revert if not governance", async () => {
-        const governance = await IController__factory.connect(await strategyAsSplitter.controller(), signer).governance();
         const receiver = ethers.Wallet.createRandom();
         const notGovernance = ethers.Wallet.createRandom().address;
         await expect(
-          strategyAsSplitter.connect(await Misc.impersonate(notGovernance)).setupPerformanceFee(5_000, receiver.address)
+          strategyAsSplitter.connect(await Misc.impersonate(notGovernance)).setupPerformanceFee(5_000, receiver.address, 0)
         ).revertedWith("SB: Denied"); // DENIED
       });
       it("should revert if the fee is too high", async () => {
         const governance = await IController__factory.connect(await strategyAsSplitter.controller(), signer).governance();
         const receiver = ethers.Wallet.createRandom();
         await expect(
-          strategyAsSplitter.connect(await Misc.impersonate(governance)).setupPerformanceFee(101_000, receiver.address)
+          strategyAsSplitter.connect(await Misc.impersonate(governance)).setupPerformanceFee(101_000, receiver.address, 0)
         ).revertedWith("SB: Too high"); // TOO_HIGH
       });
       it("should revert if the receiver is zero", async () => {
         const governance = await IController__factory.connect(await strategyAsSplitter.controller(), signer).governance();
         await expect(
-          strategyAsSplitter.connect(await Misc.impersonate(governance)).setupPerformanceFee(10_000, Misc.ZERO_ADDRESS)
+          strategyAsSplitter.connect(await Misc.impersonate(governance)).setupPerformanceFee(10_000, Misc.ZERO_ADDRESS, 0)
         ).revertedWith("SB: Wrong value"); // WRONG_VALUE
+      });
+      it("should revert if the ratio is too high", async () => {
+        const governance = await IController__factory.connect(await strategyAsSplitter.controller(), signer).governance();
+        const receiver = ethers.Wallet.createRandom();
+        await expect(
+          strategyAsSplitter.connect(await Misc.impersonate(governance)).setupPerformanceFee(10_000, receiver.address, 101_000)
+        ).revertedWith("SB: Too high"); // TOO_HIGH
       });
     });
   });

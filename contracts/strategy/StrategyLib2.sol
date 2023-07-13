@@ -44,6 +44,7 @@ library StrategyLib2 {
   event InvestAll(uint balance);
   event WithdrawAllToSplitter(uint amount);
   event WithdrawToSplitter(uint amount, uint sent, uint balance);
+  event PerformanceFeeChanged(uint fee, address receiver, uint ratio);
 
   // *************************************************************
   //                        CHECKS AND EMITS
@@ -71,6 +72,14 @@ library StrategyLib2 {
     emit InvestAll(assetBalance);
   }
 
+  function _checkSetupPerformanceFee(address controller, uint fee_, address receiver_, uint ratio_) internal {
+    onlyGovernance(controller);
+    require(fee_ <= FEE_DENOMINATOR, TOO_HIGH);
+    require(receiver_ != address(0), WRONG_VALUE);
+    require(ratio_ <= FEE_DENOMINATOR, TOO_HIGH);
+    emit PerformanceFeeChanged(fee_, receiver_, ratio_);
+  }
+
   // *************************************************************
   //                     RESTRICTIONS
   // *************************************************************
@@ -95,12 +104,6 @@ library StrategyLib2 {
     require(splitter == msg.sender, DENIED);
   }
 
-  function _checkSetupPerformanceFee(address controller, uint fee_, address receiver_) internal view {
-    onlyGovernance(controller);
-    require(fee_ <= 100_000, TOO_HIGH);
-    require(receiver_ != address(0), WRONG_VALUE);
-  }
-
   // *************************************************************
   //                       HELPERS
   // *************************************************************
@@ -118,10 +121,11 @@ library StrategyLib2 {
     require(IControllable(splitter_).isController(controller_), WRONG_VALUE);
   }
 
-  function setupPerformanceFee(IStrategyV3.BaseState storage baseState, uint fee_, address receiver_, address controller_) external {
-    _checkSetupPerformanceFee(controller_, fee_, receiver_);
+  function setupPerformanceFee(IStrategyV3.BaseState storage baseState, uint fee_, address receiver_, uint ratio_, address controller_) external {
+    _checkSetupPerformanceFee(controller_, fee_, receiver_, ratio_);
     baseState.performanceFee = fee_;
     baseState.performanceReceiver = receiver_;
+    baseState.performanceFeeRatio = ratio_;
   }
 
   /// @notice Calculate withdrawn amount in USD using the {assetPrice}.
