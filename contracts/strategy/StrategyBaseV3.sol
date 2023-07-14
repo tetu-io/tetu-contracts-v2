@@ -42,14 +42,6 @@ abstract contract StrategyBaseV3 is IStrategyV3, ControllableV3 {
   }
 
   // *************************************************************
-  //                     PERFORMANCE FEE
-  // *************************************************************
-  /// @notice Set performance fee and receiver
-  function setupPerformanceFee(uint fee_, address receiver_, uint ratio_) external {
-    StrategyLib2.setupPerformanceFee(baseState, fee_, receiver_, ratio_, controller());
-  }
-
-  // *************************************************************
   //                        VIEWS
   // *************************************************************
 
@@ -81,6 +73,10 @@ abstract contract StrategyBaseV3 is IStrategyV3, ControllableV3 {
 
   function performanceFee() external view returns (uint) {
     return baseState.performanceFee;
+  }
+
+  function performanceFeeRatio() external view returns (uint) {
+    return baseState.performanceFeeRatio;
   }
 
   function strategySpecificName() external view returns (string memory) {
@@ -120,6 +116,15 @@ abstract contract StrategyBaseV3 is IStrategyV3, ControllableV3 {
   function claim() external {
     StrategyLib2._checkManualClaim(controller());
     _claim();
+  }
+
+  // *************************************************************
+  //                   GOVERNANCE ACTIONS
+  // *************************************************************
+
+  /// @notice Set performance fee, receiver and ratio
+  function setupPerformanceFee(uint fee_, address receiver_, uint ratio_) external {
+    StrategyLib2.setupPerformanceFee(baseState, fee_, receiver_, ratio_, controller());
   }
 
   // *************************************************************

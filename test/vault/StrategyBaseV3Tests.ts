@@ -104,16 +104,17 @@ describe("StrategyBaseV3Tests", function () {
         ].join();
         expect(ret).eq(expected);
       });
-      it("should return expected fee and receiver", async () => {
+      it("should return expected fee, receiver and ratio", async () => {
         const governance = await IController__factory.connect(await strategyAsSplitter.controller(), signer).governance();
         const receiver = ethers.Wallet.createRandom();
-        await strategyAsSplitter.connect(await Misc.impersonate(governance)).setupPerformanceFee(5_000, receiver.address, 0);
+        await strategyAsSplitter.connect(await Misc.impersonate(governance)).setupPerformanceFee(5_000, receiver.address, 2);
 
         const ret = [
           await strategyAsSplitter.performanceFee(),
           await strategyAsSplitter.performanceReceiver(),
+          await strategyAsSplitter.performanceFeeRatio(),
         ].join();
-        const expected = [5_000, receiver.address].join();
+        const expected = [5_000, receiver.address, 2].join();
         expect(ret).eq(expected);
       });
     });
