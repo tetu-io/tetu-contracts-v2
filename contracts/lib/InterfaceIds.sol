@@ -8,7 +8,7 @@ library InterfaceIds {
 
   /// @notice Version of the contract
   /// @dev Should be incremented when contract changed
-  string public constant INTERFACE_IDS_LIB_VERSION = "1.0.0";
+  string public constant INTERFACE_IDS_LIB_VERSION = "1.0.1";
 
   /// default notation:
   /// bytes4 public constant I_VOTER = type(IVoter).interfaceId;
@@ -27,6 +27,7 @@ library InterfaceIds {
   bytes4 public constant I_CONTROLLER = bytes4(keccak256("IController"));
   bytes4 public constant I_TETU_ERC165 = bytes4(keccak256("ITetuERC165"));
   bytes4 public constant I_STRATEGY_V2 = bytes4(keccak256("IStrategyV2"));
+  bytes4 public constant I_STRATEGY_V3 = bytes4(keccak256("IStrategyV3"));
   bytes4 public constant I_CONTROLLABLE = bytes4(keccak256("IControllable"));
   bytes4 public constant I_TETU_VAULT_V2 = bytes4(keccak256("ITetuVaultV2"));
   bytes4 public constant I_PLATFORM_VOTER = bytes4(keccak256("IPlatformVoter"));
