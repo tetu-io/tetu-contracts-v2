@@ -30,7 +30,8 @@ interface IVeTetu {
 
   function lockedEnd(uint veId) external view returns (uint);
 
-  function voted(uint tokenId) external view returns (uint);
+//  function voted(uint tokenId) external view returns (uint);
+  function isVoted(uint tokenId) external view returns (bool);
 
   function tokens(uint idx) external view returns (address);
 

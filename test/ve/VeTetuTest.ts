@@ -129,10 +129,10 @@ describe("veTETU tests", function () {
     await voter.attachTokenToGauge(Misc.ZERO_ADDRESS, 1, Misc.ZERO_ADDRESS);
     await voter.voting(1);
     expect(await ve.attachments(1)).eq(1)
-    expect(await ve.voted(1)).eq(1)
+    expect(await ve.isVoted(1)).eq(true)
     await pawnshop.transfer(ve.address, owner.address, pawnshop.address, 1)
     expect(await ve.attachments(1)).eq(0);
-    expect(await ve.voted(1)).eq(0);
+    expect(await ve.isVoted(1)).eq(false)
   });
 
   it("transferFrom not owner revert test", async function () {
@@ -175,17 +175,17 @@ describe("veTETU tests", function () {
     await expect(ve.createLockFor(tetu.address, 1, LOCK_PERIOD, Misc.ZERO_ADDRESS)).revertedWith('WRONG_INPUT')
   });
 
-  it("voting revert", async function () {
-    await expect(ve.voting(1)).revertedWith('NOT_VOTER')
-  });
+  // it("voting revert", async function () {
+  //   await expect(ve.voting(1)).revertedWith('NOT_VOTER')
+  // });
 
   it("voting test", async function () {
     await voter.voting(1);
   });
 
-  it("abstain revert", async function () {
-    await expect(ve.abstain(1)).revertedWith('NOT_VOTER')
-  });
+  // it("abstain revert", async function () {
+  //   await expect(ve.abstain(1)).revertedWith('NOT_VOTER')
+  // });
 
   it("abstain test", async function () {
     await voter.voting(1);

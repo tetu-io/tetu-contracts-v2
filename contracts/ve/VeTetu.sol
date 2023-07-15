@@ -118,7 +118,8 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   /// @dev veId -> Attachments counter. With positive counter user unable to transfer NFT
   mapping(uint => uint) public override attachments;
   /// @dev veId -> votes counter. With votes NFT unable to transfer
-  mapping(uint => uint) public override voted;
+  /// deprecated
+  mapping(uint => uint) public _deprecated_voted;
 
   // --- STATISTICS
 
@@ -379,6 +380,11 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     return _pointHistory[_loc];
   }
 
+  function isVoted(uint _tokenId) public view override returns (bool) {
+  return IVoter(voter()).votedVaultsLength(_tokenId) != 0
+    || IPlatformVoter(platformVoter()).veVotesLength(_tokenId) != 0;
+  }
+
   // *************************************************************
   //                        VOTER ACTIONS
   // *************************************************************
@@ -387,21 +393,23 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     require(msg.sender == voter() || msg.sender == platformVoter(), "NOT_VOTER");
   }
 
+  /// deprecated - We check votes directly.
   /// @dev Increment the votes counter.
   ///      Should be called only once per any amount of votes from 1 voter contract.
-  function voting(uint _tokenId) external override {
-    _onlyVoters();
+  function voting(uint _tokenId) external pure override {
+//    _onlyVoters();
 
     // counter reflects only amount of voter contracts
     // restrictions for votes should be implemented on voter side
-    voted[_tokenId]++;
+//    voted[_tokenId]++;
   }
 
+  /// deprecated - We check votes directly.
   /// @dev Decrement the votes counter. Call only once per voter.
-  function abstain(uint _tokenId) external override {
-    _onlyVoters();
+  function abstain(uint _tokenId) external pure override {
+//    _onlyVoters();
 
-    voted[_tokenId]--;
+//    voted[_tokenId]--;
   }
 
   /// @dev Increment attach counter. Call it for each boosted gauge position.
@@ -511,7 +519,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     require(_to != address(0), "WRONG_INPUT");
     // from address will be checked in _removeTokenFrom()
 
-    if (attachments[_tokenId] != 0 || voted[_tokenId] != 0) {
+    if (attachments[_tokenId] != 0 || isVoted(_tokenId)) {
       _detachAll(_tokenId, _from);
     }
 
@@ -1060,7 +1068,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
 
   /// @dev Merge two NFTs union their balances and keep the biggest lock time.
   function merge(uint _from, uint _to) external nonReentrant {
-    require(attachments[_from] == 0 && voted[_from] == 0, "ATTACHED");
+    require(attachments[_from] == 0 && !isVoted(_from), "ATTACHED");
     require(_from != _to, "IDENTICAL_ADDRESS");
     require(_idToOwner[_from] == msg.sender && _idToOwner[_to] == msg.sender, "NOT_OWNER");
 
@@ -1117,7 +1125,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   /// @param _tokenId ve token ID
   /// @param percent percent of underlying tokens for new NFT with denominator 1e18 (1-(100e18-1)).
   function split(uint _tokenId, uint percent) external nonReentrant {
-    require(attachments[_tokenId] == 0 && voted[_tokenId] == 0, "ATTACHED");
+    require(attachments[_tokenId] == 0 && !isVoted(_tokenId), "ATTACHED");
     require(_idToOwner[_tokenId] == msg.sender, "NOT_OWNER");
     require(percent != 0 && percent < 100e18, "WRONG_INPUT");
 
@@ -1198,7 +1206,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   /// @dev Only possible if the lock has expired
   function withdraw(address stakingToken, uint _tokenId) public nonReentrant {
     require(isApprovedOrOwner(msg.sender, _tokenId), "NOT_OWNER");
-    require(attachments[_tokenId] == 0 && voted[_tokenId] == 0, "ATTACHED");
+    require(attachments[_tokenId] == 0 && !isVoted(_tokenId), "ATTACHED");
 
     (uint oldLockedAmount, uint oldLockedDerivedAmount, uint oldLockedEnd) =
     _lockInfo(stakingToken, _tokenId);

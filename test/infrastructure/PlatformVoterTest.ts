@@ -10,7 +10,8 @@ import {
   MockGauge,
   MockGauge__factory,
   MockPawnshop,
-  MockStrategy, MockStrategy__factory,
+  MockStrategy,
+  MockStrategy__factory,
   MockToken,
   PlatformVoter,
   StrategySplitterV2,
@@ -58,7 +59,9 @@ describe("Platform voter tests", function () {
 
     platformVoter = await DeployerUtils.deployPlatformVoter(owner, controller.address, ve.address);
     await controller.setPlatformVoter(platformVoter.address);
-    await controller.setVoter(platformVoter.address);
+
+    const voter = await DeployerUtils.deployContract(owner, 'MockVoter', ve.address)
+    await controller.setVoter(voter.address);
 
     const mockGauge = MockGauge__factory.connect(await DeployerUtils.deployProxy(owner, 'MockGauge'), owner);
     await mockGauge.init(controller.address)
