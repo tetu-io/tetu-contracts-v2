@@ -3,8 +3,6 @@ import {ethers} from "hardhat";
 import chai from "chai";
 import {formatUnits, parseUnits} from "ethers/lib/utils";
 import {
-  IERC20,
-  IERC20__factory,
   IERC20Metadata__factory,
   MockPawnshop,
   MockToken,
@@ -131,10 +129,10 @@ describe("veTETU tests", function () {
     await voter.attachTokenToGauge(Misc.ZERO_ADDRESS, 1, Misc.ZERO_ADDRESS);
     await voter.voting(1);
     expect(await ve.attachments(1)).eq(1)
-    expect(await ve.voted(1)).eq(1)
+    expect(await ve.isVoted(1)).eq(true)
     await pawnshop.transfer(ve.address, owner.address, pawnshop.address, 1)
     expect(await ve.attachments(1)).eq(0);
-    expect(await ve.voted(1)).eq(0);
+    expect(await ve.isVoted(1)).eq(false)
   });
 
   it("transferFrom not owner revert test", async function () {
@@ -177,17 +175,17 @@ describe("veTETU tests", function () {
     await expect(ve.createLockFor(tetu.address, 1, LOCK_PERIOD, Misc.ZERO_ADDRESS)).revertedWith('WRONG_INPUT')
   });
 
-  it("voting revert", async function () {
-    await expect(ve.voting(1)).revertedWith('NOT_VOTER')
-  });
+  // it("voting revert", async function () {
+  //   await expect(ve.voting(1)).revertedWith('NOT_VOTER')
+  // });
 
   it("voting test", async function () {
     await voter.voting(1);
   });
 
-  it("abstain revert", async function () {
-    await expect(ve.abstain(1)).revertedWith('NOT_VOTER')
-  });
+  // it("abstain revert", async function () {
+  //   await expect(ve.abstain(1)).revertedWith('NOT_VOTER')
+  // });
 
   it("abstain test", async function () {
     await voter.voting(1);
@@ -442,12 +440,12 @@ describe("veTETU tests", function () {
     await ve.createLock(tetu.address, parseUnits('333'), LOCK_PERIOD);
     const uri = (await ve.tokenURI(3))
     console.log(uri);
-    const base64 = uri.replace('data:application/json;base64,','');
+    const base64 = uri.replace('data:application/json;base64,', '');
     console.log(base64);
 
     const uriJson = Buffer.from(base64, 'base64').toString('binary');
     console.log(uriJson);
-    const imgBase64 = JSON.parse(uriJson).image.replace('data:image/svg+xml;base64,','');
+    const imgBase64 = JSON.parse(uriJson).image.replace('data:image/svg+xml;base64,', '');
     console.log(imgBase64);
     const svg = Buffer.from(imgBase64, 'base64').toString('binary');
     console.log(svg);
@@ -750,6 +748,15 @@ describe("veTETU tests", function () {
     expect(await ve.lockedAmounts(3, underlying2.address)).eq(0);
     expect(await ve.lockedEnd(1)).eq(0);
     expect(await ve.lockedEnd(3)).eq(lock3);
+  });
+
+  it("merge with expired should revert test", async function () {
+
+    await ve.createLock(tetu.address, parseUnits('1'), 60 * 60 * 24 * 14);
+    await ve.callStatic.merge(1, 3);
+
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 21)
+    await expect(ve.merge(1, 3)).revertedWith('EXPIRED');
   });
 
 });

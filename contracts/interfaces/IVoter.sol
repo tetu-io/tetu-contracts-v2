@@ -16,4 +16,6 @@ interface IVoter {
 
   function detachTokenFromAll(uint tokenId, address account) external;
 
+  function votedVaultsLength(uint veId) external view returns (uint);
+
 }

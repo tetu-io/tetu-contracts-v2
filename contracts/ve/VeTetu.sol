@@ -57,7 +57,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant VE_VERSION = "1.1.1";
+  string public constant VE_VERSION = "1.1.3";
   uint internal constant WEEK = 1 weeks;
   uint internal constant MAX_TIME = 16 weeks;
   int128 internal constant I_MAX_TIME = 16 weeks;
@@ -118,7 +118,8 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   /// @dev veId -> Attachments counter. With positive counter user unable to transfer NFT
   mapping(uint => uint) public override attachments;
   /// @dev veId -> votes counter. With votes NFT unable to transfer
-  mapping(uint => uint) public override voted;
+  /// deprecated
+  mapping(uint => uint) public _deprecated_voted;
 
   // --- STATISTICS
 
@@ -281,7 +282,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   function supportsInterface(bytes4 _interfaceID) public view override(ControllableV3, IERC165) returns (bool) {
     return _supportedInterfaces[_interfaceID]
     || _interfaceID == InterfaceIds.I_VE_TETU
-    || super.supportsInterface(_interfaceID);
+      || super.supportsInterface(_interfaceID);
   }
 
   /// @notice Get the most recently recorded rate of voting power decrease for `_tokenId`
@@ -379,29 +380,32 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     return _pointHistory[_loc];
   }
 
+  function isVoted(uint _tokenId) public view override returns (bool) {
+    return IVoter(voter()).votedVaultsLength(_tokenId) != 0
+      || IPlatformVoter(platformVoter()).veVotesLength(_tokenId) != 0;
+  }
+
   // *************************************************************
   //                        VOTER ACTIONS
   // *************************************************************
 
-  function _onlyVoters() internal view {
-    require(msg.sender == voter() || msg.sender == platformVoter(), "NOT_VOTER");
-  }
-
+  /// deprecated - We check votes directly.
   /// @dev Increment the votes counter.
   ///      Should be called only once per any amount of votes from 1 voter contract.
-  function voting(uint _tokenId) external override {
-    _onlyVoters();
+  function voting(uint _tokenId) external pure override {
+//    _onlyVoters();
 
     // counter reflects only amount of voter contracts
     // restrictions for votes should be implemented on voter side
-    voted[_tokenId]++;
+//    voted[_tokenId]++;
   }
 
+  /// deprecated - We check votes directly.
   /// @dev Decrement the votes counter. Call only once per voter.
-  function abstain(uint _tokenId) external override {
-    _onlyVoters();
+  function abstain(uint _tokenId) external pure override {
+//    _onlyVoters();
 
-    voted[_tokenId]--;
+//    voted[_tokenId]--;
   }
 
   /// @dev Increment attach counter. Call it for each boosted gauge position.
@@ -511,7 +515,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     require(_to != address(0), "WRONG_INPUT");
     // from address will be checked in _removeTokenFrom()
 
-    if (attachments[_tokenId] != 0 || voted[_tokenId] != 0) {
+    if (attachments[_tokenId] != 0 || isVoted(_tokenId)) {
       _detachAll(_tokenId, _from);
     }
 
@@ -571,7 +575,6 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     _transferFrom(_from, _to, _tokenId, msg.sender);
     require(_checkOnERC721Received(_from, _to, _tokenId, _data), "ERC721: transfer to non ERC721Receiver implementer");
   }
-
 
   /// @dev Internal function to invoke {IERC721Receiver-onERC721Received} on a target address.
   /// The call is not executed if the target address is not a contract.
@@ -707,7 +710,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
       }
     }
 
-    Point memory lastPoint = Point({bias : 0, slope : 0, ts : block.timestamp, blk : block.number});
+    Point memory lastPoint = Point({bias: 0, slope: 0, ts: block.timestamp, blk: block.number});
     if (_epoch > 0) {
       lastPoint = _pointHistory[_epoch];
     }
@@ -888,12 +891,12 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
 
     // update checkpoint
     _checkpoint(CheckpointInfo(
-        info.tokenId,
-        info.lockedDerivedAmount,
-        newLockedDerivedAmount,
-        info.lockedEnd,
-        newLockedEnd
-      ));
+      info.tokenId,
+      info.lockedDerivedAmount,
+      newLockedDerivedAmount,
+      info.lockedEnd,
+      newLockedEnd
+    ));
 
     // move tokens to this contract, if necessary
     address from = msg.sender;
@@ -971,14 +974,14 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     _mint(_to, _tokenId);
 
     _depositFor(DepositInfo({
-    stakingToken : _token,
-    tokenId : _tokenId,
-    value : _value,
-    unlockTime : unlockTime,
-    lockedAmount : 0,
-    lockedDerivedAmount : 0,
-    lockedEnd : 0,
-    depositType : DepositType.CREATE_LOCK_TYPE
+      stakingToken: _token,
+      tokenId: _tokenId,
+      value: _value,
+      unlockTime: unlockTime,
+      lockedAmount: 0,
+      lockedDerivedAmount: 0,
+      lockedEnd: 0,
+      depositType: DepositType.CREATE_LOCK_TYPE
     }));
     return _tokenId;
   }
@@ -1015,14 +1018,14 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     require(isValidToken[_token], "INVALID_TOKEN");
 
     _depositFor(DepositInfo({
-    stakingToken : _token,
-    tokenId : _tokenId,
-    value : _value,
-    unlockTime : 0,
-    lockedAmount : _lockedAmount,
-    lockedDerivedAmount : _lockedDerivedAmount,
-    lockedEnd : _lockedEnd,
-    depositType : DepositType.INCREASE_LOCK_AMOUNT
+      stakingToken: _token,
+      tokenId: _tokenId,
+      value: _value,
+      unlockTime: 0,
+      lockedAmount: _lockedAmount,
+      lockedDerivedAmount: _lockedDerivedAmount,
+      lockedEnd: _lockedEnd,
+      depositType: DepositType.INCREASE_LOCK_AMOUNT
     }));
   }
 
@@ -1044,14 +1047,14 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     require(isApprovedOrOwner(msg.sender, _tokenId), "NOT_OWNER");
 
     _depositFor(DepositInfo({
-    stakingToken : address(0),
-    tokenId : _tokenId,
-    value : 0,
-    unlockTime : unlockTime,
-    lockedAmount : 0,
-    lockedDerivedAmount : _lockedDerivedAmount,
-    lockedEnd : _lockedEnd,
-    depositType : DepositType.INCREASE_UNLOCK_TIME
+      stakingToken: address(0),
+      tokenId: _tokenId,
+      value: 0,
+      unlockTime: unlockTime,
+      lockedAmount: 0,
+      lockedDerivedAmount: _lockedDerivedAmount,
+      lockedEnd: _lockedEnd,
+      depositType: DepositType.INCREASE_UNLOCK_TIME
     }));
 
     power = balanceOfNFT(_tokenId);
@@ -1060,12 +1063,13 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
 
   /// @dev Merge two NFTs union their balances and keep the biggest lock time.
   function merge(uint _from, uint _to) external nonReentrant {
-    require(attachments[_from] == 0 && voted[_from] == 0, "ATTACHED");
+    require(attachments[_from] == 0 && !isVoted(_from), "ATTACHED");
     require(_from != _to, "IDENTICAL_ADDRESS");
     require(_idToOwner[_from] == msg.sender && _idToOwner[_to] == msg.sender, "NOT_OWNER");
 
     uint lockedEndFrom = lockedEnd[_from];
     uint lockedEndTo = lockedEnd[_to];
+    require(lockedEndFrom > block.timestamp && lockedEndTo > block.timestamp, "EXPIRED");
     uint end = lockedEndFrom >= lockedEndTo ? lockedEndFrom : lockedEndTo;
     uint oldDerivedAmount = lockedDerivedAmount[_from];
 
@@ -1081,14 +1085,14 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
       lockedAmounts[_from][stakingToken] = 0;
 
       _depositFor(DepositInfo({
-      stakingToken : stakingToken,
-      tokenId : _to,
-      value : _lockedAmountFrom,
-      unlockTime : end,
-      lockedAmount : lockedAmounts[_to][stakingToken],
-      lockedDerivedAmount : lockedDerivedAmount[_to],
-      lockedEnd : newLockedEndTo,
-      depositType : DepositType.MERGE_TYPE
+        stakingToken: stakingToken,
+        tokenId: _to,
+        value: _lockedAmountFrom,
+        unlockTime: end,
+        lockedAmount: lockedAmounts[_to][stakingToken],
+        lockedDerivedAmount: lockedDerivedAmount[_to],
+        lockedEnd: newLockedEndTo,
+        depositType: DepositType.MERGE_TYPE
       }));
 
       // set new lock time to the current end lock
@@ -1102,12 +1106,12 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
 
     // update checkpoint
     _checkpoint(CheckpointInfo(
-        _from,
-        oldDerivedAmount,
-        0,
-        lockedEndFrom,
-        lockedEndFrom
-      ));
+      _from,
+      oldDerivedAmount,
+      0,
+      lockedEndFrom,
+      lockedEndFrom
+    ));
 
     _burn(_from);
   }
@@ -1116,7 +1120,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   /// @param _tokenId ve token ID
   /// @param percent percent of underlying tokens for new NFT with denominator 1e18 (1-(100e18-1)).
   function split(uint _tokenId, uint percent) external nonReentrant {
-    require(attachments[_tokenId] == 0 && voted[_tokenId] == 0, "ATTACHED");
+    require(attachments[_tokenId] == 0 && !isVoted(_tokenId), "ATTACHED");
     require(_idToOwner[_tokenId] == msg.sender, "NOT_OWNER");
     require(percent != 0 && percent < 100e18, "WRONG_INPUT");
 
@@ -1155,14 +1159,14 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
 
       // increase values for new NFT
       _depositFor(DepositInfo({
-      stakingToken : stakingToken,
-      tokenId : _newTokenId,
-      value : amountForNewNFT,
-      unlockTime : _lockedEnd,
-      lockedAmount : 0,
-      lockedDerivedAmount : lockedDerivedAmount[_newTokenId],
-      lockedEnd : _lockedEnd,
-      depositType : DepositType.MERGE_TYPE
+        stakingToken: stakingToken,
+        tokenId: _newTokenId,
+        value: amountForNewNFT,
+        unlockTime: _lockedEnd,
+        lockedAmount: 0,
+        lockedDerivedAmount: lockedDerivedAmount[_newTokenId],
+        lockedEnd: _lockedEnd,
+        depositType: DepositType.MERGE_TYPE
       }));
     }
 
@@ -1171,12 +1175,12 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
 
     // update checkpoint
     _checkpoint(CheckpointInfo(
-        _tokenId,
-        oldLockedDerivedAmount,
-        _lockedDerivedAmount,
-        _lockedEnd,
-        _lockedEnd
-      ));
+      _tokenId,
+      oldLockedDerivedAmount,
+      _lockedDerivedAmount,
+      _lockedEnd,
+      _lockedEnd
+    ));
 
     emit Split(_tokenId, _newTokenId, percent);
   }
@@ -1197,10 +1201,10 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
   /// @dev Only possible if the lock has expired
   function withdraw(address stakingToken, uint _tokenId) public nonReentrant {
     require(isApprovedOrOwner(msg.sender, _tokenId), "NOT_OWNER");
-    require(attachments[_tokenId] == 0 && voted[_tokenId] == 0, "ATTACHED");
+    require(attachments[_tokenId] == 0 && !isVoted(_tokenId), "ATTACHED");
 
     (uint oldLockedAmount, uint oldLockedDerivedAmount, uint oldLockedEnd) =
-    _lockInfo(stakingToken, _tokenId);
+            _lockInfo(stakingToken, _tokenId);
     require(block.timestamp >= oldLockedEnd, "NOT_EXPIRED");
     require(oldLockedAmount > 0, "ZERO_LOCKED");
 
@@ -1228,12 +1232,12 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
 
     // update checkpoint
     _checkpoint(CheckpointInfo(
-        _tokenId,
-        oldLockedDerivedAmount,
-        newLockedDerivedAmount,
-        oldLockedEnd,
-        newLockEnd
-      ));
+      _tokenId,
+      oldLockedDerivedAmount,
+      newLockedDerivedAmount,
+      oldLockedEnd,
+      newLockEnd
+    ));
 
     // Burn the NFT
     if (newLockedDerivedAmount == 0) {
@@ -1299,7 +1303,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
 
     uint _lockedEnd = lockedEnd[_tokenId];
     return
-    VeTetuLogo.tokenURI(
+      VeTetuLogo.tokenURI(
       _tokenId,
       uint(int256(lockedDerivedAmount[_tokenId])),
       block.timestamp < _lockedEnd ? _lockedEnd - block.timestamp : 0,
@@ -1356,8 +1360,6 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IV
     uPoint.bias -= uPoint.slope * int128(int256(blockTime - uPoint.ts));
     return uint(uint128(uPoint.bias.positiveInt128()));
   }
-
-
 
   /// @notice Calculate total voting power at some point in the past
   /// @param point The point (bias/slope) to start search from

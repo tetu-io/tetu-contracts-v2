@@ -21,4 +21,6 @@ interface IPlatformVoter {
 
   function detachTokenFromAll(uint tokenId, address owner) external;
 
+  function veVotesLength(uint veId) external view returns (uint);
+
 }

@@ -137,7 +137,7 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
   }
 
   /// @dev Return voted vaults length for given veId.
-  function votedVaultsLength(uint veId) external view returns (uint) {
+  function votedVaultsLength(uint veId) external view override returns (uint) {
     return vaultsVotes[veId].length;
   }
 

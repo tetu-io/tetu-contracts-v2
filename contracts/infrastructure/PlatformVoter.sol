@@ -43,7 +43,6 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
   /// @dev Attribute => Target(zero for not-strategy) => sum of weights multiple on values
   mapping(AttributeType => mapping(address => uint)) public attributeValues;
 
-
   // *************************************************************
   //                        EVENTS
   // *************************************************************
@@ -91,7 +90,7 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
   }
 
   /// @dev Length of votes array for given id
-  function veVotesLength(uint veId) external view returns (uint) {
+  function veVotesLength(uint veId) external view override returns (uint) {
     return votes[veId].length;
   }
 
@@ -168,6 +167,9 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
             _votes[i] = _votes[length - 1];
           }
           _votes.pop();
+          // todo we should decrease votes counter in ve her
+          // but we just simplified the logic in the ve instead
+          // will need to upgrade the ve firstly, then upgrade each voter and then we can remove unnecessary ve calls
         } else {
           // it is a new type of vote
           // need to check MAX votes in this case
@@ -178,7 +180,6 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
       totalAttributeWeight = _attributeWeights[target] - oldVeWeight;
       totalAttributeValue = _attributeValues[target] - oldVeValue;
     }
-
 
     // get new values for ve
     uint veWeight = IVeTetu(ve).balanceOfNFT(tokenId);
