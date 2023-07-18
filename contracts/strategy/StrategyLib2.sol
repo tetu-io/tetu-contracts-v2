@@ -50,17 +50,6 @@ library StrategyLib2 {
   //                        CHECKS AND EMITS
   // *************************************************************
 
-  function _checkCompoundRatioChanged(address controller, uint oldValue, uint newValue) external {
-    onlyPlatformVoter(controller);
-    require(newValue <= COMPOUND_DENOMINATOR, TOO_HIGH);
-    emit CompoundRatioChanged(oldValue, newValue);
-  }
-
-  function _checkStrategySpecificNameChanged(address controller, string calldata newName) external {
-    onlyOperators(controller);
-    emit StrategySpecificNameChanged(newName);
-  }
-
   function _checkManualClaim(address controller) external {
     onlyOperators(controller);
     emit ManualClaim(msg.sender);
@@ -78,6 +67,25 @@ library StrategyLib2 {
     require(receiver_ != address(0), WRONG_VALUE);
     require(ratio_ <= FEE_DENOMINATOR, TOO_HIGH);
     emit PerformanceFeeChanged(fee_, receiver_, ratio_);
+  }
+
+  // *************************************************************
+  //                        SETTERS
+  // *************************************************************
+
+  function _changeCompoundRatio(IStrategyV3.BaseState storage baseState, address controller, uint newValue) external {
+    onlyPlatformVoter(controller);
+    require(newValue <= COMPOUND_DENOMINATOR, TOO_HIGH);
+
+    uint oldValue = baseState.compoundRatio;
+    baseState.compoundRatio = newValue;
+
+    emit CompoundRatioChanged(oldValue, newValue);
+  }
+
+  function _changeStrategySpecificName(IStrategyV3.BaseState storage baseState, string calldata newName) external {
+    baseState.strategySpecificName = newName;
+    emit StrategySpecificNameChanged(newName);
   }
 
   // *************************************************************

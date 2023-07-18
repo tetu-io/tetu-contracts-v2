@@ -90,8 +90,7 @@ abstract contract StrategyBaseV3 is IStrategyV3, ControllableV3 {
   /// @dev PlatformVoter can change compound ratio for some strategies.
   ///      A strategy can implement another logic for some uniq cases.
   function setCompoundRatio(uint value) external virtual override {
-    StrategyLib2._checkCompoundRatioChanged(controller(), baseState.compoundRatio, value);
-    baseState.compoundRatio = value;
+    StrategyLib2._changeCompoundRatio(baseState, controller(), value);
   }
 
   // *************************************************************
@@ -100,8 +99,8 @@ abstract contract StrategyBaseV3 is IStrategyV3, ControllableV3 {
 
   /// @dev The name will be used for UI.
   function setStrategySpecificName(string calldata name) external {
-    StrategyLib2._checkStrategySpecificNameChanged(controller(), name);
-    baseState.strategySpecificName = name;
+    StrategyLib2.onlyOperators(controller());
+    StrategyLib2._changeStrategySpecificName(baseState, name);
   }
 
   /// @dev In case of any issue operator can withdraw all from pool.
