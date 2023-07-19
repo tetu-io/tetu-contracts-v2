@@ -18,7 +18,7 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant PLATFORM_VOTER_VERSION = "1.0.0";
+  string public constant PLATFORM_VOTER_VERSION = "1.0.1";
   /// @dev Denominator for different ratios. It is default for the whole platform.
   uint public constant RATIO_DENOMINATOR = 100_000;
   /// @dev Delay between votes.
@@ -99,6 +99,10 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
     return interfaceId == InterfaceIds.I_PLATFORM_VOTER || super.supportsInterface(interfaceId);
   }
 
+  function isVotesExist(uint veId) external view override returns (bool) {
+    return votes[veId].length > 0;
+  }
+
   // *************************************************************
   //                        VOTES
   // *************************************************************
@@ -167,9 +171,6 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
             _votes[i] = _votes[length - 1];
           }
           _votes.pop();
-          // todo we should decrease votes counter in ve her
-          // but we just simplified the logic in the ve instead
-          // will need to upgrade the ve firstly, then upgrade each voter and then we can remove unnecessary ve calls
         } else {
           // it is a new type of vote
           // need to check MAX votes in this case
@@ -199,7 +200,6 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
       _setAttribute(_type, totalAttributeValue / totalAttributeWeight, target);
 
       // write attachments
-      IVeTetu(ve).voting(tokenId);
       _votes.push(Vote(_type, target, veWeight, veWeightedValue, block.timestamp));
 
       emit Voted(
@@ -225,7 +225,8 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
       require(target == address(0), "!target");
       IForwarder(IController(controller()).forwarder()).setGaugesRatio(newValue);
     } else if (_type == AttributeType.STRATEGY_COMPOUND) {
-      IStrategyV2(target).setCompoundRatio(newValue);
+      // if for some reason the contract is unable to call this function we should not revert for keep poke support
+      try IStrategyV2(target).setCompoundRatio(newValue) {} catch {}
     } else {
       revert("!type");
     }
@@ -256,8 +257,6 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
         _removeVote(tokenId, v._type, v.target, v.weight, v.weightedValue);
         // with descent loop we remove one by one last elements
         _votes.pop();
-
-        IVeTetu(ve).abstain(tokenId);
         emit VoteReset(
           tokenId,
           uint(v._type),

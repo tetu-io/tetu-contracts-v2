@@ -2,7 +2,9 @@
 
 pragma solidity 0.8.17;
 
-interface IPlatformVoter {
+import "./IVeVotable.sol";
+
+interface IPlatformVoter is IVeVotable {
 
   enum AttributeType {
     UNKNOWN,
@@ -18,8 +20,6 @@ interface IPlatformVoter {
     uint weightedValue;
     uint timestamp;
   }
-
-  function detachTokenFromAll(uint tokenId, address owner) external;
 
   function veVotesLength(uint veId) external view returns (uint);
 

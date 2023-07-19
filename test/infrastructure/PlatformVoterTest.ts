@@ -224,6 +224,11 @@ describe("Platform voter tests", function () {
     await platformVoter.vote(1, 1, 100, Misc.ZERO_ADDRESS);
     await TimeUtils.advanceBlocksOnTs(WEEK);
     await platformVoter.poke(1);
+
+    // vote for not strategy should not revert
+    await platformVoter.vote(1, 3, 50000, platformVoter.address);
+    await TimeUtils.advanceBlocksOnTs(WEEK * 8);
+    await platformVoter.poke(1);
   });
 
   it("re vote test", async function () {

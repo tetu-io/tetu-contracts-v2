@@ -25,7 +25,7 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant VOTER_VERSION = "1.0.0";
+  string public constant VOTER_VERSION = "1.0.1";
   /// @dev Rewards are released over 7 days
   uint internal constant _DURATION = 7 days;
   /// @dev Maximum votes per veNFT
@@ -144,6 +144,10 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
   /// @dev See {IERC165-supportsInterface}.
   function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
     return interfaceId == InterfaceIds.I_VOTER || super.supportsInterface(interfaceId);
+  }
+
+  function isVotesExist(uint veId) external view override returns (bool) {
+    return vaultsVotes[veId].length > 0;
   }
 
   // *************************************************************
