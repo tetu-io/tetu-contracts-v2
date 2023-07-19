@@ -118,6 +118,12 @@ describe("SplitterTests", function () {
     expect((await splitter.allStrategies()).length).eq(1);
   });
 
+  it("refreshValidStrategies", async () => {
+    await strategy.init(controller.address, splitter.address);
+    await splitter.addStrategies([strategy.address], [100], [0]);
+    await splitter.refreshValidStrategies()
+  });
+
   it("set strategy with time lock test", async () => {
     await strategy.init(controller.address, splitter.address);
     await splitter.addStrategies([strategy.address], [100], [0]);

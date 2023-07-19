@@ -112,6 +112,7 @@ describe("Platform voter tests", function () {
     await platformVoter.connect(owner2).vote(2, 1, 50, Misc.ZERO_ADDRESS);
     await platformVoter.connect(owner3).vote(3, 1, 30, Misc.ZERO_ADDRESS);
     expect(await forwarder.toInvestFundRatio()).eq(60);
+    expect(await platformVoter.isVotesExist(1)).eq(true);
   });
 
   it("vote delay revert", async function () {

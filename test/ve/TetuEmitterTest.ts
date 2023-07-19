@@ -68,6 +68,19 @@ describe("TetuEmitterTest", function () {
     expect(await emitter.startEpochTS()).above(0);
   });
 
+  it("gelato Resolver test", async function () {
+    await tetu.transfer(emitter.address, 100)
+
+
+    expect(await emitter.isReadyToStart()).eq(true);
+    expect((await emitter.gelatoResolver()).canExec).eq(true);
+
+    await emitter.startEpoch(100);
+
+    expect(await emitter.isReadyToStart()).eq(false);
+    expect((await emitter.gelatoResolver()).canExec).eq(false);
+  });
+
   it("startEpoch to ve 100% test", async function () {
     await expect(emitter.connect(owner2).setToVeRatio(100)).revertedWith("!gov");
     await expect(emitter.setToVeRatio(100_001)).revertedWith("too high");
