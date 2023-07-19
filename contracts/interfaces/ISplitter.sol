@@ -41,4 +41,8 @@ interface ISplitter {
 
   function continueInvesting(address strategy, uint apr) external;
 
+  function rebalance(uint percent, uint lossTolerance) external;
+
+  function getStrategyCapacity(address strategy) external view returns (uint capacity);
+
 }
