@@ -1,7 +1,7 @@
 import {ethers} from "hardhat";
 import {DeployerUtils} from "../utils/DeployerUtils";
 import {RunHelper} from "../utils/RunHelper";
-import {MockStrategy, MockStrategy__factory, StrategySplitterV2, StrategySplitterV2__factory} from "../../typechain";
+import {MockStrategy, MockStrategy__factory, StrategySplitterV2__factory} from "../../typechain";
 import {Addresses} from "../addresses/addresses";
 
 const SPLITTER = '0x24dc9f1b9ae0fA62acb120Ea77D7fC89C6814F72';
@@ -21,7 +21,8 @@ async function main() {
   const splitter = StrategySplitterV2__factory.connect(SPLITTER, signer);
   await RunHelper.runAndWait(() => splitter.addStrategies(
     [strategy1.address, strategy2.address, strategy3.address],
-    [Math.round(Math.random() * 100), Math.round(Math.random() * 200), Math.round(Math.random() * 2)]
+    [Math.round(Math.random() * 100), Math.round(Math.random() * 200), Math.round(Math.random() * 2)],
+    [0, 0, 0]
   ));
 }
 

@@ -85,4 +85,7 @@ contract MockSplitter is ISplitter, ControllableV3 {
   function strategiesLength() external view returns (uint) {
     return strategies.length;
   }
+
+  function rebalance(uint /*percent*/, uint /*lossTolerance*/) external pure override {}
+  function getStrategyCapacity(address /*strategy*/) external pure override returns (uint) {return 0;}
 }

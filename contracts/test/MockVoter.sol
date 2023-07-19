@@ -54,4 +54,8 @@ contract MockVoter is IVoter {
     IERC20(IVeTetu(ve).tokens(0)).transferFrom(msg.sender, address(this), amount);
   }
 
+  function isVotesExist(uint veId) external view override returns (bool) {
+    return mockVotes[veId] > 0;
+  }
+
 }

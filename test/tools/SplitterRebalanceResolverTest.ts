@@ -3,9 +3,13 @@ import chaiAsPromised from "chai-as-promised";
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {
   ControllerMinimal,
-  HardWorkResolver,
-  HardWorkResolver__factory,
-  MockGauge__factory, MockStrategy, MockStrategy__factory, MockToken, StrategySplitterV2,
+  MockGauge__factory,
+  MockStrategy,
+  MockStrategy__factory,
+  MockToken,
+  SplitterRebalanceResolver,
+  SplitterRebalanceResolver__factory,
+  StrategySplitterV2,
   TetuVaultV2,
 } from "../../typechain";
 import {TimeUtils} from "../TimeUtils";
@@ -17,16 +21,17 @@ import {Misc} from "../../scripts/utils/Misc";
 const {expect} = chai;
 chai.use(chaiAsPromised);
 
-describe("HardWorkResolverTest", function () {
+describe("SplitterRebalanceResolverTest", function () {
   let snapshotBefore: string;
   let snapshot: string;
   let signer: SignerWithAddress;
 
   let controller: ControllerMinimal
-  let resolver: HardWorkResolver;
+  let resolver: SplitterRebalanceResolver;
   let vault: TetuVaultV2
   let splitter: StrategySplitterV2
   let strategyAsSplitter: MockStrategy;
+  let strategyAsSplitter2: MockStrategy;
   let usdc: MockToken
 
   before(async function () {
@@ -37,7 +42,7 @@ describe("HardWorkResolverTest", function () {
     controller = await DeployerUtils.deployMockController(signer);
     usdc = await DeployerUtils.deployMockToken(signer, 'USDC', 6);
 
-    resolver = HardWorkResolver__factory.connect(await DeployerUtils.deployProxy(signer, 'HardWorkResolver'), signer)
+    resolver = SplitterRebalanceResolver__factory.connect(await DeployerUtils.deployProxy(signer, 'SplitterRebalanceResolver'), signer)
     await resolver.init(controller.address)
 
     const mockGauge = MockGauge__factory.connect(await DeployerUtils.deployProxy(signer, 'MockGauge'), signer);
@@ -60,12 +65,19 @@ describe("HardWorkResolverTest", function () {
       (await DeployerUtils.deployProxy(signer, 'MockStrategy')),
       await Misc.impersonate(splitter.address)
     );
+    strategyAsSplitter2 = MockStrategy__factory.connect(
+      (await DeployerUtils.deployProxy(signer, 'MockStrategy')),
+      await Misc.impersonate(splitter.address)
+    );
     await strategyAsSplitter.init(controller.address, splitter.address);
-    await splitter.addStrategies([strategyAsSplitter.address], [100], [0]);
+    await strategyAsSplitter2.init(controller.address, splitter.address);
+    await splitter.addStrategies([strategyAsSplitter.address, strategyAsSplitter2.address], [100, 50], [0, 0]);
     const amount = parseUnits('1', 6);
     await usdc.transfer(strategyAsSplitter.address, amount);
+    await usdc.transfer(strategyAsSplitter2.address, amount.mul(2));
 
-    await strategyAsSplitter.investAll(amount, false);
+    await strategyAsSplitter.investAll(amount, true);
+    await strategyAsSplitter2.investAll(amount, true);
 
     await resolver.changeOperatorStatus(signer.address, true)
     await controller.addVault(vault.address)
@@ -91,8 +103,12 @@ describe("HardWorkResolverTest", function () {
     await resolver.setMaxGas(1)
   });
 
-  it("setMaxHwPerCall", async () => {
-    await resolver.setMaxHwPerCall(1)
+  it("setPercentPerVault", async () => {
+    await resolver.setPercentPerVault(vault.address, 1)
+  });
+
+  it("setTolerancePerVault", async () => {
+    await resolver.setTolerancePerVault(vault.address, 1)
   });
 
   it("changeOperatorStatus", async () => {
@@ -111,15 +127,17 @@ describe("HardWorkResolverTest", function () {
     const gas = (await resolver.estimateGas.checker()).toNumber()
     expect(gas).below(15_000_000);
 
-    // cant exec because last hardwork was updated on splitter.addStrategies
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 3);
+    // can not exec if no hw long time
     expect((await resolver.checker()).canExec).eq(false)
 
-    await TimeUtils.advanceBlocksOnTs(60 * 60 * 24);
+    await splitter.doHardWorkForStrategy(strategyAsSplitter.address, true);
+    await splitter.doHardWorkForStrategy(strategyAsSplitter2.address, true);
 
     const data = await resolver.checker();
     expect(data.canExec).eq(true)
-    const vaults = HardWorkResolver__factory.createInterface().decodeFunctionData('call', data.execPayload)._vaults
-    expect(vaults[0]).eq(vault.address)
+    const vaultCall = SplitterRebalanceResolver__factory.createInterface().decodeFunctionData('call', data.execPayload).vault;
+    expect(vaultCall).eq(vault.address)
 
     // cant exec with low gas price
     await resolver.setMaxGas(0)
@@ -141,23 +159,23 @@ describe("HardWorkResolverTest", function () {
 
     const amount = parseUnits('1', 6);
     await usdc.transfer(strategyAsSplitter.address, amount);
-    await strategyAsSplitter.investAll(amount, false);
+    await strategyAsSplitter.investAll(amount, true);
     expect((await resolver.checker()).canExec).eq(true)
   });
 
   it("execute call", async () => {
-    await TimeUtils.advanceBlocksOnTs(60 * 60 * 24);
-
     const data = await resolver.checker();
+    expect(data.canExec).eq(true)
+    console.log('data.execPayload', data.execPayload)
+    const vaultCall = SplitterRebalanceResolver__factory.createInterface().decodeFunctionData('call', data.execPayload).vault
+    expect(vaultCall).eq(vault.address)
 
-    const vaults = HardWorkResolver__factory.createInterface().decodeFunctionData('call', data.execPayload)._vaults
-
-    await expect(resolver.call(vaults)).revertedWith('SS: Denied')
+    await expect(resolver.call(vaultCall)).revertedWith('SS: Denied')
 
     await controller.addOperator(resolver.address)
-    const gas = (await resolver.estimateGas.call(vaults)).toNumber();
+    const gas = (await resolver.estimateGas.call(vaultCall)).toNumber();
     expect(gas).below(15_000_000);
-    await resolver.call(vaults)
+    await resolver.call(vaultCall)
 
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 24);
     await resolver.setDelayRate([vault.address], 2 * 100_000)
@@ -166,8 +184,10 @@ describe("HardWorkResolverTest", function () {
     expect((await resolver.checker()).canExec).eq(false)
 
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 24);
+    await splitter.doHardWorkForStrategy(strategyAsSplitter.address, true);
+    await splitter.doHardWorkForStrategy(strategyAsSplitter2.address, true);
     expect((await resolver.checker()).canExec).eq(true)
 
-    await resolver.call(vaults)
+    await resolver.call(vaultCall)
   })
 })

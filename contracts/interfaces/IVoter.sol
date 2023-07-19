@@ -2,7 +2,9 @@
 
 pragma solidity 0.8.17;
 
-interface IVoter {
+import "./IVeVotable.sol";
+
+interface IVoter is IVeVotable {
 
   function ve() external view returns (address);
 
@@ -13,8 +15,6 @@ interface IVoter {
   function distribute(address stakingToken) external;
 
   function notifyRewardAmount(uint amount) external;
-
-  function detachTokenFromAll(uint tokenId, address account) external;
 
   function votedVaultsLength(uint veId) external view returns (uint);
 

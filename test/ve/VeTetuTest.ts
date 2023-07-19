@@ -192,6 +192,21 @@ describe("veTETU tests", function () {
     await voter.abstain(1);
   });
 
+  it("changeTokenFarmingAllowanceStatus test", async function () {
+    await ve.changeTokenFarmingAllowanceStatus(underlying2.address, true);
+  });
+
+  it("stakeAvailableTokens test", async function () {
+    await ve.stakeAvailableTokens(underlying2.address);
+    await ve.changeTokenFarmingAllowanceStatus(underlying2.address, true);
+    await ve.stakeAvailableTokens(underlying2.address);
+    await ve.stakeAvailableTokens('0xE2f706EF1f7240b803AAe877C9C762644bb808d8');
+  });
+
+  it("emergencyWithdrawStakedTokens test", async function () {
+    await ve.emergencyWithdrawStakedTokens(underlying2.address);
+  });
+
   it("attach revert", async function () {
     await expect(ve.attachToken(1)).revertedWith('NOT_VOTER')
   });

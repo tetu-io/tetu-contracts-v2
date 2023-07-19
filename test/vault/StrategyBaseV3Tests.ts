@@ -68,7 +68,7 @@ describe("StrategyBaseV3Tests", function () {
 
     // initialize strategy
     await strategyAsSplitter.init(controller.address, splitter.address);
-    await splitter.addStrategies([strategyAsSplitter.address], [100]);
+    await splitter.addStrategies([strategyAsSplitter.address], [100], [0]);
   });
 
   after(async function () {

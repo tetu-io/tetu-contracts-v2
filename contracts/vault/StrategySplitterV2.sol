@@ -24,7 +24,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   // *********************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant SPLITTER_VERSION = "2.1.1";
+  string public constant SPLITTER_VERSION = "2.1.2";
   /// @dev APR denominator. Represent 100% APR.
   uint public constant APR_DENOMINATOR = 100_000;
   /// @dev Delay between hardwork calls for a strategy.
@@ -233,10 +233,10 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
   /// @dev Add new managed strategy. Should be an uniq address.
   ///      Strategy should have the same underlying asset with current contract.
-  function addStrategies(address[] memory _strategies, uint[] memory expectedAPR) external {
+  function addStrategies(address[] memory _strategies, uint[] memory expectedAPR, uint[] memory capacities) external {
     // only initial action will require strict access
     // already scheduled strategies can be added by anyone
-    require(_strategies.length == expectedAPR.length, "WRONG_INPUT");
+    require(_strategies.length == expectedAPR.length && _strategies.length == capacities.length, "WRONG_INPUT");
 
     bool _inited = inited;
     address[] memory existStrategies = strategies;
@@ -244,6 +244,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     for (uint i = 0; i < _strategies.length; i++) {
       address strategy = _strategies[i];
       uint apr = expectedAPR[i];
+      uint capacity = capacities[i];
 
       // --- restrictions ----------
 
@@ -267,6 +268,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
       isValidStrategy[strategy] = true;
       strategies.push(strategy);
       _setStrategyAPR(strategy, apr);
+      _setStrategyCapacity(strategy, capacity);
       addedStrategies[i] = strategy;
       lastHardWorks[strategy] = block.timestamp;
       emit StrategyAdded(strategy, apr);
@@ -341,6 +343,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
     uint topStrategyWithoutCapacity = type(uint).max;
 
+    uint maxToInvest;
     for (uint i = 0; i < length; i++) {
       address strategy = strategies[i];
       uint capacity = getStrategyCapacity(strategy);
@@ -348,6 +351,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
         uint strategyBalance = IStrategyV2(strategy).totalAssets();
         if (strategyBalance < capacity) {
           topStrategyWithoutCapacity = i;
+          maxToInvest = capacity - strategyBalance;
           break;
         }
       } else {
@@ -376,7 +380,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     if (lowStrategyBalance != 0) {
       strategyLossOnWithdraw = (percent == 100)
         ? IStrategyV2(lowStrategy).withdrawAllToSplitter()
-        : IStrategyV2(lowStrategy).withdrawToSplitter(lowStrategyBalance * percent / 100);
+        : IStrategyV2(lowStrategy).withdrawToSplitter(Math.min(lowStrategyBalance * percent / 100, maxToInvest));
     }
     // need to emit loss separately
     if (strategyLossOnWithdraw != 0) {
@@ -385,9 +389,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
       emit Loss(lowStrategy, strategyLossOnWithdraw);
     }
 
-    (address topStrategy, uint strategyLossOnInvest, uint strategyBalanceAfterInvest) = _investToTopStrategy(
-      false // we assume here, that total-assets-amount of the strategy was just updated in withdraw above
-    );
+    (address topStrategy, uint strategyLossOnInvest, uint strategyBalanceAfterInvest) = _investToTopStrategy(true);
     require(topStrategy != address(0), "SS: Not invested");
     // need to emit loss separately
     if (strategyLossOnInvest != 0) {
@@ -451,6 +453,10 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   function setStrategyCapacity(address strategy, uint capacity) external {
     _onlyOperators();
     require(isValidStrategy[strategy], "SS: Invalid strategy");
+    _setStrategyCapacity(strategy, capacity);
+  }
+
+  function _setStrategyCapacity(address strategy, uint capacity) internal {
     strategyCapacity[strategy] = capacity;
     emit SetStrategyCapacity(strategy, capacity);
   }
@@ -723,9 +729,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   /// @param updateTotalAssetsBeforeInvest TotalAssets of strategy should be updated before investing.
   /// @return strategy Selected strategy or zero
   /// @return strategyLoss Loss should be covered from Insurance
-  function _investToTopStrategy(
-    bool updateTotalAssetsBeforeInvest
-  ) internal returns (
+  function _investToTopStrategy(bool updateTotalAssetsBeforeInvest) internal returns (
     address strategy,
     uint strategyLoss,
     uint strategyBalanceAfterInvest

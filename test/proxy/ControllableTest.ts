@@ -62,6 +62,7 @@ describe("Controllable Tests", function () {
     const controller = await DeployerUtils.deployContract(signer, 'ControllerMinimal', signer.address) as ControllerMinimal;
     await helper.init(controller.address);
     expect(await helper.createdBlock()).above(0);
+    expect(await helper.created()).above(0);
   });
 
   it("increase rev revert test", async () => {

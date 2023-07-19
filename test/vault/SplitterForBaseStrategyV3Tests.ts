@@ -108,25 +108,25 @@ describe("SplitterForBaseStrategyV3Tests", function () {
 
   it("set strategy denied revert", async () => {
     await strategy.init(controller.address, splitter.address);
-    await expect(splitter.connect(signer2).addStrategies([strategy.address], [100])).revertedWith("SS: Denied");
+    await expect(splitter.connect(signer2).addStrategies([strategy.address], [100], [0])).revertedWith("SS: Denied");
   });
 
   it("set strategy test", async () => {
     await strategy.init(controller.address, splitter.address);
-    await splitter.addStrategies([strategy.address], [100]);
+    await splitter.addStrategies([strategy.address], [100], [0]);
     expect((await splitter.allStrategies()).length).eq(1);
   });
 
   it("set strategy with time lock test", async () => {
     await strategy.init(controller.address, splitter.address);
-    await splitter.addStrategies([strategy.address], [100]);
+    await splitter.addStrategies([strategy.address], [100], [0]);
 
     const strategy2 = MockStrategyV3__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategyV3')), signer)
     await strategy2.init(controller.address, splitter.address);
 
     await splitter.scheduleStrategies([strategy2.address]);
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 18);
-    await splitter.addStrategies([strategy2.address], [100]);
+    await splitter.addStrategies([strategy2.address], [100], [0]);
     expect((await splitter.allStrategies()).length).eq(2);
   });
 
@@ -160,46 +160,46 @@ describe("SplitterForBaseStrategyV3Tests", function () {
   it("set strategy wrong asset revert", async () => {
     const s = MockStrategySimple__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategySimple')), signer)
     await s.init(controller.address, splitter.address, tetu.address);
-    await expect(splitter.addStrategies([s.address], [100])).revertedWith("SS: Wrong asset");
+    await expect(splitter.addStrategies([s.address], [100], [0])).revertedWith("SS: Wrong asset");
   });
 
   it("set strategy wrong splitter revert", async () => {
     const s = MockStrategySimple__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategySimple')), signer)
     await s.init(controller.address, tetu.address, usdc.address);
-    await expect(splitter.addStrategies([s.address], [100])).revertedWith("SS: Wrong splitter");
+    await expect(splitter.addStrategies([s.address], [100], [0])).revertedWith("SS: Wrong splitter");
   });
 
   it("set strategy wrong controller revert", async () => {
     const s = MockStrategySimple__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategySimple')), signer)
     const c = await DeployerUtils.deployMockController(signer);
     await s.init(c.address, splitter.address, usdc.address);
-    await expect(splitter.addStrategies([s.address], [100])).revertedWith("SS: Wrong controller");
+    await expect(splitter.addStrategies([s.address], [100], [0])).revertedWith("SS: Wrong controller");
   });
 
   it("set strategy already exist revert", async () => {
     await strategy.init(controller.address, splitter.address);
-    await splitter.addStrategies([strategy.address], [100]);
-    await expect(splitter.addStrategies([strategy.address], [100])).revertedWith("SS: Already exist");
+    await splitter.addStrategies([strategy.address], [100], [0]);
+    await expect(splitter.addStrategies([strategy.address], [100], [0])).revertedWith("SS: Already exist");
   });
 
   it.skip("set strategy wrong proxy revert", async () => {
     // todo ?
     const s = MockStrategyV3__factory.connect(await DeployerUtils.deployProxy(signer, 'MockStrategyV3'), signer);
     await s.init(controller.address, splitter.address);
-    await expect(splitter.addStrategies([s.address], [100])).revertedWith("");
+    await expect(splitter.addStrategies([s.address], [100], [0])).revertedWith("");
   });
 
   it("set strategy duplicate revert", async () => {
     await strategy.init(controller.address, splitter.address);
-    await expect(splitter.addStrategies([strategy.address, strategy.address], [100, 100])).revertedWith("SS: Duplicate");
+    await expect(splitter.addStrategies([strategy.address, strategy.address], [100, 100], [0,0])).revertedWith("SS: Duplicate");
   });
 
   it("set strategy time lock revert", async () => {
     await strategy.init(controller.address, splitter.address);
-    await splitter.addStrategies([strategy.address], [100])
+    await splitter.addStrategies([strategy.address], [100], [0])
     const strategy2 = MockStrategyV3__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategyV3')), signer)
     await strategy2.init(controller.address, splitter.address);
-    await expect(splitter.addStrategies([strategy2.address], [100])).revertedWith("SS: Time lock");
+    await expect(splitter.addStrategies([strategy2.address], [100], [0])).revertedWith("SS: Time lock");
   });
 
   it("remove strategy denied revert", async () => {
@@ -210,7 +210,7 @@ describe("SplitterForBaseStrategyV3Tests", function () {
     await strategy.init(controller.address, splitter.address);
     const strategy2 = MockStrategyV3__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategyV3')), signer)
     await strategy2.init(controller.address, splitter.address);
-    await splitter.addStrategies([strategy.address, strategy2.address], [100, 100]);
+    await splitter.addStrategies([strategy.address, strategy2.address], [100, 100], [0,0]);
     expect((await splitter.allStrategies()).length).eq(2);
     await splitter.removeStrategies([strategy.address]);
     expect((await splitter.allStrategies()).length).eq(1);
@@ -223,7 +223,7 @@ describe("SplitterForBaseStrategyV3Tests", function () {
 
   it("remove strategy test", async () => {
     await strategy.init(controller.address, splitter.address);
-    await splitter.addStrategies([strategy.address], [100]);
+    await splitter.addStrategies([strategy.address], [100], [0]);
     await expect(splitter.removeStrategies([signer.address])).revertedWith("SS: Strategy not found");
   });
 
@@ -247,7 +247,7 @@ describe("SplitterForBaseStrategyV3Tests", function () {
     await strategy.init(controller.address, splitter.address);
     const strategy2 = MockStrategyV3__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategyV3')), signer)
     await strategy2.init(controller.address, splitter.address);
-    await splitter.addStrategies([strategy.address, strategy2.address], [100, 100]);
+    await splitter.addStrategies([strategy.address, strategy2.address], [100, 100], [0,0]);
     await expect(splitter.rebalance(1000, 1)).revertedWith("SS: Percent");
   });
 
@@ -255,7 +255,7 @@ describe("SplitterForBaseStrategyV3Tests", function () {
     await strategy.init(controller.address, splitter.address);
     const strategy2 = MockStrategyV3__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategyV3')), signer)
     await strategy2.init(controller.address, splitter.address);
-    await splitter.addStrategies([strategy.address, strategy2.address], [100, 100]);
+    await splitter.addStrategies([strategy.address, strategy2.address], [100, 100], [0,0]);
     await expect(splitter.rebalance(1, 1)).revertedWith("SS: Not invested");
   });
 
@@ -263,7 +263,7 @@ describe("SplitterForBaseStrategyV3Tests", function () {
     await strategy.init(controller.address, splitter.address);
     const strategy2 = MockStrategyV3__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategyV3')), signer)
     await strategy2.init(controller.address, splitter.address);
-    await splitter.addStrategies([strategy.address, strategy2.address], [50, 100]);
+    await splitter.addStrategies([strategy.address, strategy2.address], [50, 100], [0,0]);
     await vault.deposit(10_000_000, signer.address);
     await splitter.setAPRs([strategy.address], [200]);
     await splitter.rebalance(1, 1);
@@ -304,14 +304,14 @@ describe("SplitterForBaseStrategyV3Tests", function () {
 
   it("remove last strategy test", async () => {
     await strategy.init(controller.address, splitter.address);
-    await splitter.addStrategies([strategy.address], [50]);
+    await splitter.addStrategies([strategy.address], [50], [0]);
     await splitter.removeStrategies([strategy.address])
     expect(await splitter.strategiesLength()).eq(0);
   });
 
   it("pause/continue investing test", async () => {
     await strategy.init(controller.address, splitter.address);
-    await splitter.addStrategies([strategy.address], [50]);
+    await splitter.addStrategies([strategy.address], [50], [0]);
     await splitter.pauseInvesting(strategy.address);
     expect(await splitter.pausedStrategies(strategy.address)).eq(true);
     expect(await splitter.strategiesAPR(strategy.address)).eq(0);
@@ -326,7 +326,7 @@ describe("SplitterForBaseStrategyV3Tests", function () {
 
   it("invest to paused test", async () => {
     await strategy.init(controller.address, splitter.address);
-    await splitter.addStrategies([strategy.address], [50]);
+    await splitter.addStrategies([strategy.address], [50], [0]);
     await splitter.pauseInvesting(strategy.address);
     await vault.deposit(10000, signer.address);
     expect(await usdc.balanceOf(splitter.address)).eq(10000);
@@ -345,7 +345,7 @@ describe("SplitterForBaseStrategyV3Tests", function () {
       await strategy2.init(controller.address, splitter.address);
       strategy3 = MockStrategyV3__factory.connect((await DeployerUtils.deployProxy(signer, 'MockStrategyV3')), signer)
       await strategy3.init(controller.address, splitter.address);
-      await splitter.addStrategies([strategy.address, strategy2.address, strategy3.address], [50, 100, 1]);
+      await splitter.addStrategies([strategy.address, strategy2.address, strategy3.address], [50, 100, 1], [0,0,0]);
 
       await vault.deposit(1000_000, signer.address);
       await vault.connect(await Misc.impersonate('0xdEad000000000000000000000000000000000000')).transfer(signer.address, await vault.balanceOf('0xdEad000000000000000000000000000000000000'));
@@ -749,7 +749,7 @@ describe("SplitterForBaseStrategyV3Tests", function () {
       describe("investAll", () => {
         it("should cover expected loss if totalAssets-after is less than totalAssets-before", async () => {
           const insurance = await vault.insurance();
-          await splitter.addStrategies([strategy.address], [100]);
+          await splitter.addStrategies([strategy.address], [100], [0]);
 
           await usdc.mint(insurance, 500_000);
           const insuranceBefore = await usdc.balanceOf(insurance);
@@ -761,7 +761,7 @@ describe("SplitterForBaseStrategyV3Tests", function () {
         });
         it("should not use insurance if totalAssets-after is greater than totalAssets-before", async () => {
           const insurance = await vault.insurance();
-          await splitter.addStrategies([strategy.address], [100]);
+          await splitter.addStrategies([strategy.address], [100], [0]);
 
           await usdc.mint(insurance, 500);
           const insuranceBefore = await usdc.balanceOf(insurance);
@@ -775,7 +775,7 @@ describe("SplitterForBaseStrategyV3Tests", function () {
       describe("withdrawToVault", () => {
         it("should cover expected loss if totalAssets-after is less than totalAssets-before", async () => {
           const insurance = await vault.insurance();
-          await splitter.addStrategies([strategy.address], [100]);
+          await splitter.addStrategies([strategy.address], [100], [0]);
 
           await usdc.mint(insurance, 50000);
           await vault.deposit(100000, signer.address);
@@ -790,7 +790,7 @@ describe("SplitterForBaseStrategyV3Tests", function () {
         });
         it("should not use insurance if totalAssets-after is greater than totalAssets-before", async () => {
           const insurance = await vault.insurance();
-          await splitter.addStrategies([strategy.address], [100]);
+          await splitter.addStrategies([strategy.address], [100], [0]);
 
           await usdc.mint(insurance, 5000);
           await vault.deposit(10000, signer.address);
@@ -806,7 +806,7 @@ describe("SplitterForBaseStrategyV3Tests", function () {
       describe("withdrawAll", () => {
         it("should cover expected loss if totalAssets-after is less than totalAssets-before", async () => {
           const insurance = await vault.insurance();
-          await splitter.addStrategies([strategy.address], [100]);
+          await splitter.addStrategies([strategy.address], [100], [0]);
 
           await usdc.mint(insurance, 5000_000);
           await vault.deposit(10_000_000, signer.address);
@@ -843,7 +843,7 @@ describe("SplitterForBaseStrategyV3Tests", function () {
     const insurance = await vault.insurance();
 
     await strategy.init(controller.address, splitter.address);
-    await splitter.addStrategies([strategy.address], [100]);
+    await splitter.addStrategies([strategy.address], [100], [0]);
 
     const sharePriceBefore = await vault.sharePrice();
     expect(sharePriceBefore).eq(1_000_000);
@@ -881,7 +881,7 @@ describe("SplitterForBaseStrategyV3Tests", function () {
     await vault.setFees(300, 300);
 
     console.log('add strategy')
-    await splitter.addStrategies([strategy.address], [100]);
+    await splitter.addStrategies([strategy.address], [100], [0]);
     console.log('check not a strategy')
     await expect(splitter.coverPossibleStrategyLoss(0, 500_000)).rejectedWith("SS: Invalid strategy");
 
