@@ -2,9 +2,13 @@ import {ethers} from "hardhat";
 import {Addresses} from "../addresses/addresses";
 import {PlatformVoter__factory} from "../../typechain";
 import {RunHelper} from "../utils/RunHelper";
+import {txParams} from "../deploy/DeployContract";
 
 // tslint:disable-next-line:no-var-requires
 const {request, gql} = require('graphql-request')
+
+// tslint:disable-next-line:no-var-requires
+const hre = require("hardhat");
 
 async function main() {
   const [signer] = await ethers.getSigners();
@@ -12,25 +16,25 @@ async function main() {
 
   const voter = PlatformVoter__factory.connect(core.platformVoter, signer);
 
-  const data = await request('https://api.thegraph.com/subgraphs/name/tetu-io/tetu-v2', gql`
-      query {
-          platformVoterEntities {
-              votes(first: 1000) {
-                  desiredValue
-                  date
-                  newValue
-                  percent
-                  target
-                  voteType
-                  veWeightedValue
-                  vePower
-                  veNFT {
-                      veNFTId
-                  }
-              }
-          }
-      }
-  `);
+    const data = await request('https://api.thegraph.com/subgraphs/name/tetu-io/tetu-v2', gql`
+        query {
+            platformVoterEntities {
+                votes(first: 1000) {
+                    desiredValue
+                    date
+                    newValue
+                    percent
+                    target
+                    voteType
+                    veWeightedValue
+                    vePower
+                    veNFT {
+                        veNFTId
+                    }
+                }
+            }
+        }
+    `);
 
   const votes = data.platformVoterEntities[0].votes;
 
@@ -58,7 +62,11 @@ async function main() {
 
   for (const veId of vePokes) {
     console.log('poke ve: ', veId);
-    // await RunHelper.runAndWait(() => voter.poke(veId));
+    if(veId === 14) {
+      continue;
+    }
+    const params = await txParams(hre, ethers.provider);
+    await RunHelper.runAndWait(() => voter.poke(veId, {...params}));
   }
 
 }

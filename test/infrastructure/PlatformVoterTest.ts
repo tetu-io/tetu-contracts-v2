@@ -159,6 +159,108 @@ describe("Platform voter tests", function () {
     expect(await forwarder.toInvestFundRatio()).eq(0);
   });
 
+  it("reset multiple votes test", async function () {
+    await platformVoter.vote(1, 1, 100, Misc.ZERO_ADDRESS);
+    await platformVoter.vote(1, 2, 100, Misc.ZERO_ADDRESS);
+    await platformVoter.vote(1, 3, 100, platformVoter.address);
+    await platformVoter.vote(1, 3, 100, ve.address);
+
+    expect(await platformVoter.veVotesLength(1)).eq(4);
+
+    expect(await forwarder.toInvestFundRatio()).eq(100);
+    expect(await forwarder.toGaugesRatio()).eq(100);
+
+    const v0 = await platformVoter.votes(1, 0);
+    const v1 = await platformVoter.votes(1, 1);
+    const v2 = await platformVoter.votes(1, 2);
+    const v3 = await platformVoter.votes(1, 3);
+    expect(v0._type).eq(1);
+    expect(v1._type).eq(2);
+    expect(v2._type).eq(3);
+    expect(v3._type).eq(3);
+    expect(v2.target).eq(platformVoter.address);
+    expect(v3.target).eq(ve.address);
+
+    await TimeUtils.advanceBlocksOnTs(WEEK);
+
+    await platformVoter.reset(1, [2, 3], [Misc.ZERO_ADDRESS, platformVoter.address]);
+
+    expect(await platformVoter.veVotesLength(1)).eq(2);
+
+    const v0New = await platformVoter.votes(1, 0);
+    const v1New = await platformVoter.votes(1, 1);
+    expect(v0New._type).eq(1);
+    expect(v1New._type).eq(3);
+    expect(v1New.target).eq(ve.address);
+  });
+
+
+  it("emergency reset vote test", async function () {
+    await expect(platformVoter.connect(owner3).emergencyResetVote(1, 2, true)).revertedWith('!gov');
+
+    expect(await forwarder.toInvestFundRatio()).eq(0);
+    expect(await forwarder.toGaugesRatio()).eq(0);
+
+    await platformVoter.vote(1, 1, 100, Misc.ZERO_ADDRESS);
+    await platformVoter.vote(1, 2, 100, Misc.ZERO_ADDRESS);
+    await platformVoter.vote(1, 3, 100, platformVoter.address);
+    await platformVoter.vote(1, 3, 100, ve.address);
+
+    expect(await platformVoter.veVotesLength(1)).eq(4);
+
+    expect(await forwarder.toInvestFundRatio()).eq(100);
+    expect(await forwarder.toGaugesRatio()).eq(100);
+
+    const vv1 = [
+      await platformVoter.votes(1, 0),
+      await platformVoter.votes(1, 1),
+      await platformVoter.votes(1, 2),
+      await platformVoter.votes(1, 3)
+    ];
+    expect(vv1[0]._type).eq(1);
+    expect(vv1[1]._type).eq(2);
+    expect(vv1[2]._type).eq(3);
+    expect(vv1[3]._type).eq(3);
+    expect(vv1[2].target).eq(platformVoter.address);
+    expect(vv1[3].target).eq(ve.address);
+
+    await platformVoter.emergencyResetVote(1, 2, true);
+
+    expect(await platformVoter.veVotesLength(1)).eq(3);
+
+    const vv2 = [
+      await platformVoter.votes(1, 0),
+      await platformVoter.votes(1, 1),
+      await platformVoter.votes(1, 2),
+    ];
+    expect(vv2[0]._type).eq(1);
+    expect(vv2[1]._type).eq(2);
+    expect(vv2[2]._type).eq(3);
+    expect(vv2[2].target).eq(ve.address);
+
+    await platformVoter.emergencyResetVote(1, 1, false);
+
+    expect(await platformVoter.veVotesLength(1)).eq(2);
+
+    const vv3 = [
+      await platformVoter.votes(1, 0),
+      await platformVoter.votes(1, 1),
+    ];
+    expect(vv3[0]._type).eq(1);
+    expect(vv3[1]._type).eq(3);
+    expect(vv3[1].target).eq(ve.address);
+
+    expect(await forwarder.toInvestFundRatio()).eq(100);
+    expect(await forwarder.toGaugesRatio()).eq(100);
+
+  });
+
+  it("emergency Adjust Weights test", async function () {
+    await platformVoter.emergencyAdjustWeights(1, Misc.ZERO_ADDRESS, 100, 100);
+    await expect(platformVoter.connect(owner3).emergencyAdjustWeights(1, Misc.ZERO_ADDRESS, 100, 1)).revertedWith('!gov');
+    await expect(platformVoter.emergencyAdjustWeights(1, Misc.ZERO_ADDRESS, 1, 1000_000)).revertedWith('!ratio');
+  });
+
   it("reset vote with zero value test", async function () {
     await platformVoter.vote(1, 1, 0, Misc.ZERO_ADDRESS);
     await TimeUtils.advanceBlocksOnTs(WEEK);
@@ -228,8 +330,15 @@ describe("Platform voter tests", function () {
 
     // vote for not strategy should not revert
     await platformVoter.vote(1, 3, 50000, platformVoter.address);
+    expect(await platformVoter.veVotesLength(1)).eq(2);
     await TimeUtils.advanceBlocksOnTs(WEEK * 8);
     await platformVoter.poke(1);
+    expect(await platformVoter.veVotesLength(1)).eq(2);
+
+    // poke for ended ve should not revert
+    await TimeUtils.advanceBlocksOnTs(WEEK * 52);
+    await platformVoter.poke(1);
+    expect(await platformVoter.veVotesLength(1)).eq(0);
   });
 
   it("re vote test", async function () {
