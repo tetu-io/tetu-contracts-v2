@@ -18,7 +18,7 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant PLATFORM_VOTER_VERSION = "1.0.1";
+  string public constant PLATFORM_VOTER_VERSION = "1.0.2";
   /// @dev Denominator for different ratios. It is default for the whole platform.
   uint public constant RATIO_DENOMINATOR = 100_000;
   /// @dev Delay between votes.
@@ -255,8 +255,14 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
       if (found) {
         require(v.timestamp + VOTE_DELAY < block.timestamp, "delay");
         _removeVote(tokenId, v._type, v.target, v.weight, v.weightedValue);
-        // with descent loop we remove one by one last elements
+
+        if (i != length) {
+          _votes[i - 1] = _votes[length - 1];
+        }
+
         _votes.pop();
+        length--;
+
         emit VoteReset(
           tokenId,
           uint(v._type),
@@ -294,6 +300,51 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
       _removeVote(tokenId, v._type, v.target, v.weight, v.weightedValue);
       _votes.pop();
     }
+  }
+
+  ///////////////////////////////////////////////////////////////
+  //               EMERGENCY ACTIONS
+  //   If something went wrong governance can fix weights.
+  ///////////////////////////////////////////////////////////////
+
+  /// @dev In case if something went wrong with vote calculation governance can remove the vote manually for a user
+  ///      If removeWeights is false then it will only remove vote from the list without changing weights.
+  ///      This will lead to "staked" weights forever. Use `emergencyAdjustWeights()` to fix it.
+  function emergencyResetVote(uint tokenId, uint index, bool removeWeights) external {
+    require(msg.sender == IController(controller()).governance(), "!gov");
+    Vote[] storage _votes = votes[tokenId];
+
+    Vote memory v = _votes[index];
+    if (removeWeights) {
+      _removeVote(tokenId, v._type, v.target, v.weight, v.weightedValue);
+    }
+
+    _votes[index] = _votes[_votes.length - 1];
+    _votes.pop();
+
+    emit VoteReset(
+      tokenId,
+      uint(v._type),
+      v.target,
+      v.weight,
+      v.weightedValue,
+      v.timestamp
+    );
+  }
+
+  /// @dev Before calling this function need to calculate simulation where all votes removed for all user and check the remaining weights/values.
+  ///      The difference should be counted for the new values and passed to this function.
+  ///      Do not call this function without properly check that users will able to reset votes!
+  ///      If any user has invalid votes need to call `emergencyResetVote()` firstly and simulate full reset for all users.
+  function emergencyAdjustWeights(AttributeType _type, address target, uint weights, uint values) external {
+    require(msg.sender == IController(controller()).governance(), "!gov");
+
+    attributeWeights[_type][target] = weights;
+    attributeValues[_type][target] = values;
+
+    uint newValue = weights == 0 ? 0 : values / weights;
+    require(newValue <= RATIO_DENOMINATOR, '!ratio');
+    _setAttribute(_type, newValue, target);
   }
 
 }
