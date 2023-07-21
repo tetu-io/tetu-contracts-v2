@@ -18,7 +18,7 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant PLATFORM_VOTER_VERSION = "1.0.2";
+  string public constant PLATFORM_VOTER_VERSION = "1.0.3";
   /// @dev Denominator for different ratios. It is default for the whole platform.
   uint public constant RATIO_DENOMINATOR = 100_000;
   /// @dev Delay between votes.
@@ -113,7 +113,7 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
     Vote[] memory _votes = votes[tokenId];
     for (uint i; i < _votes.length; ++i) {
       Vote memory v = _votes[i];
-      _vote(tokenId, v._type, v.weightedValue / v.weight, v.target);
+      _vote(tokenId, v._type, v.weightedValue / v.weight, v.target, true);
     }
   }
 
@@ -126,17 +126,17 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
   ) external {
     require(IVeTetu(ve).isApprovedOrOwner(msg.sender, tokenId), "!owner");
     for (uint i; i < types.length; ++i) {
-      _vote(tokenId, types[i], values[i], targets[i]);
+      _vote(tokenId, types[i], values[i], targets[i], false);
     }
   }
 
   /// @dev Vote for given parameter using a vote power of given tokenId. Reset previous vote.
   function vote(uint tokenId, AttributeType _type, uint value, address target) external {
     require(IVeTetu(ve).isApprovedOrOwner(msg.sender, tokenId), "!owner");
-    _vote(tokenId, _type, value, target);
+    _vote(tokenId, _type, value, target, false);
   }
 
-  function _vote(uint tokenId, AttributeType _type, uint value, address target) internal {
+  function _vote(uint tokenId, AttributeType _type, uint value, address target, bool skipDelay) internal {
     require(value <= RATIO_DENOMINATOR, "!value");
 
     // load maps for reduce gas usage
@@ -159,7 +159,7 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
         for (; i < length; ++i) {
           Vote memory v = _votes[i];
           if (v._type == _type && v.target == target) {
-            require(v.timestamp + VOTE_DELAY < block.timestamp, "delay");
+            require(skipDelay || v.timestamp + VOTE_DELAY < block.timestamp, "delay");
             oldVeWeight = v.weight;
             oldVeValue = v.weightedValue;
             found = true;
