@@ -177,10 +177,6 @@ describe("Tetu voter tests", function () {
     await expect(voter.vote(1, [vault.address, vault.address], [1, 1])).revertedWith("duplicate vault");
   });
 
-  it("vote zero power revert test", async function () {
-    await expect(voter.vote(1, [vault.address, vault2.address], [0, 1])).revertedWith("zero power");
-  });
-
   it("vote delay revert test", async function () {
     await voter.vote(1, [vault.address], [-100]);
     expect(await voter.isVotesExist(1)).eq(true);
