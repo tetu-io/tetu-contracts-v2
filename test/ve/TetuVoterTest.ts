@@ -217,6 +217,17 @@ describe("Tetu voter tests", function () {
     expect(await voter.votes(1, vault.address)).below(parseUnits('0.5'))
   });
 
+  it("poke for ended ve test", async function () {
+    await voter.vote(1, [vault.address], [100]);
+    expect(await voter.votes(1, vault.address)).above(parseUnits('0.77'))
+
+    await TimeUtils.advanceBlocksOnTs(LOCK_PERIOD * 2);
+
+    await voter.poke(1)
+    expect(await voter.votes(1, vault.address)).eq(0)
+    expect(await voter.isVotesExist(1)).eq(false)
+  });
+
   // *** ATTACHMENTS
 
   it("attach/detach test", async function () {
