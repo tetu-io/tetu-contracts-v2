@@ -25,7 +25,7 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant VOTER_VERSION = "1.0.1";
+  string public constant VOTER_VERSION = "1.0.2";
   /// @dev Rewards are released over 7 days
   uint internal constant _DURATION = 7 days;
   /// @dev Maximum votes per veNFT
@@ -156,6 +156,7 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
 
   /// @dev Resubmit exist votes for given token.
   ///      Need to call it for ve that did not renew votes too long.
+  ///      Anyone can renew the votes, no restriction.
   function poke(uint _tokenId) external {
     address[] memory _vaultVotes = vaultsVotes[_tokenId];
     uint length = _vaultVotes.length;
@@ -192,6 +193,10 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
     require(length <= MAX_VOTES, "Too many votes");
 
     int256 _weight = int256(IVeTetu(ve).balanceOfNFT(_tokenId));
+    if (_weight == 0) {
+      // if ve power is 0, no need to vote
+      return;
+    }
     int256 _totalVoteWeight = 0;
     int256 _totalWeight = 0;
     int256 _usedWeight = 0;
@@ -204,9 +209,8 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
       address _vault = _vaultVotes[i];
       require(isVault(_vault), "Invalid vault");
 
-      int256 _vaultWeight = _weights[i] * _weight / _totalVoteWeight;
+      int256 _vaultWeight = _totalVoteWeight != 0 ? _weights[i] * _weight / _totalVoteWeight : int256(0);
       require(votes[_tokenId][_vault] == 0, "duplicate vault");
-      require(_vaultWeight != 0, "zero power");
       _updateFor(_vault);
 
       vaultsVotes[_tokenId].push(_vault);
@@ -222,9 +226,7 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
       _totalWeight += _vaultWeight;
       emit Voted(msg.sender, _tokenId, _vaultWeight, _vault, _weights[i], _weight);
     }
-    if (_usedWeight > 0) {
-      IVeTetu(ve).voting(_tokenId);
-    }
+
     totalWeight += uint(_totalWeight);
     usedWeights[_tokenId] = uint(_usedWeight);
   }
@@ -252,9 +254,6 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
     totalWeight -= uint(_totalWeight);
     usedWeights[_tokenId] = 0;
     delete vaultsVotes[_tokenId];
-    if (_totalWeight > 0) {
-      IVeTetu(ve).abstain(_tokenId);
-    }
   }
 
   // *************************************************************
@@ -284,6 +283,8 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
   ///      Need to have restrictions for max attached tokens and votes.
   function detachTokenFromAll(uint tokenId, address account) external override {
     require(msg.sender == ve, "!ve");
+    // we assume that any responsibilities should be longer than the delay
+    require(lastVote[tokenId] + VOTE_DELAY < block.timestamp, "delay");
 
     _reset(tokenId);
 

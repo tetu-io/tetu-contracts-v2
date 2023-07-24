@@ -2,6 +2,11 @@ import {ethers} from "hardhat";
 import {Addresses} from "../addresses/addresses";
 import {ControllerV2__factory} from "../../typechain";
 import {RunHelper} from "../utils/RunHelper";
+import {txParams} from "../deploy/DeployContract";
+
+// tslint:disable-next-line:no-var-requires
+const hre = require("hardhat");
+
 
 async function main() {
   const [signer] = await ethers.getSigners();
@@ -26,8 +31,8 @@ async function main() {
 
   console.log('Ready to Update  ', proxiesReadyToUpgrade);
   if (proxiesReadyToUpgrade.length !== 0) {
-    await RunHelper.runAndWait(() => ControllerV2__factory.connect(core.controller, signer).upgradeProxy(proxiesReadyToUpgrade)
-    );
+    const props = await txParams(hre, ethers.provider);
+    await RunHelper.runAndWait(() => ControllerV2__factory.connect(core.controller, signer).upgradeProxy(proxiesReadyToUpgrade, {...props}));
   }
 
 

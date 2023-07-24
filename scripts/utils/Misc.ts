@@ -69,7 +69,7 @@ export class Misc {
       method: "hardhat_setBalance",
       params: [address, "0x1431E0FAE6D7217CAA0000000"],
     });
-    console.log('address impersonated', address);
+    // console.log('address impersonated', address);
     return ethers.getSigner(address);
   }
 
