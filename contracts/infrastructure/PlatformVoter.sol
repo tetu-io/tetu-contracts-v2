@@ -154,11 +154,10 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
     //remove votes optimised
     {
       Vote memory oldVote;
-
+      bool found;
       uint length = _votes.length;
       if (length != 0) {
         uint i;
-        bool found;
         for (; i < length; ++i) {
           Vote memory v = _votes[i];
           if (v._type == _type && v.target == target) {
@@ -184,7 +183,7 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
       totalAttributeValue = _attributeValues[target] - oldVote.weightedValue;
 
       // if veWeight is 0, it means that we just remove vote
-      if(veWeight == 0) {
+      if(veWeight == 0 && found) {
         emit VoteReset(
           tokenId,
           uint(_type),
