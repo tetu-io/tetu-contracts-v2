@@ -18,7 +18,7 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant PLATFORM_VOTER_VERSION = "1.0.3";
+  string public constant PLATFORM_VOTER_VERSION = "1.0.4";
   /// @dev Denominator for different ratios. It is default for the whole platform.
   uint public constant RATIO_DENOMINATOR = 100_000;
   /// @dev Delay between votes.
@@ -147,11 +147,13 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
 
     uint totalAttributeWeight;
     uint totalAttributeValue;
+    // get new values for ve
+    uint veWeight = IVeTetu(ve).balanceOfNFT(tokenId);
+    uint veWeightedValue = veWeight * value;
 
     //remove votes optimised
     {
-      uint oldVeWeight;
-      uint oldVeValue;
+      Vote memory oldVote;
 
       uint length = _votes.length;
       if (length != 0) {
@@ -161,8 +163,7 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
           Vote memory v = _votes[i];
           if (v._type == _type && v.target == target) {
             require(skipDelay || v.timestamp + VOTE_DELAY < block.timestamp, "delay");
-            oldVeWeight = v.weight;
-            oldVeValue = v.weightedValue;
+            oldVote = v;
             found = true;
             break;
           }
@@ -179,13 +180,23 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
         }
       }
 
-      totalAttributeWeight = _attributeWeights[target] - oldVeWeight;
-      totalAttributeValue = _attributeValues[target] - oldVeValue;
+      totalAttributeWeight = _attributeWeights[target] - oldVote.weight;
+      totalAttributeValue = _attributeValues[target] - oldVote.weightedValue;
+
+      // if veWeight is 0, it means that we just remove vote
+      if(veWeight == 0) {
+        emit VoteReset(
+          tokenId,
+          uint(_type),
+          target,
+          oldVote.weight,
+          oldVote.weightedValue,
+          oldVote.timestamp
+        );
+      }
     }
 
-    // get new values for ve
-    uint veWeight = IVeTetu(ve).balanceOfNFT(tokenId);
-    uint veWeightedValue = veWeight * value;
+
 
     if (veWeight != 0) {
 

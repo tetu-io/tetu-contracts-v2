@@ -49,9 +49,9 @@ async function main() {
 
   const minDate = new Map<number, number>()
   for (const vote of votes) {
-    console.log(new Date(vote.date * 1000), 'value: ', vote.newValue, 'power: ', Number(vote.vePower).toFixed(), 've: ', vote.veNFT.veNFTId);
     const md = minDate.get(+vote.veNFT.veNFTId) ?? Date.now();
     if (md > +vote.date) {
+      // console.log(new Date(vote.date * 1000), 'value: ', vote.newValue, 'power: ', Number(vote.vePower).toFixed(), 've: ', vote.veNFT.veNFTId);
       minDate.set(+vote.veNFT.veNFTId, +vote.date);
     }
   }
@@ -60,9 +60,9 @@ async function main() {
 
   const vePokes: number[] = [];
   for (const [veId, md] of minDate.entries()) {
-    console.log('ve: ', veId, 'min date: ', new Date(md * 1000));
     const time = Date.now() - 60 * 60 * 24 * 21 * 1000;
     if (md * 1000 < time) {
+      console.log('ve: ', veId, 'min date: ', new Date(md * 1000));
       vePokes.push(veId);
     }
   }
@@ -77,7 +77,7 @@ async function main() {
       continue;
     }
     const params = await txParams(hre, ethers.provider);
-    await RunHelper.runAndWait(() => voter.poke(veId, {...params}));
+    // await RunHelper.runAndWait(() => voter.poke(veId, {...params}));
   }
 
 }
