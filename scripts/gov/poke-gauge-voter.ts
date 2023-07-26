@@ -16,11 +16,11 @@ async function main() {
   const [signer] = await ethers.getSigners();
   const core = Addresses.getCore();
 
-  const gov = await Misc.impersonate('0xcc16d636dD05b52FF1D8B9CE09B09BC62b11412B')
-  const logic = await deployContract(hre, signer, 'TetuVoter');
-  await ControllerV2__factory.connect(core.controller, gov).announceProxyUpgrade([core.tetuVoter], [logic.address]);
-  await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 2);
-  await ControllerV2__factory.connect(core.controller, gov).upgradeProxy([core.tetuVoter]);
+  // const gov = await Misc.impersonate('0xcc16d636dD05b52FF1D8B9CE09B09BC62b11412B')
+  // const logic = await deployContract(hre, signer, 'TetuVoter');
+  // await ControllerV2__factory.connect(core.controller, gov).announceProxyUpgrade([core.tetuVoter], [logic.address]);
+  // await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 2);
+  // await ControllerV2__factory.connect(core.controller, gov).upgradeProxy([core.tetuVoter]);
 
   const voter = TetuVoter__factory.connect(core.tetuVoter, signer);
 
