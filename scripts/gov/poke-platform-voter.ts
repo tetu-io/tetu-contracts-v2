@@ -77,7 +77,7 @@ async function main() {
       continue;
     }
     const params = await txParams(hre, ethers.provider);
-    // await RunHelper.runAndWait(() => voter.poke(veId, {...params}));
+    await RunHelper.runAndWait(() => voter.poke(veId, {...params}));
   }
 
 }

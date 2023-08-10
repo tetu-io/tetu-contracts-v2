@@ -325,8 +325,13 @@ describe("Platform voter tests", function () {
 
   it("poke test", async function () {
     await platformVoter.vote(1, 1, 100, Misc.ZERO_ADDRESS);
+    const beforeVotes = await platformVoter.veVotes(1)
+
     await TimeUtils.advanceBlocksOnTs(WEEK);
+
     await platformVoter.poke(1);
+    const afterVotes = await platformVoter.veVotes(1)
+    expect(beforeVotes[0].timestamp.toString()).eq(afterVotes[0].timestamp.toString());
 
     // vote for not strategy should not revert
     await platformVoter.vote(1, 3, 50000, platformVoter.address);
