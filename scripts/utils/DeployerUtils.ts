@@ -54,9 +54,11 @@ export class DeployerUtils {
     return deployContract(hre, signer, name, ...args);
   }
 
-  public static async deployMockToken(signer: SignerWithAddress, name = 'MOCK', decimals = 18) {
+  public static async deployMockToken(signer: SignerWithAddress, name = 'MOCK', decimals = 18, premint = true) {
     const token = await DeployerUtils.deployContract(signer, 'MockToken', name + '_MOCK_TOKEN', name, decimals) as MockToken;
-    await RunHelper.runAndWait(() => token.mint(signer.address, parseUnits('1000000', decimals)));
+    if(premint) {
+      await RunHelper.runAndWait(() => token.mint(signer.address, parseUnits('1000000', decimals)));
+    }
     return token;
   }
 

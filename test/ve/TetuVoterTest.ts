@@ -180,7 +180,7 @@ describe("Tetu voter tests", function () {
   it("vote delay revert test", async function () {
     await voter.vote(1, [vault.address], [-100]);
     expect(await voter.isVotesExist(1)).eq(true);
-    await expect(voter.vote(1, [vault.address ], [1])).revertedWith("delay");
+    await expect(voter.vote(1, [vault.address], [1])).revertedWith("delay");
   });
 
   it("reset delay revert test", async function () {
@@ -212,9 +212,14 @@ describe("Tetu voter tests", function () {
   it("poke test", async function () {
     await voter.vote(1, [vault.address], [100]);
     expect(await voter.votes(1, vault.address)).above(parseUnits('0.77'))
+    const oldTs = await voter.lastVote(1);
+
     await TimeUtils.advanceBlocksOnTs(LOCK_PERIOD / 2);
+
     await voter.poke(1)
+    const newTs = await voter.lastVote(1);
     expect(await voter.votes(1, vault.address)).below(parseUnits('0.5'))
+    expect(oldTs.toString()).eq(newTs.toString());
   });
 
   it("poke for ended ve test", async function () {

@@ -18,7 +18,7 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant PLATFORM_VOTER_VERSION = "1.0.4";
+  string public constant PLATFORM_VOTER_VERSION = "1.0.5";
   /// @dev Denominator for different ratios. It is default for the whole platform.
   uint public constant RATIO_DENOMINATOR = 100_000;
   /// @dev Delay between votes.
@@ -137,7 +137,7 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
     _vote(tokenId, _type, value, target, false);
   }
 
-  function _vote(uint tokenId, AttributeType _type, uint value, address target, bool skipDelay) internal {
+  function _vote(uint tokenId, AttributeType _type, uint value, address target, bool onlyRefresh) internal {
     require(value <= RATIO_DENOMINATOR, "!value");
 
     // load maps for reduce gas usage
@@ -151,9 +151,9 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
     uint veWeight = IVeTetu(ve).balanceOfNFT(tokenId);
     uint veWeightedValue = veWeight * value;
 
+    Vote memory oldVote;
     //remove votes optimised
     {
-      Vote memory oldVote;
       bool found;
       uint length = _votes.length;
       if (length != 0) {
@@ -161,7 +161,7 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
         for (; i < length; ++i) {
           Vote memory v = _votes[i];
           if (v._type == _type && v.target == target) {
-            require(skipDelay || v.timestamp + VOTE_DELAY < block.timestamp, "delay");
+            require(onlyRefresh || v.timestamp + VOTE_DELAY < block.timestamp, "delay");
             oldVote = v;
             found = true;
             break;
@@ -183,7 +183,7 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
       totalAttributeValue = _attributeValues[target] - oldVote.weightedValue;
 
       // if veWeight is 0, it means that we just remove vote
-      if(veWeight == 0 && found) {
+      if (veWeight == 0 && found) {
         emit VoteReset(
           tokenId,
           uint(_type),
@@ -194,7 +194,6 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
         );
       }
     }
-
 
 
     if (veWeight != 0) {
@@ -210,8 +209,15 @@ contract PlatformVoter is ControllableV3, IPlatformVoter {
       // set new attribute value
       _setAttribute(_type, totalAttributeValue / totalAttributeWeight, target);
 
-      // write attachments
-      _votes.push(Vote(_type, target, veWeight, veWeightedValue, block.timestamp));
+      // do not override timestamp if we poke an old vote
+      _votes.push(
+        Vote(
+          _type,
+          target,
+          veWeight,
+          veWeightedValue,
+          (onlyRefresh && oldVote.timestamp != 0) ? oldVote.timestamp : block.timestamp
+        ));
 
       emit Voted(
         tokenId,
