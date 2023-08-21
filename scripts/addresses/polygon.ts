@@ -35,6 +35,7 @@ export class PolygonAddresses {
   public static FORWARDER_RESOLVER = "0x6d16Fa76f61F2BEe0093D1DCbab29bcA4FBC8628".toLowerCase();
   public static SPLITTER_REBALANCE_RESOLVER = "0x9618D3e9c8a133d081dE37b99c6ECf108C1e82F2".toLowerCase();
   public static PERF_FEE_TREASURY = "0x9Cc199D4353b5FB3e6C8EEBC99f5139e0d8eA06b".toLowerCase();
+  public static TETU_BRIDGED_PROCESSING = "0x1950a09fc28Dd3C36CaC89485357844Af0739C07".toLowerCase();
 
   // PROTOCOL ADRS
   public static DEPOSIT_HELPER_V2 = "0xab2422A4d8Ac985AE98F5Da3713988b420f24165".toLowerCase();
@@ -74,5 +75,6 @@ export class PolygonAddresses {
   public static tetuBAL_TOKEN = '0x7fC9E0Aa043787BFad28e29632AdA302C790Ce33'.toLowerCase();
   public static USDPlus_TOKEN = '0x236eeC6359fb44CCe8f97E99387aa7F8cd5cdE1f'.toLowerCase();
   public static BALANCER_TETU_USDC = "0xE2f706EF1f7240b803AAe877C9C762644bb808d8".toLowerCase();
+  public static fxTETU_TOKEN = "0xe74B3E6232E6b02eCe8EDe707A3A32Ae3525b44F".toLowerCase();
 
 }
