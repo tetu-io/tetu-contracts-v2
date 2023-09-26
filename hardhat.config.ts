@@ -32,10 +32,23 @@ const argv = require('yargs/yargs')()
       type: "string",
       default: ''
     },
+    bscRpcUrl: {
+      type: "string",
+      default: 'https://rpc.ankr.com/bsc'
+    },
+    baseRpcUrl: {
+      type: "string",
+    },
     networkScanKey: {
       type: "string",
     },
     networkScanKeyMatic: {
+      type: "string",
+    },
+    networkScanKeyBase: {
+      type: "string",
+    },
+    networkScanKeyBsc: {
       type: "string",
     },
     privateKey: {
@@ -47,6 +60,10 @@ const argv = require('yargs/yargs')()
       default: 0
     },
     maticForkBlock: {
+      type: "number",
+      default: 0
+    },
+    baseForkBlock: {
       type: "number",
       default: 0
     },
@@ -73,15 +90,18 @@ export default {
       blockGasLimit: 0x1fffffffffffff,
       gas: argv.hardhatChainId === 1 ? 19_000_000 :
         argv.hardhatChainId === 137 ? 19_000_000 :
+          argv.hardhatChainId === 8453 ? 19_000_000 :
             9_000_000,
       forking: argv.hardhatChainId !== 31337 ? {
         url:
           argv.hardhatChainId === 1 ? argv.ethRpcUrl :
             argv.hardhatChainId === 137 ? argv.maticRpcUrl :
+              argv.hardhatChainId === 8453 ? argv.baseRpcUrl :
                 undefined,
         blockNumber:
           argv.hardhatChainId === 1 ? argv.ethForkBlock !== 0 ? argv.ethForkBlock : undefined :
             argv.hardhatChainId === 137 ? argv.maticForkBlock !== 0 ? argv.maticForkBlock : undefined :
+              argv.hardhatChainId === 8453 ? argv.baseForkBlock !== 0 ? argv.baseForkBlock : undefined :
                 undefined
       } : undefined,
       accounts: {
@@ -95,9 +115,6 @@ export default {
       url: argv.maticRpcUrl || '',
       timeout: 99999,
       chainId: 137,
-      gas: 12_000_000,
-      // gasPrice: 50_000_000_000,
-      // gasMultiplier: 1.3,
       accounts: [argv.privateKey],
     },
     eth: {
@@ -108,6 +125,17 @@ export default {
     sepolia: {
       url: argv.sepoliaRpcUrl || '',
       chainId: 11155111,
+      accounts: [argv.privateKey],
+    },
+    bsc: {
+      url: argv.bscRpcUrl,
+      timeout: 99999,
+      chainId: 56,
+      accounts: [argv.privateKey],
+    },
+    base: {
+      url: argv.baseRpcUrl || '',
+      chainId: 8453,
       // gas: 50_000_000_000,
       accounts: [argv.privateKey],
     },
@@ -119,7 +147,19 @@ export default {
       goerli: argv.networkScanKey,
       sepolia: argv.networkScanKey,
       polygon: argv.networkScanKeyMatic || argv.networkScanKey,
+      bsc: argv.networkScanKeyBsc,
+      base: argv.networkScanKeyBase,
     },
+    customChains: [
+      {
+        network: "base",
+        chainId: 8453,
+        urls: {
+          apiURL: "https://api.basescan.org/api",
+          browserURL: "https://basescan.org"
+        }
+      }
+    ]
   },
   solidity: {
     compilers: [

@@ -8,6 +8,7 @@ import {BigNumber} from "ethers";
 async function main() {
   const signer = (await ethers.getSigners())[0];
   const core = Addresses.getCore();
+  const tools = Addresses.getTools();
 
   const tetu = core.tetu;
   const controller = await DeployerUtils.deployController(signer);
@@ -36,7 +37,7 @@ async function main() {
 
   await RunHelper.runAndWait(() => controller.announceAddressChange(2, tetuVoter.address)); // TETU_VOTER
   await RunHelper.runAndWait(() => controller.announceAddressChange(3, platformVoter.address)); // PLATFORM_VOTER
-  // await controller.announceAddressChange(4, .address); // LIQUIDATOR
+  await RunHelper.runAndWait(() => controller.announceAddressChange(4, tools.liquidator)); // PLATFORM_VOTER
   await RunHelper.runAndWait(() => controller.announceAddressChange(5, forwarder.address)); // FORWARDER
   await RunHelper.runAndWait(() => controller.announceAddressChange(6, fundAdr)); // INVEST_FUND
   await RunHelper.runAndWait(() => controller.announceAddressChange(7, veDist.address)); // VE_DIST
@@ -44,7 +45,7 @@ async function main() {
 
   await RunHelper.runAndWait(() => controller.changeAddress(2)); // TETU_VOTER
   await RunHelper.runAndWait(() => controller.changeAddress(3)); // PLATFORM_VOTER
-  // await controller.changeAddress(4); // LIQUIDATOR
+  await RunHelper.runAndWait(() => controller.changeAddress(4)); // LIQUIDATOR
   await RunHelper.runAndWait(() => controller.changeAddress(5)); // FORWARDER
   await RunHelper.runAndWait(() => controller.changeAddress(6)); // INVEST_FUND
   await RunHelper.runAndWait(() => controller.changeAddress(7)); // VE_DIST
@@ -60,6 +61,7 @@ async function main() {
     "${platformVoter.address}", // platformVoter
     "${forwarder.address}", // forwarder
     "${vaultFactory.address}", // vaultFactory
+    "${investFund.address}", // investFund
   );`
 
   DeployerUtils.createFolderAndWriteFileSync('tmp/deployed/core.txt', result);
