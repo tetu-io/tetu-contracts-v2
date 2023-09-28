@@ -200,7 +200,8 @@ describe("multi bribe tests", function () {
 
   it("claim delayed rewards test", async function () {
     // add reward
-    await bribe.notifyForNextEpoch(vault.address, tetu.address, 100);
+    await bribe.notifyForNextEpoch(vault.address, tetu.address, 99);
+    await bribe.notifyForNextEpoch(vault.address, tetu.address, 1);
     await expect(bribe.connect(user).setEpochOperator(owner.address)).revertedWith('!gov')
     await bribe.setEpochOperator(owner.address)
     await expect(bribe.connect(user).increaseEpoch()).revertedWith('!operator');
