@@ -774,6 +774,13 @@ describe("veTETU tests", function () {
     await expect(ve.merge(1, 3)).revertedWith('EXPIRED');
   });
 
+  it("create for another should reverted test", async function () {
+    await tetu.connect(owner2).approve(ve.address, parseUnits('10000'));
+    await tetu.connect(owner3).approve(ve.address, parseUnits('10000'));
+    expect((await tetu.balanceOf(owner2.address)).gte(parseUnits('1'))).eq(true);
+    await expect(ve.connect(owner3).createLockFor(tetu.address, parseUnits('1'), 60 * 60 * 24 * 14, owner2.address)).revertedWith('ERC20: transfer amount exceeds balance');
+  });
+
 });
 
 

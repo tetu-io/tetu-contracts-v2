@@ -142,6 +142,11 @@ describe("multi pool tests", function () {
     expect(await pool.left(wmatic.address, rewardToken.address)).is.not.eq(0);
   });
 
+  it("low left test", async function () {
+    await pool.connect(rewarder).notifyRewardAmount(wmatic.address, rewardToken.address, 10);
+    expect(await pool.left(wmatic.address, rewardToken.address)).is.not.eq(0);
+  });
+
   it("earned test", async function () {
     expect(await pool.earned(wmatic.address, Misc.ZERO_ADDRESS, Misc.ZERO_ADDRESS)).is.eq(0);
   });

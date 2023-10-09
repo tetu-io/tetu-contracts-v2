@@ -44,6 +44,7 @@ export class PolygonAddresses {
   public static TETU_CONVERTER = "0x8190db4549E382dECD94aEe211eAeB5F3DbC6836".toLowerCase();
   public static tUSDC = "0x0D397F4515007AE4822703b74b9922508837A04E".toLowerCase();
   public static TETU_USDC_BPT_VAULT = "0x6922201f0d25Aba8368e7806642625879B35aB84".toLowerCase();
+  public static fxTETU = "0xe74b3e6232e6b02ece8ede707a3a32ae3525b44f".toLowerCase();
 
   // Tetu V2 vaults and strategies
 

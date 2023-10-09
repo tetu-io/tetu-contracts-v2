@@ -18,7 +18,7 @@ contract MultiBribe is StakelessMultiPoolBase, IBribe {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant MULTI_BRIBE_VERSION = "1.0.2";
+  string public constant MULTI_BRIBE_VERSION = "1.0.4";
 
   // *************************************************************
   //                        VARIABLES
