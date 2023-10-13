@@ -6,7 +6,6 @@ import "../openzeppelin/ReentrancyGuard.sol";
 import "../openzeppelin/SafeERC20.sol";
 import "../interfaces/IERC20.sol";
 import "../interfaces/IERC20Metadata.sol";
-import "../interfaces/IERC721Metadata.sol";
 import "../interfaces/IVeTetu.sol";
 import "../interfaces/IERC721Receiver.sol";
 import "../interfaces/IController.sol";
@@ -20,7 +19,7 @@ import "./VeTetuLogo.sol";
 /// @title Voting escrow NFT for multiple underlying tokens.
 ///        Based on Curve/Solidly contract.
 /// @author belbix
-contract VeTetu is ControllableV3, ReentrancyGuard, IERC721, IERC721Metadata, IVeTetu {
+contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   using SafeERC20 for IERC20;
   using FixedPointMathLib for uint;
   using FixedPointMathLib for int128;

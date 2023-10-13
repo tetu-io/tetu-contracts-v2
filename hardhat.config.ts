@@ -201,5 +201,6 @@ export default {
     runOnCompile: false,
     spacing: 2,
     pretty: false,
+    flat: true,
   }
 };

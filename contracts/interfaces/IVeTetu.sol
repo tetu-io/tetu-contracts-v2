@@ -2,7 +2,9 @@
 
 pragma solidity 0.8.17;
 
-interface IVeTetu {
+import "./IERC721Metadata.sol";
+
+interface IVeTetu is IERC721Metadata {
 
   enum DepositType {
     DEPOSIT_FOR_TYPE,
