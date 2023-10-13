@@ -988,7 +988,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   function merge(uint _from, uint _to) external nonReentrant {
     require(attachments[_from] == 0 && !isVoted(_from), "ATTACHED");
     require(_from != _to, "IDENTICAL_ADDRESS");
-    require(!isAlwaysMaxLock[_tokenId], "ALWAYS_MAX_LOCK");
+    require(!isAlwaysMaxLock[_from] && !isAlwaysMaxLock[_to], "ALWAYS_MAX_LOCK");
     require(isApprovedOrOwner(msg.sender, _from) && isApprovedOrOwner(msg.sender, _to), "NOT_OWNER");
 
     uint lockedEndFrom = lockedEnd(_from);
