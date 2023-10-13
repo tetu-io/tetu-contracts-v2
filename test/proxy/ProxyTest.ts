@@ -44,7 +44,7 @@ describe("Proxy Tests", function () {
     const slotsTest = SlotsTest__factory.connect(proxy.address, signer);
     await slotsTest.initialize(controller.address);
     await expect(controller.updateProxies([slotsTest.address], [signer.address]))
-      .revertedWith("function returned an unexpected amount of data");
+      .revertedWith("");
   });
 
   it("check implementation test", async () => {

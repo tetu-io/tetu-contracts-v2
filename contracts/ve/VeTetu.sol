@@ -4,7 +4,6 @@ pragma solidity 0.8.17;
 
 import "../openzeppelin/ReentrancyGuard.sol";
 import "../openzeppelin/SafeERC20.sol";
-import "../interfaces/IERC20.sol";
 import "../interfaces/IERC20Metadata.sol";
 import "../interfaces/IVeTetu.sol";
 import "../interfaces/IERC721Receiver.sol";
@@ -14,7 +13,7 @@ import "../interfaces/IPlatformVoter.sol";
 import "../interfaces/ISmartVault.sol";
 import "../lib/FixedPointMathLib.sol";
 import "../proxy/ControllableV3.sol";
-import "./VeTetuLogo.sol";
+import "./VeTetuLib.sol";
 
 /// @title Voting escrow NFT for multiple underlying tokens.
 ///        Based on Curve/Solidly contract.
@@ -43,6 +42,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
     uint newDerivedAmount;
     uint oldEnd;
     uint newEnd;
+    bool isAlwaysMaxLock;
   }
 
   enum TimeLockType {
@@ -56,12 +56,9 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant VE_VERSION = "1.1.3";
+  string public constant VE_VERSION = "1.2.0";
   uint internal constant WEEK = 1 weeks;
   uint internal constant MAX_TIME = 16 weeks;
-  int128 internal constant I_MAX_TIME = 16 weeks;
-  uint internal constant MULTIPLIER = 1 ether;
-  uint internal constant WEIGHT_DENOMINATOR = 100e18;
   uint public constant MAX_ATTACHMENTS = 1;
   uint public constant GOV_ACTION_TIME_LOCK = 18 hours;
 
@@ -97,7 +94,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   /// @dev veId => Amount based on weights aka power
   mapping(uint => uint) public override lockedDerivedAmount;
   /// @dev veId => Lock end timestamp
-  mapping(uint => uint) public override lockedEnd;
+  mapping(uint => uint) internal _lockedEndReal;
 
   // --- CHECKPOINTS LOGIC
 
@@ -149,6 +146,10 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   /// @dev underlying token => true if we can stake token to some place, false if paused
   mapping(address => bool) internal tokenFarmingStatus;
 
+  // --- OTHER
+  mapping(uint => bool) public isAlwaysMaxLock;
+  uint public additionalTotalSupply;
+
   // *************************************************************
   //                        EVENTS
   // *************************************************************
@@ -168,6 +169,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   event TransferWhitelisted(address value);
   event StakingTokenAdded(address value, uint weight);
   event GovActionAnnounced(uint _type, uint timeToExecute);
+  event AlwaysMaxLock(uint tokenId, bool status);
 
   // *************************************************************
   //                        INIT
@@ -255,6 +257,14 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   // *************************************************************
   //                        VIEWS
   // *************************************************************
+
+  function lockedEnd(uint _tokenId) public view override returns (uint) {
+    if (isAlwaysMaxLock[_tokenId]) {
+      return (block.timestamp + MAX_TIME) / WEEK * WEEK;
+    } else {
+      return _lockedEndReal[_tokenId];
+    }
+  }
 
   /// @dev Return length of staking tokens.
   function tokensLength() external view returns (uint) {
@@ -676,129 +686,6 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
     return true;
   }
 
-  /// @notice Record global and per-user data to checkpoint
-  function _checkpoint(CheckpointInfo memory info) internal {
-    Point memory uOld;
-    Point memory uNew;
-    int128 oldDSlope = 0;
-    int128 newDSlope = 0;
-    uint _epoch = epoch;
-
-    if (info.tokenId != 0) {
-      // Calculate slopes and biases
-      // Kept at zero when they have to
-      if (info.oldEnd > block.timestamp && info.oldDerivedAmount > 0) {
-        uOld.slope = int128(uint128(info.oldDerivedAmount)) / I_MAX_TIME;
-        uOld.bias = uOld.slope * int128(int256(info.oldEnd - block.timestamp));
-      }
-      if (info.newEnd > block.timestamp && info.newDerivedAmount > 0) {
-        uNew.slope = int128(uint128(info.newDerivedAmount)) / I_MAX_TIME;
-        uNew.bias = uNew.slope * int128(int256(info.newEnd - block.timestamp));
-      }
-
-      // Read values of scheduled changes in the slope
-      // oldLocked.end can be in the past and in the future
-      // newLocked.end can ONLY by in the FUTURE unless everything expired: than zeros
-      oldDSlope = slopeChanges[info.oldEnd];
-      if (info.newEnd != 0) {
-        if (info.newEnd == info.oldEnd) {
-          newDSlope = oldDSlope;
-        } else {
-          newDSlope = slopeChanges[info.newEnd];
-        }
-      }
-    }
-
-    Point memory lastPoint = Point({bias: 0, slope: 0, ts: block.timestamp, blk: block.number});
-    if (_epoch > 0) {
-      lastPoint = _pointHistory[_epoch];
-    }
-    uint lastCheckpoint = lastPoint.ts;
-    // initialLastPoint is used for extrapolation to calculate block number
-    // (approximately, for *At methods) and save them
-    // as we cannot figure that out exactly from inside the contract
-    Point memory initialLastPoint = lastPoint;
-    uint blockSlope = 0;
-    // dblock/dt
-    if (block.timestamp > lastPoint.ts) {
-      blockSlope = (MULTIPLIER * (block.number - lastPoint.blk)) / (block.timestamp - lastPoint.ts);
-    }
-    // If last point is already recorded in this block, slope=0
-    // But that's ok b/c we know the block in such case
-
-    // Go over weeks to fill history and calculate what the current point is
-    {
-      uint ti = (lastCheckpoint / WEEK) * WEEK;
-      // Hopefully it won't happen that this won't get used in 5 years!
-      // If it does, users will be able to withdraw but vote weight will be broken
-      for (uint i = 0; i < 255; ++i) {
-        ti += WEEK;
-        int128 dSlope = 0;
-        if (ti > block.timestamp) {
-          ti = block.timestamp;
-        } else {
-          dSlope = slopeChanges[ti];
-        }
-        lastPoint.bias = (lastPoint.bias - lastPoint.slope * int128(int256(ti - lastCheckpoint))).positiveInt128();
-        lastPoint.slope = (lastPoint.slope + dSlope).positiveInt128();
-        lastCheckpoint = ti;
-        lastPoint.ts = ti;
-        lastPoint.blk = initialLastPoint.blk + (blockSlope * (ti - initialLastPoint.ts)) / MULTIPLIER;
-        _epoch += 1;
-        if (ti == block.timestamp) {
-          lastPoint.blk = block.number;
-          break;
-        } else {
-          _pointHistory[_epoch] = lastPoint;
-        }
-      }
-    }
-
-    epoch = _epoch;
-    // Now pointHistory is filled until t=now
-
-    if (info.tokenId != 0) {
-      // If last point was in this block, the slope change has been applied already
-      // But in such case we have 0 slope(s)
-      lastPoint.slope = (lastPoint.slope + (uNew.slope - uOld.slope)).positiveInt128();
-      lastPoint.bias = (lastPoint.bias + (uNew.bias - uOld.bias)).positiveInt128();
-    }
-
-    // Record the changed point into history
-    _pointHistory[_epoch] = lastPoint;
-
-    if (info.tokenId != 0) {
-      // Schedule the slope changes (slope is going down)
-      // We subtract newUserSlope from [newLocked.end]
-      // and add old_user_slope to [old_locked.end]
-      if (info.oldEnd > block.timestamp) {
-        // old_dslope was <something> - u_old.slope, so we cancel that
-        oldDSlope += uOld.slope;
-        if (info.newEnd == info.oldEnd) {
-          oldDSlope -= uNew.slope;
-          // It was a new deposit, not extension
-        }
-        slopeChanges[info.oldEnd] = oldDSlope;
-      }
-
-      if (info.newEnd > block.timestamp) {
-        if (info.newEnd > info.oldEnd) {
-          newDSlope -= uNew.slope;
-          // old slope disappeared at this point
-          slopeChanges[info.newEnd] = newDSlope;
-        }
-        // else: we recorded it already in oldDSlope
-      }
-      // Now handle user history
-      uint userEpoch = userPointEpoch[info.tokenId] + 1;
-
-      userPointEpoch[info.tokenId] = userEpoch;
-      uNew.ts = block.timestamp;
-      uNew.blk = block.number;
-      _userPointHistory[info.tokenId][userEpoch] = uNew;
-    }
-  }
-
   // *************************************************************
   //                  DEPOSIT/WITHDRAW LOGIC
   // *************************************************************
@@ -869,7 +756,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
 
       // calculate new amounts
       uint newAmount = info.lockedAmount + info.value;
-      newLockedDerivedAmount = _calculateDerivedAmount(
+      newLockedDerivedAmount = VeTetuLib.calculateDerivedAmount(
         info.lockedAmount,
         info.lockedDerivedAmount,
         newAmount,
@@ -878,13 +765,13 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
       );
       // update chain info
       lockedAmounts[info.tokenId][info.stakingToken] = newAmount;
-      lockedDerivedAmount[info.tokenId] = newLockedDerivedAmount;
+      _updateLockedDerivedAmount(info.tokenId, newLockedDerivedAmount);
     }
 
     // Adding to existing lock, or if a lock is expired - creating a new one
     uint newLockedEnd = info.lockedEnd;
     if (info.unlockTime != 0) {
-      lockedEnd[info.tokenId] = info.unlockTime;
+      _lockedEndReal[info.tokenId] = info.unlockTime;
       newLockedEnd = info.unlockTime;
     }
 
@@ -894,7 +781,8 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
       info.lockedDerivedAmount,
       newLockedDerivedAmount,
       info.lockedEnd,
-      newLockedEnd
+      newLockedEnd,
+      isAlwaysMaxLock[info.tokenId]
     ));
 
     // move tokens to this contract, if necessary
@@ -906,40 +794,6 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
     emit Deposit(info.stakingToken, from, info.tokenId, info.value, newLockedEnd, info.depositType, block.timestamp);
   }
 
-  function _calculateDerivedAmount(
-    uint currentAmount,
-    uint oldDerivedAmount,
-    uint newAmount,
-    uint weight,
-    uint8 decimals
-  ) internal pure returns (uint) {
-    // subtract current derived balance
-    // rounded to UP for subtracting closer to 0 value
-    if (oldDerivedAmount != 0 && currentAmount != 0) {
-      currentAmount = currentAmount.divWadUp(10 ** decimals);
-      uint currentDerivedAmount = currentAmount.mulDivUp(weight, WEIGHT_DENOMINATOR);
-      if (oldDerivedAmount > currentDerivedAmount) {
-        oldDerivedAmount -= currentDerivedAmount;
-      } else {
-        // in case of wrong rounding better to set to zero than revert
-        oldDerivedAmount = 0;
-      }
-    }
-
-    // recalculate derived amount with new amount
-    // rounded to DOWN
-    // normalize decimals to 18
-    newAmount = newAmount.divWadDown(10 ** decimals);
-    // calculate the final amount based on the weight
-    newAmount = newAmount.mulDivDown(weight, WEIGHT_DENOMINATOR);
-    return oldDerivedAmount + newAmount;
-  }
-
-  /// @notice Record global data to checkpoint
-  function checkpoint() external override {
-    _checkpoint(CheckpointInfo(0, 0, 0, 0, 0));
-  }
-
   function _lockInfo(address stakingToken, uint veId) internal view returns (
     uint _lockedAmount,
     uint _lockedDerivedAmount,
@@ -947,13 +801,82 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   ) {
     _lockedAmount = lockedAmounts[veId][stakingToken];
     _lockedDerivedAmount = lockedDerivedAmount[veId];
-    _lockedEnd = lockedEnd[veId];
+    _lockedEnd = lockedEnd(veId);
   }
 
   function _incrementTokenIdAndGet() internal returns (uint){
     uint current = tokenId;
     tokenId = current + 1;
     return current + 1;
+  }
+
+  /// @dev Setup always max lock. If true given tokenId will be always counted with max possible lock and can not be withdrawn.
+  ///      When deactivated setup a new counter with max lock duration and use all common logic.
+  function setAlwaysMaxLock(uint _tokenId, bool status) external {
+    require(isApprovedOrOwner(msg.sender, _tokenId), "NOT_OWNER");
+    require(status != isAlwaysMaxLock[_tokenId], "WRONG_INPUT");
+
+    _setAlwaysMaxLock(_tokenId, status);
+  }
+
+  function _setAlwaysMaxLock(uint _tokenId, bool status) internal {
+
+    // need to setup first, it will be checked later
+    isAlwaysMaxLock[_tokenId] = status;
+
+    uint _derivedAmount = lockedDerivedAmount[_tokenId];
+    uint maxLockDuration = (block.timestamp + MAX_TIME) / WEEK * WEEK;
+
+    // the idea is exclude nft from checkpoint calculations when max lock activated and count the balance as is
+    if (status) {
+      // need to increase additional total supply for properly calculation
+      additionalTotalSupply += _derivedAmount;
+
+      // set checkpoints to zero
+      _checkpoint(CheckpointInfo(
+        _tokenId,
+        _derivedAmount,
+        0,
+        maxLockDuration,
+        maxLockDuration,
+        false // need to use false for this fake update
+      ));
+    } else {
+      // remove from additional supply
+      require(additionalTotalSupply >= _derivedAmount, "WRONG_SUPPLY");
+      additionalTotalSupply -= _derivedAmount;
+      // if we disable need to set real lock end to max value
+      _lockedEndReal[_tokenId] = maxLockDuration;
+      // and activate real checkpoints + total supply
+      _checkpoint(CheckpointInfo(
+        _tokenId,
+        0, // it was setup to zero when we set always max lock
+        _derivedAmount,
+        maxLockDuration,
+        maxLockDuration,
+        false
+      ));
+    }
+
+    emit AlwaysMaxLock(_tokenId, status);
+  }
+
+  function _updateLockedDerivedAmount(uint _tokenId, uint amount) internal {
+    uint cur = lockedDerivedAmount[_tokenId];
+    if (cur == amount) {
+      // if did not change do nothing
+      return;
+    }
+
+    if (isAlwaysMaxLock[_tokenId]) {
+      if (cur > amount) {
+        additionalTotalSupply -= (cur - amount);
+      } else if (cur < amount) {
+        additionalTotalSupply += amount - cur;
+      }
+    }
+
+    lockedDerivedAmount[_tokenId] = amount;
   }
 
   /// @notice Deposit `_value` tokens for `_to` and lock for `_lock_duration`
@@ -1036,9 +959,10 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
     uint unlockDate
   )  {
     uint _lockedDerivedAmount = lockedDerivedAmount[_tokenId];
-    uint _lockedEnd = lockedEnd[_tokenId];
+    uint _lockedEnd = _lockedEndReal[_tokenId];
     // Lock time is rounded down to weeks
     uint unlockTime = (block.timestamp + _lockDuration) / WEEK * WEEK;
+    require(!isAlwaysMaxLock[_tokenId], "ALWAYS_MAX_LOCK");
     require(_lockedDerivedAmount > 0, "NFT_WITHOUT_POWER");
     require(_lockedEnd > block.timestamp, "EXPIRED");
     require(unlockTime > _lockedEnd, "LOW_UNLOCK_TIME");
@@ -1057,17 +981,18 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
     }));
 
     power = balanceOfNFT(_tokenId);
-    unlockDate = lockedEnd[_tokenId];
+    unlockDate = _lockedEndReal[_tokenId];
   }
 
   /// @dev Merge two NFTs union their balances and keep the biggest lock time.
   function merge(uint _from, uint _to) external nonReentrant {
     require(attachments[_from] == 0 && !isVoted(_from), "ATTACHED");
     require(_from != _to, "IDENTICAL_ADDRESS");
-    require(_idToOwner[_from] == msg.sender && _idToOwner[_to] == msg.sender, "NOT_OWNER");
+    require(!isAlwaysMaxLock[_tokenId], "ALWAYS_MAX_LOCK");
+    require(isApprovedOrOwner(msg.sender, _from) && isApprovedOrOwner(msg.sender, _to), "NOT_OWNER");
 
-    uint lockedEndFrom = lockedEnd[_from];
-    uint lockedEndTo = lockedEnd[_to];
+    uint lockedEndFrom = lockedEnd(_from);
+    uint lockedEndTo = lockedEnd(_to);
     require(lockedEndFrom > block.timestamp && lockedEndTo > block.timestamp, "EXPIRED");
     uint end = lockedEndFrom >= lockedEndTo ? lockedEndFrom : lockedEndTo;
     uint oldDerivedAmount = lockedDerivedAmount[_from];
@@ -1100,8 +1025,8 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
       emit Merged(stakingToken, msg.sender, _from, _to);
     }
 
-    lockedDerivedAmount[_from] = 0;
-    lockedEnd[_from] = 0;
+    _updateLockedDerivedAmount(_from, 0);
+    _lockedEndReal[_from] = 0;
 
     // update checkpoint
     _checkpoint(CheckpointInfo(
@@ -1109,7 +1034,8 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
       oldDerivedAmount,
       0,
       lockedEndFrom,
-      lockedEndFrom
+      lockedEndFrom,
+      isAlwaysMaxLock[_from]
     ));
 
     _burn(_from);
@@ -1119,13 +1045,14 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   /// @param _tokenId ve token ID
   /// @param percent percent of underlying tokens for new NFT with denominator 1e18 (1-(100e18-1)).
   function split(uint _tokenId, uint percent) external nonReentrant {
+    require(!isAlwaysMaxLock[_tokenId], "ALWAYS_MAX_LOCK");
     require(attachments[_tokenId] == 0 && !isVoted(_tokenId), "ATTACHED");
-    require(_idToOwner[_tokenId] == msg.sender, "NOT_OWNER");
+    require(isApprovedOrOwner(msg.sender, _tokenId), "NOT_OWNER");
     require(percent != 0 && percent < 100e18, "WRONG_INPUT");
 
     uint _lockedDerivedAmount = lockedDerivedAmount[_tokenId];
     uint oldLockedDerivedAmount = _lockedDerivedAmount;
-    uint _lockedEnd = lockedEnd[_tokenId];
+    uint _lockedEnd = lockedEnd(_tokenId);
 
     require(_lockedEnd > block.timestamp, "EXPIRED");
 
@@ -1144,7 +1071,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
       uint amountForNewNFT = _lockedAmount * percent / 100e18;
       require(amountForNewNFT != 0, "LOW_PERCENT");
 
-      uint newLockedDerivedAmount = _calculateDerivedAmount(
+      uint newLockedDerivedAmount = VeTetuLib.calculateDerivedAmount(
         _lockedAmount,
         _lockedDerivedAmount,
         _lockedAmount - amountForNewNFT,
@@ -1169,8 +1096,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
       }));
     }
 
-    // update derived amount
-    lockedDerivedAmount[_tokenId] = _lockedDerivedAmount;
+    _updateLockedDerivedAmount(_tokenId, _lockedDerivedAmount);
 
     // update checkpoint
     _checkpoint(CheckpointInfo(
@@ -1178,7 +1104,8 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
       oldLockedDerivedAmount,
       _lockedDerivedAmount,
       _lockedEnd,
-      _lockedEnd
+      _lockedEnd,
+      isAlwaysMaxLock[_tokenId]
     ));
 
     emit Split(_tokenId, _newTokenId, percent);
@@ -1206,9 +1133,10 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
             _lockInfo(stakingToken, _tokenId);
     require(block.timestamp >= oldLockedEnd, "NOT_EXPIRED");
     require(oldLockedAmount > 0, "ZERO_LOCKED");
+    require(!isAlwaysMaxLock[_tokenId], "ALWAYS_MAX_LOCK");
 
 
-    uint newLockedDerivedAmount = _calculateDerivedAmount(
+    uint newLockedDerivedAmount = VeTetuLib.calculateDerivedAmount(
       oldLockedAmount,
       oldLockedDerivedAmount,
       0,
@@ -1219,12 +1147,12 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
     // if no tokens set lock to zero
     uint newLockEnd = oldLockedEnd;
     if (newLockedDerivedAmount == 0) {
-      lockedEnd[_tokenId] = 0;
+      _lockedEndReal[_tokenId] = 0;
       newLockEnd = 0;
     }
 
     // update derived amount
-    lockedDerivedAmount[_tokenId] = newLockedDerivedAmount;
+    _updateLockedDerivedAmount(_tokenId, newLockedDerivedAmount);
 
     // set locked amount to zero, we will withdraw all
     lockedAmounts[_tokenId][stakingToken] = 0;
@@ -1235,7 +1163,8 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
       oldLockedDerivedAmount,
       newLockedDerivedAmount,
       oldLockedEnd,
-      newLockEnd
+      newLockEnd,
+      false // already checked and can not be true
     ));
 
     // Burn the NFT
@@ -1248,32 +1177,12 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
     emit Withdraw(stakingToken, msg.sender, _tokenId, oldLockedAmount, block.timestamp);
   }
 
+  /////////////////////////////////////////////////////////////////////////////////////
+  //                             Attention!
   // The following ERC20/minime-compatible methods are not real balanceOf and supply!
   // They measure the weights for the purpose of voting, so they don't represent
   // real coins.
-
-  /// @notice Binary search to estimate timestamp for block number
-  /// @param _block Block to find
-  /// @param maxEpoch Don't go beyond this epoch
-  /// @return Approximate timestamp for block
-  function _findBlockEpoch(uint _block, uint maxEpoch) internal view returns (uint) {
-    // Binary search
-    uint _min = 0;
-    uint _max = maxEpoch;
-    for (uint i = 0; i < 128; ++i) {
-      // Will be always enough for 128-bit numbers
-      if (_min >= _max) {
-        break;
-      }
-      uint _mid = (_min + _max + 1) / 2;
-      if (_pointHistory[_mid].blk <= _block) {
-        _min = _mid;
-      } else {
-        _max = _mid - 1;
-      }
-    }
-    return _min;
-  }
+  /////////////////////////////////////////////////////////////////////////////////////
 
   /// @notice Get the current voting power for `_tokenId`
   /// @dev Adheres to the ERC20 `balanceOf` interface for Aragon compatibility
@@ -1281,6 +1190,11 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   /// @param _t Epoch time to return voting power at
   /// @return User voting power
   function _balanceOfNFT(uint _tokenId, uint _t) internal view returns (uint) {
+    // with max lock return balance as is
+    if (isAlwaysMaxLock[_tokenId]) {
+      return lockedDerivedAmount[_tokenId];
+    }
+
     uint _epoch = userPointEpoch[_tokenId];
     if (_epoch == 0) {
       return 0;
@@ -1300,9 +1214,9 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   function tokenURI(uint _tokenId) external view override returns (string memory) {
     require(_idToOwner[_tokenId] != address(0), "TOKEN_NOT_EXIST");
 
-    uint _lockedEnd = lockedEnd[_tokenId];
+    uint _lockedEnd = lockedEnd(_tokenId);
     return
-      VeTetuLogo.tokenURI(
+      VeTetuLib.tokenURI(
       _tokenId,
       uint(int256(lockedDerivedAmount[_tokenId])),
       block.timestamp < _lockedEnd ? _lockedEnd - block.timestamp : 0,
@@ -1316,73 +1230,19 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   /// @param _block Block to calculate the voting power at
   /// @return Voting power
   function _balanceOfAtNFT(uint _tokenId, uint _block) internal view returns (uint) {
-    // Copying and pasting totalSupply code because Vyper cannot pass by
-    // reference yet
-    require(_block <= block.number, "WRONG_INPUT");
-
-    // Binary search
-    uint _min = 0;
-    uint _max = userPointEpoch[_tokenId];
-    for (uint i = 0; i < 128; ++i) {
-      // Will be always enough for 128-bit numbers
-      if (_min >= _max) {
-        break;
-      }
-      uint _mid = (_min + _max + 1) / 2;
-      if (_userPointHistory[_tokenId][_mid].blk <= _block) {
-        _min = _mid;
-      } else {
-        _max = _mid - 1;
-      }
+    // for always max lock just return full derived amount
+    if (isAlwaysMaxLock[_tokenId]) {
+      return lockedDerivedAmount[_tokenId];
     }
 
-    Point memory uPoint = _userPointHistory[_tokenId][_min];
-
-    uint maxEpoch = epoch;
-    uint _epoch = _findBlockEpoch(_block, maxEpoch);
-    Point memory point0 = _pointHistory[_epoch];
-    uint dBlock = 0;
-    uint dt = 0;
-    if (_epoch < maxEpoch) {
-      Point memory point1 = _pointHistory[_epoch + 1];
-      dBlock = point1.blk - point0.blk;
-      dt = point1.ts - point0.ts;
-    } else {
-      dBlock = block.number - point0.blk;
-      dt = block.timestamp - point0.ts;
-    }
-    uint blockTime = point0.ts;
-    if (dBlock != 0 && _block > point0.blk) {
-      blockTime += (dt * (_block - point0.blk)) / dBlock;
-    }
-
-    uPoint.bias -= uPoint.slope * int128(int256(blockTime - uPoint.ts));
-    return uint(uint128(uPoint.bias.positiveInt128()));
-  }
-
-  /// @notice Calculate total voting power at some point in the past
-  /// @param point The point (bias/slope) to start search from
-  /// @param t Time to calculate the total voting power at
-  /// @return Total voting power at that time
-  function _supplyAt(Point memory point, uint t) internal view returns (uint) {
-    Point memory lastPoint = point;
-    uint ti = (lastPoint.ts / WEEK) * WEEK;
-    for (uint i = 0; i < 255; ++i) {
-      ti += WEEK;
-      int128 dSlope = 0;
-      if (ti > t) {
-        ti = t;
-      } else {
-        dSlope = slopeChanges[ti];
-      }
-      lastPoint.bias -= lastPoint.slope * int128(int256(ti - lastPoint.ts));
-      if (ti == t) {
-        break;
-      }
-      lastPoint.slope += dSlope;
-      lastPoint.ts = ti;
-    }
-    return uint(uint128(lastPoint.bias.positiveInt128()));
+    return VeTetuLib.balanceOfAtNFT(
+      _tokenId,
+      _block,
+      epoch,
+      userPointEpoch,
+      _userPointHistory,
+      _pointHistory
+    );
   }
 
   /// @notice Calculate total voting power
@@ -1391,35 +1251,51 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   function totalSupplyAtT(uint t) public view returns (uint) {
     uint _epoch = epoch;
     Point memory lastPoint = _pointHistory[_epoch];
-    return _supplyAt(lastPoint, t);
+    return VeTetuLib.supplyAt(lastPoint, t, slopeChanges) + additionalTotalSupply;
   }
 
   /// @notice Calculate total voting power at some point in the past
   /// @param _block Block to calculate the total voting power at
   /// @return Total voting power at `_block`
   function totalSupplyAt(uint _block) external view override returns (uint) {
-    require(_block <= block.number, "WRONG_INPUT");
-    uint _epoch = epoch;
-    uint targetEpoch = _findBlockEpoch(_block, _epoch);
+    return VeTetuLib.totalSupplyAt(
+      _block,
+      epoch,
+      _pointHistory,
+      slopeChanges
+    ) + additionalTotalSupply;
+  }
 
-    Point memory point = _pointHistory[targetEpoch];
-    // it is possible only for a block before the launch
-    // return 0 as more clear answer than revert
-    if (point.blk > _block) {
-      return 0;
+  /// @notice Record global data to checkpoint
+  function checkpoint() external override {
+    _checkpoint(CheckpointInfo(0, 0, 0, 0, 0, false));
+  }
+
+  /// @notice Record global and per-user data to checkpoint
+  function _checkpoint(CheckpointInfo memory info) internal {
+
+    // we do not need checkpoints for always max lock
+    if (info.isAlwaysMaxLock) {
+      return;
     }
-    uint dt = 0;
-    if (targetEpoch < _epoch) {
-      Point memory pointNext = _pointHistory[targetEpoch + 1];
-      // next point block can not be the same or lower
-      dt = ((_block - point.blk) * (pointNext.ts - point.ts)) / (pointNext.blk - point.blk);
-    } else {
-      if (point.blk != block.number) {
-        dt = ((_block - point.blk) * (block.timestamp - point.ts)) / (block.number - point.blk);
-      }
+
+    uint _epoch = epoch;
+    uint newEpoch = VeTetuLib.checkpoint(
+      info.tokenId,
+      info.oldDerivedAmount,
+      info.newDerivedAmount,
+      info.oldEnd,
+      info.newEnd,
+      _epoch,
+      slopeChanges,
+      userPointEpoch,
+      _userPointHistory,
+      _pointHistory
+    );
+
+    if (newEpoch != 0 && newEpoch != _epoch) {
+      epoch = newEpoch;
     }
-    // Now dt contains info on how far are we beyond point
-    return _supplyAt(point, point.ts + dt);
   }
 
   function _burn(uint _tokenId) internal {
