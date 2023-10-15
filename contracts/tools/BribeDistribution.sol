@@ -3,7 +3,7 @@
 pragma solidity 0.8.17;
 
 import "../interfaces/IERC20.sol";
-import "../interfaces/IBribe.sol";
+import "../interfaces/IVeDistributor.sol";
 
 contract BribeDistribution {
 
@@ -13,14 +13,12 @@ contract BribeDistribution {
   address public pendingOwner;
   address public operator;
 
-  IBribe public immutable bribe;
-  address public immutable vault;
+  IVeDistributor public immutable veDist;
   address public immutable token;
   uint public round;
 
-  constructor(address bribe_, address _vault, address _token) {
-    bribe = IBribe(bribe_);
-    vault = _vault;
+  constructor(address veDist_, address _token) {
+    veDist = IVeDistributor(veDist_);
     token = _token;
     owner = msg.sender;
   }
@@ -65,22 +63,19 @@ contract BribeDistribution {
       IERC20(token).transferFrom(msg.sender, address(this), amount);
     }
 
-    uint toBribes = IERC20(token).balanceOf(address(this));
-    require(toBribes != 0, "ZERO_BALANCE");
+    uint toRewards = IERC20(token).balanceOf(address(this));
+    require(toRewards != 0, "ZERO_BALANCE");
 
     // assume we will have bribes once per 2 weeks. Need to use a half of the current balance in case of start of new 2 weeks epoch.
     if (fresh) {
-      toBribes = toBribes / 2;
+      toRewards = toRewards / 2;
     }
 
-    _approveIfNeed(token, address(bribe), toBribes);
-    bribe.notifyForNextEpoch(vault, token, toBribes);
-  }
+    IVeDistributor _veDist = veDist;
 
-  function _approveIfNeed(address _token, address dst, uint amount) internal {
-    if (IERC20(_token).allowance(address(this), dst) < amount) {
-      IERC20(_token).approve(dst, type(uint).max);
-    }
+    IERC20(token).transfer(address(_veDist), toRewards);
+    _veDist.checkpoint();
+    _veDist.checkpointTotalSupply();
   }
 
 }
