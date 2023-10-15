@@ -33,4 +33,6 @@ interface IBribe {
   function notifyDelayedRewards(address vault, address token, uint _epoch) external;
 
   function increaseEpoch() external;
+
+  function rewardsQueue(address vault, address rt, uint epoch) external view returns (uint);
 }

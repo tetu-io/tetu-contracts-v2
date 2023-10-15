@@ -30,7 +30,7 @@ contract VeDistributor is ControllableV3, IVeDistributor {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant VE_DIST_VERSION = "1.0.0";
+  string public constant VE_DIST_VERSION = "1.0.1";
   uint internal constant WEEK = 7 * 86400;
 
   // *************************************************************
@@ -272,7 +272,8 @@ contract VeDistributor is ControllableV3, IVeDistributor {
     _lastTokenTime = _lastTokenTime / WEEK * WEEK;
     uint amount = _claim(_tokenId, _ve, _lastTokenTime);
     if (amount != 0) {
-      _ve.increaseAmount(rewardToken, _tokenId, amount);
+      address owner = _ve.ownerOf(_tokenId);
+      IERC20(rewardToken).safeTransfer(owner, amount);
       tokenLastBalance -= amount;
     }
     return amount;
@@ -291,7 +292,8 @@ contract VeDistributor is ControllableV3, IVeDistributor {
       if (_tokenId == 0) break;
       uint amount = _claim(_tokenId, _votingEscrow, _lastTokenTime);
       if (amount != 0) {
-        _votingEscrow.increaseAmount(rewardToken, _tokenId, amount);
+        address owner = _votingEscrow.ownerOf(_tokenId);
+        IERC20(rewardToken).safeTransfer(owner, amount);
         total += amount;
       }
     }

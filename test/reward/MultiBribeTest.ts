@@ -157,7 +157,7 @@ describe("multi bribe tests", function () {
 
     // check that all metrics are fine
     expect(await rewardToken.balanceOf(bribe.address)).eq(parseUnits('1'));
-    expect(+formatUnits(await bribe.rewardRate(vault.address, rewardToken.address), 18+27)).eq(1);
+    expect(+formatUnits(await bribe.rewardRate(vault.address, rewardToken.address), 18 + 27)).eq(1);
     expect(await bribe.left(vault.address, rewardToken.address)).eq(parseUnits('1'));
 
     // make sure that for second reward everything empty
@@ -170,7 +170,7 @@ describe("multi bribe tests", function () {
 
     // check second reward metrics
     expect(await rewardToken2.balanceOf(bribe.address)).eq(parseUnits('10'));
-    expect((+formatUnits(await bribe.rewardRate(vault.address, rewardToken2.address), 18+27)).toFixed(0)).eq('10');
+    expect((+formatUnits(await bribe.rewardRate(vault.address, rewardToken2.address), 18 + 27)).toFixed(0)).eq('10');
     expect(await bribe.left(vault.address, rewardToken2.address)).eq(parseUnits('10'));
   });
 
@@ -200,7 +200,8 @@ describe("multi bribe tests", function () {
 
   it("claim delayed rewards test", async function () {
     // add reward
-    await bribe.notifyForNextEpoch(vault.address, tetu.address, 100);
+    await bribe.notifyForNextEpoch(vault.address, tetu.address, 99);
+    await bribe.notifyForNextEpoch(vault.address, tetu.address, 1);
     await expect(bribe.connect(user).setEpochOperator(owner.address)).revertedWith('!gov')
     await bribe.setEpochOperator(owner.address)
     await expect(bribe.connect(user).increaseEpoch()).revertedWith('!operator');

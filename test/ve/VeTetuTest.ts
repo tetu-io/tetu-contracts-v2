@@ -20,6 +20,7 @@ const {expect} = chai;
 
 const WEEK = 60 * 60 * 24 * 7;
 const LOCK_PERIOD = 60 * 60 * 24 * 90;
+const MAX_LOCK = 60 * 60 * 24 * 7 * 16;
 
 describe("veTETU tests", function () {
 
@@ -774,7 +775,74 @@ describe("veTETU tests", function () {
     await expect(ve.merge(1, 3)).revertedWith('EXPIRED');
   });
 
+  it("create for another should reverted test", async function () {
+    await tetu.connect(owner2).approve(ve.address, parseUnits('10000'));
+    await tetu.connect(owner3).approve(ve.address, parseUnits('10000'));
+    expect((await tetu.balanceOf(owner2.address)).gte(parseUnits('1'))).eq(true);
+    await expect(ve.connect(owner3).createLockFor(tetu.address, parseUnits('1'), 60 * 60 * 24 * 14, owner2.address)).revertedWith('ERC20: transfer amount exceeds balance');
+  });
+
+  it("always max lock test", async function () {
+    await expect(ve.setAlwaysMaxLock(1, false)).revertedWith('WRONG_INPUT');
+
+    const endOld = (await ve.lockedEnd(1)).toNumber()
+    const balOld = +formatUnits(await ve.balanceOfNFT(1))
+    const supplyOld = +formatUnits(await ve.totalSupply())
+    console.log('old', endOld, balOld, supplyOld, new Date(endOld * 1000))
+
+    await ve.setAlwaysMaxLock(1, true);
+
+    expect((await ve.additionalTotalSupply()).toString()).eq(parseUnits('1').toString());
+
+    const endNew = (await ve.lockedEnd(1)).toNumber()
+    const balNew = +formatUnits(await ve.balanceOfNFT(1))
+    const supplyNew = +formatUnits(await ve.totalSupply())
+    console.log('new', endNew, balNew, supplyNew, new Date(endNew * 1000))
+
+    expect(balNew).eq(1);
+    expect(endNew).eq(await maxLockTime(ve));
+
+    await ve.setAlwaysMaxLock(1, false);
+
+    console.log('supply after relock', +formatUnits(await ve.totalSupply()))
+
+    expect(+formatUnits(await ve.totalSupply())).approximately(supplyOld, 0.001);
+    expect((await ve.additionalTotalSupply()).toString()).eq('0');
+
+    // should be on high level coz we extended time to max lock on disable
+    expect(+formatUnits(await ve.balanceOfNFT(1))).gt(1 - 0.05);
+    expect((await ve.lockedEnd(1)).toNumber()).eq(await maxLockTime(ve));
+
+    await ve.setAlwaysMaxLock(1, true);
+
+    expect((await ve.additionalTotalSupply()).toString()).eq(parseUnits('1').toString());
+
+    await ve.increaseAmount(tetu.address, 1, parseUnits('1'))
+
+    expect(+formatUnits(await ve.totalSupply())).approximately(supplyOld + 1, 0.1);
+    expect((await ve.additionalTotalSupply()).toString()).eq(parseUnits('2').toString());
+
+    await ve.setAlwaysMaxLock(1, false);
+
+    expect((await ve.additionalTotalSupply()).toString()).eq('0');
+    expect(+formatUnits(await ve.totalSupply())).approximately(supplyOld + 1, 0.1);
+
+    //// --- after all we should withdraw normally
+    await TimeUtils.advanceBlocksOnTs(MAX_LOCK)
+    const tetuBal = await tetu.balanceOf(owner.address);
+    const amnt = await ve.lockedAmounts(1, tetu.address)
+    console.log('amnt', formatUnits(amnt))
+    expect(+formatUnits(amnt)).eq(2);
+    await ve.withdrawAll(1)
+    expect((await tetu.balanceOf(owner.address)).sub(tetuBal).toString()).eq(amnt.toString());
+  });
+
 });
+
+async function maxLockTime(ve: VeTetu) {
+  const now = (await ve.blockTimestamp()).toNumber()
+  return Math.round((now + MAX_LOCK) / WEEK) * WEEK;
+}
 
 
 async function depositOrWithdraw(

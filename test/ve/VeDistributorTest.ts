@@ -253,7 +253,7 @@ describe("Ve distributor tests", function () {
     let bal = await ve.balanceOfNFT(2)
     expect(bal).above(0)
     await veDist.claim(2);
-    expect((await ve.balanceOfNFT(2)).sub(bal)).above(parseUnits('0.08'));
+    expect((await tetu.balanceOf(await tetu.signer.getAddress())).sub(bal)).above(parseUnits('0.08'));
 
     // SECOND CLAIM
 
@@ -264,7 +264,7 @@ describe("Ve distributor tests", function () {
 
     bal = await ve.balanceOfNFT(2)
     await veDist.claim(2);
-    expect((await ve.balanceOfNFT(2)).sub(bal)).above(parseUnits('0.38'));
+    expect((await tetu.balanceOf(await tetu.signer.getAddress())).sub(bal)).above(parseUnits('0.38'));
   });
 
   it("claimMany on old block test", async function () {
@@ -295,7 +295,7 @@ describe("Ve distributor tests", function () {
 
     const bal = await ve.balanceOfNFT(1);
     await veDist.claimMany([1]);
-    expect(await ve.balanceOfNFT(1)).above(bal);
+    expect(await tetu.balanceOf(await tetu.signer.getAddress())).above(bal);
   });
 
   it("calculateToDistribute with zero values test", async function () {

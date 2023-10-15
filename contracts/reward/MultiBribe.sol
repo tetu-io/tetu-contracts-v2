@@ -18,7 +18,7 @@ contract MultiBribe is StakelessMultiPoolBase, IBribe {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant MULTI_BRIBE_VERSION = "1.0.1";
+  string public constant MULTI_BRIBE_VERSION = "1.0.4";
 
   // *************************************************************
   //                        VARIABLES
@@ -165,7 +165,10 @@ contract MultiBribe is StakelessMultiPoolBase, IBribe {
     IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
 
     uint _epoch = epoch + 1;
-    rewardsQueue[vault][token][_epoch] = amount;
+    rewardsQueue[vault][token][_epoch] += amount;
+
+    // try to notify for the current epoch
+    _notifyDelayedRewards(vault, token, _epoch - 1);
 
     emit RewardsForNextEpoch(vault, token, _epoch, amount);
   }
