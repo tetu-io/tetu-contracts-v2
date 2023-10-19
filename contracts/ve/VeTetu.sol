@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 
 pragma solidity 0.8.17;
 
@@ -11,7 +11,6 @@ import "../interfaces/IController.sol";
 import "../interfaces/IVoter.sol";
 import "../interfaces/IPlatformVoter.sol";
 import "../interfaces/ISmartVault.sol";
-import "../lib/FixedPointMathLib.sol";
 import "../proxy/ControllableV3.sol";
 import "./VeTetuLib.sol";
 
@@ -20,8 +19,7 @@ import "./VeTetuLib.sol";
 /// @author belbix
 contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   using SafeERC20 for IERC20;
-  using FixedPointMathLib for uint;
-  using FixedPointMathLib for int128;
+  using Math for uint;
 
   // Only for internal usage
   struct DepositInfo {
@@ -56,7 +54,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant VE_VERSION = "1.2.0";
+  string public constant VE_VERSION = "1.3.0";
   uint internal constant WEEK = 1 weeks;
   uint internal constant MAX_TIME = 16 weeks;
   uint public constant MAX_ATTACHMENTS = 1;

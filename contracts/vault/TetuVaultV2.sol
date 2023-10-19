@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 
 pragma solidity 0.8.17;
 
@@ -13,14 +13,14 @@ import "./ERC4626Upgradeable.sol";
 /// @author belbix
 contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   using SafeERC20 for IERC20;
-  using FixedPointMathLib for uint;
+  using Math for uint;
 
   // *************************************************************
   //                        CONSTANTS
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant VAULT_VERSION = "2.1.4";
+  string public constant VAULT_VERSION = "2.2.0";
   /// @dev Denominator for buffer calculation. 100% of the buffer amount.
   uint constant public BUFFER_DENOMINATOR = 100_000;
   /// @dev Denominator for fee calculation.
@@ -253,7 +253,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   function previewMint(uint shares) public view virtual override returns (uint) {
     uint supply = totalSupply();
     if (supply != 0) {
-      uint assets = shares.mulDivUp(totalAssets(), supply);
+      uint assets = shares.mulDiv(totalAssets(), supply, Math.Rounding.Up);
       return assets * FEE_DENOMINATOR / (FEE_DENOMINATOR - depositFee);
     } else {
       return shares * FEE_DENOMINATOR / (FEE_DENOMINATOR - depositFee);
@@ -330,7 +330,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
     if (_totalAssets == 0) {
       return assets;
     }
-    uint shares = assets.mulDivUp(supply, _totalAssets);
+    uint shares = assets.mulDiv(supply, _totalAssets, Math.Rounding.Up);
     shares = shares * FEE_DENOMINATOR / (FEE_DENOMINATOR - withdrawFee);
     return supply == 0 ? assets : shares;
   }
@@ -350,7 +350,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
 
   function maxWithdraw(address owner) public view override returns (uint) {
     uint assets = convertToAssets(balanceOf(owner));
-    assets -= assets.mulDivUp(withdrawFee, FEE_DENOMINATOR);
+    assets -= assets.mulDiv(withdrawFee, FEE_DENOMINATOR, Math.Rounding.Up);
     return Math.min(maxWithdrawAssets, assets);
   }
 

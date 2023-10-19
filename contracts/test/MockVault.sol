@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 
 pragma solidity 0.8.17;
 
@@ -6,7 +6,7 @@ import "../proxy/ControllableV3.sol";
 import "../vault/ERC4626Upgradeable.sol";
 
 contract MockVault is ERC4626Upgradeable, ControllableV3 {
-  using FixedPointMathLib for uint;
+  using Math for uint;
   using SafeERC20 for IERC20;
 
   uint constant public FEE_DENOMINATOR = 100;
@@ -45,7 +45,7 @@ contract MockVault is ERC4626Upgradeable, ControllableV3 {
   function previewMint(uint shares) public view virtual override returns (uint) {
     uint supply = totalSupply();
     if (supply != 0) {
-      uint assets = shares.mulDivUp(totalAssets(), supply);
+      uint assets = shares.mulDiv(totalAssets(), supply, Math.Rounding.Up);
       return assets * FEE_DENOMINATOR / (FEE_DENOMINATOR - fee);
     } else {
       return shares * FEE_DENOMINATOR / (FEE_DENOMINATOR - fee);
@@ -58,7 +58,7 @@ contract MockVault is ERC4626Upgradeable, ControllableV3 {
     if (_totalAssets == 0) {
       return assets;
     }
-    uint shares = assets.mulDivUp(supply, _totalAssets);
+    uint shares = assets.mulDiv(supply, _totalAssets, Math.Rounding.Up);
     shares = shares * FEE_DENOMINATOR / (FEE_DENOMINATOR - fee);
     return supply == 0 ? assets : shares;
   }

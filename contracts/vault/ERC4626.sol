@@ -1,20 +1,19 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 
 pragma solidity 0.8.17;
 
 import "../openzeppelin/ERC20Permit.sol";
 import "../openzeppelin/SafeERC20.sol";
 import "../openzeppelin/ReentrancyGuard.sol";
+import "../openzeppelin/Math.sol";
 import "../interfaces/IERC4626.sol";
-import "../lib/FixedPointMathLib.sol";
 
 /// @notice Minimal ERC4626 tokenized Vault implementation.
-/// @author Solmate (https://github.com/Rari-Capital/solmate/blob/main/src/mixins/ERC4626.sol)
-/// @author belbix - adopted to proxy pattern + added ReentrancyGuard
+/// @author belbix
 /// @author AlehNat - removed upgradeable logic
 abstract contract ERC4626 is ERC20Permit, ReentrancyGuard, IERC4626 {
   using SafeERC20 for IERC20;
-  using FixedPointMathLib for uint;
+  using Math for uint;
 
   /// @dev The address of the underlying token used for the Vault uses for accounting,
   ///      depositing, and withdrawing
@@ -143,13 +142,13 @@ abstract contract ERC4626 is ERC20Permit, ReentrancyGuard, IERC4626 {
   function convertToShares(uint assets) public view virtual override returns (uint) {
     uint supply = totalSupply();
     // Saves an extra SLOAD if totalSupply is non-zero.
-    return supply == 0 ? assets : assets.mulDivDown(supply, totalAssets());
+    return supply == 0 ? assets : assets.mulDiv(supply, totalAssets(), Math.Rounding.Down);
   }
 
   function convertToAssets(uint shares) public view virtual override returns (uint) {
     uint supply = totalSupply();
     // Saves an extra SLOAD if totalSupply is non-zero.
-    return supply == 0 ? shares : shares.mulDivDown(totalAssets(), supply);
+    return supply == 0 ? shares : shares.mulDiv(totalAssets(), supply, Math.Rounding.Down);
   }
 
   function previewDeposit(uint assets) public view virtual override returns (uint) {
@@ -159,13 +158,13 @@ abstract contract ERC4626 is ERC20Permit, ReentrancyGuard, IERC4626 {
   function previewMint(uint shares) public view virtual override returns (uint) {
     uint supply = totalSupply();
     // Saves an extra SLOAD if totalSupply is non-zero.
-    return supply == 0 ? shares : shares.mulDivUp(totalAssets(), supply);
+    return supply == 0 ? shares : shares.mulDiv(totalAssets(), supply, Math.Rounding.Up);
   }
 
   function previewWithdraw(uint assets) public view virtual override returns (uint) {
     uint supply = totalSupply();
     // Saves an extra SLOAD if totalSupply is non-zero.
-    return supply == 0 ? assets : assets.mulDivUp(supply, totalAssets());
+    return supply == 0 ? assets : assets.mulDiv(supply, totalAssets(), Math.Rounding.Up);
   }
 
   function previewRedeem(uint shares) public view virtual override returns (uint) {
