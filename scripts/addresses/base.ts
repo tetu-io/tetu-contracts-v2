@@ -42,9 +42,23 @@ export class Baseddresses {
 
   // Tetu V2 vaults and strategies
 
+  public static tUSDbC = "0x68f0a05FDc8773d9a5Fd1304ca411ACc234ce22c".toLowerCase();
+
 
   // tokens
   public static TETU_TOKEN = "0x5E42c17CAEab64527D9d80d506a3FE01179afa02".toLowerCase();
+
+  public static WETH_TOKEN = '0x4200000000000000000000000000000000000006'.toLowerCase();
+
+  public static USDC_TOKEN = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'.toLowerCase();
+  public static USDbC_TOKEN = '0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA'.toLowerCase();
+  public static axlUSDC_TOKEN = '0xEB466342C4d449BC9f53A865D5Cb90586f405215'.toLowerCase();
+  public static crvUSD_TOKEN = '0x417Ac0e078398C154EdFadD9Ef675d30Be60Af93'.toLowerCase();
+  public static USDT_TOKEN = ''.toLowerCase();
+
+  public static WBTC_TOKEN = ''.toLowerCase();
+  public static DAI_TOKEN = ''.toLowerCase();
+  public static CRV_TOKEN = '0x8Ee73c484A26e0A5df2Ee2a4960B789967dd0415'.toLowerCase();
 
 
 }

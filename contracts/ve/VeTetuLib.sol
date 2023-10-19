@@ -1,17 +1,16 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 
 pragma solidity 0.8.17;
 
+import "../openzeppelin/Math.sol";
 import "../interfaces/IVeTetu.sol";
-import "../lib/FixedPointMathLib.sol";
 import "../lib/Base64.sol";
 import "./../lib/StringLib.sol";
 
 /// @title Library with additional ve functions
 /// @author belbix
 library VeTetuLib {
-  using FixedPointMathLib for uint;
-  using FixedPointMathLib for int128;
+  using Math for uint;
 
   uint internal constant WEEK = 1 weeks;
   uint internal constant MULTIPLIER = 1 ether;
@@ -46,8 +45,8 @@ library VeTetuLib {
     // subtract current derived balance
     // rounded to UP for subtracting closer to 0 value
     if (oldDerivedAmount != 0 && currentAmount != 0) {
-      currentAmount = currentAmount.divWadUp(10 ** decimals);
-      uint currentDerivedAmount = currentAmount.mulDivUp(weight, WEIGHT_DENOMINATOR);
+      currentAmount = currentAmount.mulDiv(1e18, 10 ** decimals, Math.Rounding.Up);
+      uint currentDerivedAmount = currentAmount.mulDiv(weight, WEIGHT_DENOMINATOR, Math.Rounding.Up);
       if (oldDerivedAmount > currentDerivedAmount) {
         oldDerivedAmount -= currentDerivedAmount;
       } else {
@@ -59,9 +58,9 @@ library VeTetuLib {
     // recalculate derived amount with new amount
     // rounded to DOWN
     // normalize decimals to 18
-    newAmount = newAmount.divWadDown(10 ** decimals);
+    newAmount = newAmount.mulDiv(1e18, 10 ** decimals, Math.Rounding.Down);
     // calculate the final amount based on the weight
-    newAmount = newAmount.mulDivDown(weight, WEIGHT_DENOMINATOR);
+    newAmount = newAmount.mulDiv(weight, WEIGHT_DENOMINATOR, Math.Rounding.Down);
     return oldDerivedAmount + newAmount;
   }
 
@@ -138,7 +137,7 @@ library VeTetuLib {
     }
 
     uPoint.bias -= uPoint.slope * int128(int256(blockTime - uPoint.ts));
-    return uint(uint128(uPoint.bias.positiveInt128()));
+    return uint(uint128(_positiveInt128(uPoint.bias)));
   }
 
   /// @notice Calculate total voting power at some point in the past
@@ -163,7 +162,7 @@ library VeTetuLib {
       lastPoint.slope += dSlope;
       lastPoint.ts = ti;
     }
-    return uint(uint128(lastPoint.bias.positiveInt128()));
+    return uint(uint128(_positiveInt128(lastPoint.bias)));
   }
 
   /// @notice Calculate total voting power at some point in the past
@@ -297,8 +296,8 @@ library VeTetuLib {
         } else {
           dSlope = slopeChanges[ti];
         }
-        lastPoint.bias = (lastPoint.bias - lastPoint.slope * int128(int256(ti - lastCheckpoint))).positiveInt128();
-        lastPoint.slope = (lastPoint.slope + dSlope).positiveInt128();
+        lastPoint.bias = _positiveInt128(lastPoint.bias - lastPoint.slope * int128(int256(ti - lastCheckpoint)));
+        lastPoint.slope = _positiveInt128(lastPoint.slope + dSlope);
         lastCheckpoint = ti;
         lastPoint.ts = ti;
         lastPoint.blk = initialLastPoint.blk + (blockSlope * (ti - initialLastPoint.ts)) / MULTIPLIER;
@@ -318,8 +317,8 @@ library VeTetuLib {
     if (info.tokenId != 0) {
       // If last point was in this block, the slope change has been applied already
       // But in such case we have 0 slope(s)
-      lastPoint.slope = (lastPoint.slope + (info.uNew.slope - info.uOld.slope)).positiveInt128();
-      lastPoint.bias = (lastPoint.bias + (info.uNew.bias - info.uOld.bias)).positiveInt128();
+      lastPoint.slope = _positiveInt128(lastPoint.slope + (info.uNew.slope - info.uOld.slope));
+      lastPoint.bias = _positiveInt128(lastPoint.bias + (info.uNew.bias - info.uOld.bias));
     }
 
     // Record the changed point into history
@@ -355,6 +354,10 @@ library VeTetuLib {
       info.uNew.blk = block.number;
       _userPointHistory[info.tokenId][userEpoch] = info.uNew;
     }
+  }
+
+  function _positiveInt128(int128 value) internal pure returns (int128) {
+    return value < 0 ? int128(0) : value;
   }
 
   /// @dev Return SVG logo of veTETU.

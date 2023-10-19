@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 
 pragma solidity 0.8.17;
 
@@ -8,7 +8,7 @@ import "../tools/TetuERC165.sol";
 
 contract ERC4626Strict is ERC4626, TetuERC165 {
   using SafeERC20 for IERC20;
-  using FixedPointMathLib for uint;
+  using Math for uint;
 
   // *************************************************************
   //                        CONSTANTS
