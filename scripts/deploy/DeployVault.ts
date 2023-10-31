@@ -8,10 +8,10 @@ import {
   VaultFactory__factory
 } from "../../typechain";
 import {RunHelper} from "../utils/RunHelper";
-import {Baseddresses} from "../addresses/base";
+import {BaseAddresses} from "../addresses/base";
 
 
-const ASSET = Baseddresses.USDbC_TOKEN;
+const ASSET = BaseAddresses.USDbC_TOKEN;
 const BUFFER = 1000; // 1%
 const DEPOSIT_FEE = 300; // 0.3%
 const WITHDRAW_FEE = 300; // 0.3%

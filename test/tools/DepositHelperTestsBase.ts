@@ -6,14 +6,14 @@ import {TimeUtils} from "../TimeUtils";
 import {expect} from "chai";
 import fetch from "node-fetch";
 import {formatUnits, parseUnits} from "ethers/lib/utils";
-import {PolygonAddresses} from "../../scripts/addresses/polygon";
 import {TokenUtils} from "../TokenUtils";
 import {Misc} from "../../scripts/utils/Misc";
+import {BaseAddresses} from "../../scripts/addresses/base";
 
 // tslint:disable-next-line:no-var-requires
 const hre = require("hardhat");
 
-describe("Deposit helper Tests poly", function () {
+describe("Deposit helper Tests base", function () {
   let snapshotBefore: string;
   let snapshot: string;
   let signer: SignerWithAddress;
@@ -24,11 +24,11 @@ describe("Deposit helper Tests poly", function () {
   let vault: MockVault;
   let helper: DepositHelperPolygon;
   let ve: VeTetu;
-  const vaultAsset = PolygonAddresses.TETU_TOKEN;
+  const vaultAsset = BaseAddresses.TETU_TOKEN;
 
   before(async function () {
     snapshotBefore = await TimeUtils.snapshot();
-    if (hre.network.config.chainId !== 137) {
+    if (hre.network.config.chainId !== 8453) {
       return;
     }
     signer = await Misc.impersonate('0xbbbbb8C4364eC2ce52c59D2Ed3E56F307E529a94');
@@ -39,9 +39,9 @@ describe("Deposit helper Tests poly", function () {
     tetu = await DeployerUtils.deployMockToken(signer);
     const controller = await DeployerUtils.deployMockController(signer);
     vault = await DeployerUtils.deployMockVault(signer, controller.address, vaultAsset, 'V', strategy.address, 1);
-    helper = await DeployerUtils.deployContract(signer, 'DepositHelperPolygon', PolygonAddresses.ONE_INCH_ROUTER_V5) as DepositHelperPolygon;
+    helper = await DeployerUtils.deployContract(signer, 'DepositHelperBase', BaseAddresses.ONE_INCH_ROUTER_V5) as DepositHelperPolygon;
 
-    ve = await DeployerUtils.deployVeTetu(signer, PolygonAddresses.BALANCER_TETU_USDC, controller.address);
+    ve = await DeployerUtils.deployVeTetu(signer, BaseAddresses.TETU_tUSDbC_AURODROM_LP, controller.address);
 
     await IERC20__factory.connect(vaultAsset, strategy).approve(vault.address, Misc.MAX_UINT);
   });
@@ -65,7 +65,7 @@ describe("Deposit helper Tests poly", function () {
       return;
     }
 
-    const tokenIn = PolygonAddresses.USDC_TOKEN;
+    const tokenIn = BaseAddresses.USDC_TOKEN;
     const amount = parseUnits('1', 6);
     await TokenUtils.getToken(tokenIn, signer.address, amount)
 
@@ -124,7 +124,7 @@ describe("Deposit helper Tests poly", function () {
     const vaultShareBalance = await IERC20__factory.connect(vault.address, signer).balanceOf(signer.address);
     const returnAmount = await vault.previewRedeem(vaultShareBalance)
 
-    const tokenOut = PolygonAddresses.USDC_TOKEN;
+    const tokenOut = BaseAddresses.USDC_TOKEN;
 
     const params = {
       fromTokenAddress: vaultAsset,
@@ -166,13 +166,13 @@ describe("Deposit helper Tests poly", function () {
       return;
     }
 
-    const tokenIn = PolygonAddresses.USDT_TOKEN;
+    const tokenIn = BaseAddresses.USDT_TOKEN;
     const amountIn = parseUnits('1', 6);
     await TokenUtils.getToken(tokenIn, signer.address, parseUnits('2', 6))
 
     let params = {
       fromTokenAddress: tokenIn,
-      toTokenAddress: PolygonAddresses.TETU_TOKEN,
+      toTokenAddress: BaseAddresses.TETU_TOKEN,
       amount: amountIn.mul(8).div(10).toString(),
       fromAddress: signer.address,
       slippage: 1,
@@ -188,7 +188,7 @@ describe("Deposit helper Tests poly", function () {
 
     params = {
       fromTokenAddress: tokenIn,
-      toTokenAddress: PolygonAddresses.USDC_TOKEN,
+      toTokenAddress: BaseAddresses.USDC_TOKEN,
       amount: amountIn.mul(2).div(10).toString(),
       fromAddress: signer.address,
       slippage: 1,
@@ -228,8 +228,8 @@ describe("Deposit helper Tests poly", function () {
 
     expect((await ve.balanceOf(signer.address)).isZero()).eq(false);
     expect((await VeTetu__factory.connect(ve.address, signer).balanceOf(signer.address)).isZero()).eq(false);
-    expect((await IERC20__factory.connect(PolygonAddresses.TETU_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
-    expect((await IERC20__factory.connect(PolygonAddresses.USDC_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
+    expect((await IERC20__factory.connect(BaseAddresses.TETU_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
+    expect((await IERC20__factory.connect(BaseAddresses.USDC_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
   });
 
   it("test convert TETU and create lock", async () => {
@@ -237,13 +237,13 @@ describe("Deposit helper Tests poly", function () {
       return;
     }
 
-    const tokenIn = PolygonAddresses.TETU_TOKEN;
+    const tokenIn = BaseAddresses.TETU_TOKEN;
     const amountIn = parseUnits('1', 18);
     await TokenUtils.getToken(tokenIn, signer.address, parseUnits('2', 18))
 
     const params = {
       fromTokenAddress: tokenIn,
-      toTokenAddress: PolygonAddresses.USDC_TOKEN,
+      toTokenAddress: BaseAddresses.USDC_TOKEN,
       amount: amountIn.mul(2).div(10).toString(),
       fromAddress: signer.address,
       slippage: 1,
@@ -283,8 +283,8 @@ describe("Deposit helper Tests poly", function () {
 
     expect((await ve.balanceOf(signer.address)).isZero()).eq(false);
     expect((await VeTetu__factory.connect(ve.address, signer).balanceOf(signer.address)).isZero()).eq(false);
-    expect((await IERC20__factory.connect(PolygonAddresses.TETU_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
-    expect((await IERC20__factory.connect(PolygonAddresses.USDC_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
+    expect((await IERC20__factory.connect(BaseAddresses.TETU_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
+    expect((await IERC20__factory.connect(BaseAddresses.USDC_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
   });
 
   it("test convert USDC and create lock", async () => {
@@ -292,13 +292,13 @@ describe("Deposit helper Tests poly", function () {
       return;
     }
 
-    const tokenIn = PolygonAddresses.USDC_TOKEN;
+    const tokenIn = BaseAddresses.USDC_TOKEN;
     const amountIn = parseUnits('1', 6);
     await TokenUtils.getToken(tokenIn, signer.address, parseUnits('2', 6))
 
     const params = {
       fromTokenAddress: tokenIn,
-      toTokenAddress: PolygonAddresses.TETU_TOKEN,
+      toTokenAddress: BaseAddresses.TETU_TOKEN,
       amount: amountIn.mul(8).div(10).toString(),
       fromAddress: signer.address,
       slippage: 1,
@@ -338,8 +338,8 @@ describe("Deposit helper Tests poly", function () {
 
     expect((await ve.balanceOf(signer.address)).isZero()).eq(false);
     expect((await VeTetu__factory.connect(ve.address, signer).balanceOf(signer.address)).isZero()).eq(false);
-    expect((await IERC20__factory.connect(PolygonAddresses.TETU_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
-    expect((await IERC20__factory.connect(PolygonAddresses.USDC_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
+    expect((await IERC20__factory.connect(BaseAddresses.TETU_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
+    expect((await IERC20__factory.connect(BaseAddresses.USDC_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
   });
 
   it("test convert USDT and increase amount", async () => {
@@ -347,22 +347,22 @@ describe("Deposit helper Tests poly", function () {
       return;
     }
     const bptAmount = parseUnits('1', 18);
-    await TokenUtils.getToken(PolygonAddresses.BALANCER_TETU_USDC, signer.address, bptAmount);
+    await TokenUtils.getToken(BaseAddresses.BALANCER_TETU_USDC, signer.address, bptAmount);
 
-    await IERC20__factory.connect(PolygonAddresses.BALANCER_TETU_USDC, signer).approve(helper.address, Misc.MAX_UINT)
-    await helper.createLock(ve.address, PolygonAddresses.BALANCER_TETU_USDC, bptAmount, 60 * 60 * 24 * 30);
+    await IERC20__factory.connect(BaseAddresses.BALANCER_TETU_USDC, signer).approve(helper.address, Misc.MAX_UINT)
+    await helper.createLock(ve.address, BaseAddresses.BALANCER_TETU_USDC, bptAmount, 60 * 60 * 24 * 30);
 
 
     const tokenId = await VeTetu__factory.connect(ve.address, signer).tokenId();
     const oldLockedDerivedAmount = await VeTetu__factory.connect(ve.address, signer).lockedDerivedAmount(tokenId)
 
-    const tokenIn = PolygonAddresses.USDT_TOKEN;
+    const tokenIn = BaseAddresses.USDT_TOKEN;
     const amountIn = parseUnits('1', 6);
     await TokenUtils.getToken(tokenIn, signer.address, parseUnits('2', 6))
 
     let params = {
       fromTokenAddress: tokenIn,
-      toTokenAddress: PolygonAddresses.TETU_TOKEN,
+      toTokenAddress: BaseAddresses.TETU_TOKEN,
       amount: amountIn.mul(8).div(10).toString(),
       fromAddress: signer.address,
       slippage: 1,
@@ -378,7 +378,7 @@ describe("Deposit helper Tests poly", function () {
 
     params = {
       fromTokenAddress: tokenIn,
-      toTokenAddress: PolygonAddresses.USDC_TOKEN,
+      toTokenAddress: BaseAddresses.USDC_TOKEN,
       amount: amountIn.mul(2).div(10).toString(),
       fromAddress: signer.address,
       slippage: 1,
@@ -412,8 +412,8 @@ describe("Deposit helper Tests poly", function () {
     expect((await ve.balanceOf(signer.address)).isZero()).eq(false);
     expect((await VeTetu__factory.connect(ve.address, signer).balanceOf(signer.address)).isZero()).eq(false);
     expect((await VeTetu__factory.connect(ve.address, signer).lockedDerivedAmount(tokenId)).gt(oldLockedDerivedAmount));
-    expect((await IERC20__factory.connect(PolygonAddresses.TETU_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
-    expect((await IERC20__factory.connect(PolygonAddresses.USDC_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
+    expect((await IERC20__factory.connect(BaseAddresses.TETU_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
+    expect((await IERC20__factory.connect(BaseAddresses.USDC_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
   });
 
   it("test convert USDC and increase amount", async () => {
@@ -421,22 +421,22 @@ describe("Deposit helper Tests poly", function () {
       return;
     }
     const bptAmount = parseUnits('1', 18);
-    await TokenUtils.getToken(PolygonAddresses.BALANCER_TETU_USDC, signer.address, bptAmount);
+    await TokenUtils.getToken(BaseAddresses.BALANCER_TETU_USDC, signer.address, bptAmount);
 
-    await IERC20__factory.connect(PolygonAddresses.BALANCER_TETU_USDC, signer).approve(helper.address, Misc.MAX_UINT)
-    await helper.createLock(ve.address, PolygonAddresses.BALANCER_TETU_USDC, bptAmount, 60 * 60 * 24 * 30);
+    await IERC20__factory.connect(BaseAddresses.BALANCER_TETU_USDC, signer).approve(helper.address, Misc.MAX_UINT)
+    await helper.createLock(ve.address, BaseAddresses.BALANCER_TETU_USDC, bptAmount, 60 * 60 * 24 * 30);
 
 
     const tokenId = await VeTetu__factory.connect(ve.address, signer).tokenId();
     const oldLockedDerivedAmount = await VeTetu__factory.connect(ve.address, signer).lockedDerivedAmount(tokenId)
 
-    const tokenIn = PolygonAddresses.USDC_TOKEN;
+    const tokenIn = BaseAddresses.USDC_TOKEN;
     const amountIn = parseUnits('1', 6);
     await TokenUtils.getToken(tokenIn, signer.address, parseUnits('2', 6))
 
     const params = {
       fromTokenAddress: tokenIn,
-      toTokenAddress: PolygonAddresses.TETU_TOKEN,
+      toTokenAddress: BaseAddresses.TETU_TOKEN,
       amount: amountIn.mul(8).div(10).toString(),
       fromAddress: signer.address,
       slippage: 1,
@@ -470,8 +470,8 @@ describe("Deposit helper Tests poly", function () {
     expect((await ve.balanceOf(signer.address)).isZero()).eq(false);
     expect((await VeTetu__factory.connect(ve.address, signer).balanceOf(signer.address)).isZero()).eq(false);
     expect((await VeTetu__factory.connect(ve.address, signer).lockedDerivedAmount(tokenId)).gt(oldLockedDerivedAmount));
-    expect((await IERC20__factory.connect(PolygonAddresses.TETU_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
-    expect((await IERC20__factory.connect(PolygonAddresses.USDC_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
+    expect((await IERC20__factory.connect(BaseAddresses.TETU_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
+    expect((await IERC20__factory.connect(BaseAddresses.USDC_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
   });
 
   it("test convert TETU and increase amount", async () => {
@@ -479,22 +479,22 @@ describe("Deposit helper Tests poly", function () {
       return;
     }
     const bptAmount = parseUnits('1', 18);
-    await TokenUtils.getToken(PolygonAddresses.BALANCER_TETU_USDC, signer.address, bptAmount);
+    await TokenUtils.getToken(BaseAddresses.BALANCER_TETU_USDC, signer.address, bptAmount);
 
-    await IERC20__factory.connect(PolygonAddresses.BALANCER_TETU_USDC, signer).approve(helper.address, Misc.MAX_UINT)
-    await helper.createLock(ve.address, PolygonAddresses.BALANCER_TETU_USDC, bptAmount, 60 * 60 * 24 * 30);
+    await IERC20__factory.connect(BaseAddresses.BALANCER_TETU_USDC, signer).approve(helper.address, Misc.MAX_UINT)
+    await helper.createLock(ve.address, BaseAddresses.BALANCER_TETU_USDC, bptAmount, 60 * 60 * 24 * 30);
 
 
     const tokenId = await VeTetu__factory.connect(ve.address, signer).tokenId();
     const oldLockedDerivedAmount = await VeTetu__factory.connect(ve.address, signer).lockedDerivedAmount(tokenId)
 
-    const tokenIn = PolygonAddresses.TETU_TOKEN;
+    const tokenIn = BaseAddresses.TETU_TOKEN;
     const amountIn = parseUnits('1', 18);
     await TokenUtils.getToken(tokenIn, signer.address, parseUnits('2', 18))
 
     const params = {
       fromTokenAddress: tokenIn,
-      toTokenAddress: PolygonAddresses.USDC_TOKEN,
+      toTokenAddress: BaseAddresses.USDC_TOKEN,
       amount: amountIn.mul(2).div(10).toString(),
       fromAddress: signer.address,
       slippage: 1,
@@ -528,8 +528,8 @@ describe("Deposit helper Tests poly", function () {
     expect((await ve.balanceOf(signer.address)).isZero()).eq(false);
     expect((await VeTetu__factory.connect(ve.address, signer).balanceOf(signer.address)).isZero()).eq(false);
     expect((await VeTetu__factory.connect(ve.address, signer).lockedDerivedAmount(tokenId)).gt(oldLockedDerivedAmount));
-    expect((await IERC20__factory.connect(PolygonAddresses.TETU_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
-    expect((await IERC20__factory.connect(PolygonAddresses.USDC_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
+    expect((await IERC20__factory.connect(BaseAddresses.TETU_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
+    expect((await IERC20__factory.connect(BaseAddresses.USDC_TOKEN, signer).balanceOf(helper.address)).isZero()).eq(true);
   });
 })
 

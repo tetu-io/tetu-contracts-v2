@@ -1,10 +1,10 @@
 import {ethers} from "hardhat";
 import {DeployerUtils} from "../utils/DeployerUtils";
-import {PolygonAddresses} from "../addresses/polygon";
+import {BaseAddresses} from "../addresses/base";
 
 async function main() {
   const signer = (await ethers.getSigners())[0];
-  await DeployerUtils.deployContract(signer, 'DepositHelper', PolygonAddresses.ONE_INCH_ROUTER_V5);
+  await DeployerUtils.deployContract(signer, 'DepositHelperBaseChain', BaseAddresses.ONE_INCH_ROUTER_V5);
 }
 
 main()
