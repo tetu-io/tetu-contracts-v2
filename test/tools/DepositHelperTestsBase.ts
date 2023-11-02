@@ -41,7 +41,7 @@ describe("Deposit helper Tests base", function () {
     vault = await DeployerUtils.deployMockVault(signer, controller.address, vaultAsset, 'V', strategy.address, 1);
     helper = await DeployerUtils.deployContract(signer, 'DepositHelperBase', BaseAddresses.ONE_INCH_ROUTER_V5) as DepositHelperPolygon;
 
-    ve = await DeployerUtils.deployVeTetu(signer, BaseAddresses.TETU_tUSDbC_AURODROM_LP, controller.address);
+    ve = await DeployerUtils.deployVeTetu(signer, BaseAddresses.TETU_tUSDbC_AERODROME_LP, controller.address);
 
     await IERC20__factory.connect(vaultAsset, strategy).approve(vault.address, Misc.MAX_UINT);
   });

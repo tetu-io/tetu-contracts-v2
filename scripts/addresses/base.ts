@@ -30,13 +30,12 @@ export class BaseAddresses {
   public static GOVERNANCE = "0x3f5075195b96B60d7D26b5cDe93b64A6D9bF33e2".toLowerCase();
 
   // Additional TETU contracts
-  public static TETU_EMITTER = "".toLowerCase();
   public static HARDWORK_RESOLVER = "".toLowerCase();
   public static FORWARDER_RESOLVER = "".toLowerCase();
   public static SPLITTER_REBALANCE_RESOLVER = "".toLowerCase();
   public static PERF_FEE_TREASURY = "0xc4B7b554af7a82595e7e6Fab932562d5d2e273b4".toLowerCase();
   public static TETU_BRIDGED_PROCESSING = "".toLowerCase();
-  public static REWARDS_REDIRECTOR = "".toLowerCase();
+  public static REWARDS_REDIRECTOR = "0x57577b27814f4166E2340580C49c9726549677e0".toLowerCase();
   public static BRIBE_DISTRIBUTION = "".toLowerCase();
   public static DEPOSIT_HELPER_V2 = "0x6efecCc5112c778bD3bA6ce496Cc6816aBbE187C".toLowerCase();
   public static ONE_INCH_ROUTER_V5 = "0x1111111254EEB25477B68fb85Ed929f73A960582".toLowerCase();
@@ -48,7 +47,8 @@ export class BaseAddresses {
 
   // tokens
   public static TETU_TOKEN = "0x5E42c17CAEab64527D9d80d506a3FE01179afa02".toLowerCase();
-  public static TETU_tUSDbC_AURODROM_LP = "0x924bb74AD42314E4434af5df984cca28b0529337".toLowerCase();
+  public static TETU_tUSDbC_AERODROME_LP = "0x924bb74AD42314E4434af5df984cca28b0529337".toLowerCase();
+  public static USDbC_tUSDbC_UNI3_POOL = "0x99a17985111FcB2B0544b0A19d4585ab671681C9".toLowerCase();
 
   public static WETH_TOKEN = '0x4200000000000000000000000000000000000006'.toLowerCase();
 
