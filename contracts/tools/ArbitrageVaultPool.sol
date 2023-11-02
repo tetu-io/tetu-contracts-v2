@@ -184,21 +184,21 @@ contract ArbitrageVaultPool {
     console.log("token0", token0);
     console.log("token1", token1);
 
-//    uint reserve0 = IERC20(token0).balanceOf(address(pool));
-//    uint reserve1 = IERC20(token1).balanceOf(address(pool));
-//    console.log("reserve0", reserve0);
-//    console.log("reserve1", reserve1);
-//
-//    uint256 newReserve0 = reserve0 * targetPrice / 1e18;
-//    console.log("newReserve0", newReserve0);
-//
-//    if (newReserve0 > reserve0) {
-//      amount0 = newReserve0 - reserve0;
-//      amount1 = reserve1 - ((reserve0 + amount0) * reserve1 / newReserve0);
-//    } else {
-//      amount1 = reserve1 - (newReserve0 * reserve1 / reserve0);
-//      amount0 = reserve0 - (reserve1 * reserve0 / (reserve1 - amount1));
-//    }
+    uint reserve0 = IERC20(token0).balanceOf(address(pool));
+    uint reserve1 = IERC20(token1).balanceOf(address(pool));
+    console.log("reserve0", reserve0);
+    console.log("reserve1", reserve1);
+
+    uint256 newReserve0 = reserve0 * targetPrice / 1e18;
+    console.log("newReserve0", newReserve0);
+
+    if (newReserve0 > reserve0) {
+      amount0 = newReserve0 - reserve0;
+      amount1 = reserve1 - ((reserve0 + amount0) * reserve1 / newReserve0);
+    } else {
+      amount1 = reserve1 - (newReserve0 * reserve1 / reserve0);
+      amount0 = reserve0 - (reserve1 * reserve0 / (reserve1 - amount1));
+    }
 
 
     // todo

@@ -414,14 +414,6 @@ describe("veTETU tests", function () {
     expect(await ve.supportsInterface('0x5b5e139f')).is.eq(true);
   });
 
-  it("get_last_user_slope test", async function () {
-    expect(await ve.getLastUserSlope(0)).is.eq(0);
-  });
-
-  it("user_point_history__ts test", async function () {
-    expect(await ve.userPointHistoryTs(0, 0)).is.eq(0);
-  });
-
   it("locked__end test", async function () {
     expect(await ve.lockedEnd(0)).is.eq(0);
   });

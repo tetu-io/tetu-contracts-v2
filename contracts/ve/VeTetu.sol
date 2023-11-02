@@ -54,7 +54,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant VE_VERSION = "1.3.0";
+  string public constant VE_VERSION = "1.3.1";
   uint internal constant WEEK = 1 weeks;
   uint internal constant MAX_TIME = 16 weeks;
   uint public constant MAX_ATTACHMENTS = 1;
@@ -292,22 +292,6 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
       || super.supportsInterface(_interfaceID);
   }
 
-  /// @notice Get the most recently recorded rate of voting power decrease for `_tokenId`
-  /// @param _tokenId token of the NFT
-  /// @return Value of the slope
-  function getLastUserSlope(uint _tokenId) external view returns (int128) {
-    uint uEpoch = userPointEpoch[_tokenId];
-    return _userPointHistory[_tokenId][uEpoch].slope;
-  }
-
-  /// @notice Get the timestamp for checkpoint `_idx` for `_tokenId`
-  /// @param _tokenId token of the NFT
-  /// @param _idx User epoch number
-  /// @return Epoch time of the checkpoint
-  function userPointHistoryTs(uint _tokenId, uint _idx) external view returns (uint) {
-    return _userPointHistory[_tokenId][_idx].ts;
-  }
-
   /// @dev Returns the number of NFTs owned by `_owner`.
   ///      Throws if `_owner` is the zero address. NFTs assigned to the zero address are considered invalid.
   /// @param _owner Address for whom to query the balance.
@@ -379,12 +363,23 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
     return _balanceOfAtNFT(_tokenId, _block);
   }
 
-  function userPointHistory(uint _tokenId, uint _loc) external view override returns (Point memory) {
-    return _userPointHistory[_tokenId][_loc];
+  function userPointHistory(uint _tokenId, uint _loc) external view override returns (Point memory point) {
+    if (isAlwaysMaxLock[_tokenId]) {
+      return Point({
+        bias: int128(int256(lockedDerivedAmount[_tokenId])),
+        slope: 0,
+        ts: (block.timestamp - MAX_TIME) / WEEK * WEEK, // this represent a simulation that we locked MAX TIME ago, need for VeDist
+        blk: block.number
+      });
+    }
+
+    point = _userPointHistory[_tokenId][_loc];
   }
 
-  function pointHistory(uint _loc) external view override returns (Point memory) {
-    return _pointHistory[_loc];
+  function pointHistory(uint _loc) external view override returns (Point memory point) {
+    point = _pointHistory[_loc];
+    // we have a big simplification of the logic at this moment and just return current extra supply at any request epoch
+    point.bias = point.bias + int128(int256(additionalTotalSupply));
   }
 
   function isVoted(uint _tokenId) public view override returns (bool) {

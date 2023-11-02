@@ -13,7 +13,7 @@ const {expect} = chai;
 const WEEK = 60 * 60 * 24 * 7;
 const LOCK_PERIOD = 60 * 60 * 24 * 90;
 
-describe("Ve distributor tests", function () {
+describe("VeDistributorWithAlwaysMaxLockTest", function () {
 
   let snapshotBefore: string;
   let snapshot: string;
@@ -55,7 +55,9 @@ describe("Ve distributor tests", function () {
     await tetu.approve(ve.address, Misc.MAX_UINT);
     await tetu.connect(owner2).approve(ve.address, Misc.MAX_UINT);
     await ve.createLock(tetu.address, parseUnits('1'), LOCK_PERIOD);
+    await ve.setAlwaysMaxLock(1, true);
     await ve.connect(owner2).createLock(tetu.address, parseUnits('1'), LOCK_PERIOD);
+    // await ve.connect(owner2).setAlwaysMaxLock(2, true);
 
     await ve.setApprovalForAll(pawnshop.address, true);
     await ve.connect(owner2).setApprovalForAll(pawnshop.address, true);
@@ -265,25 +267,6 @@ describe("Ve distributor tests", function () {
     expect(await veDist.claimable(1)).eq(0);
   });
 
-  it("claimMany test old", async function () {
-    await ve.createLock(tetu.address, parseUnits('1'), WEEK);
-
-    await TimeUtils.advanceBlocksOnTs(WEEK * 2);
-
-    await tetu.transfer(veDist.address, parseUnits('10000'))
-    await veDist.checkpoint();
-
-    await TimeUtils.advanceBlocksOnTs(WEEK * 2);
-
-    expect(await veDist.claimable(1)).above(0);
-
-    const bal = await ve.balanceOfNFT(1);
-    await veDist.claimMany([1]);
-    expect(await tetu.balanceOf(await tetu.signer.getAddress())).above(bal);
-
-    expect(+formatUnits(await tetu.balanceOf(veDist.address))).lt(8000);
-  });
-
   it("claimMany test", async function () {
     expect(+formatUnits(await tetu.balanceOf(veDist.address))).eq(0);
 
@@ -315,3 +298,20 @@ describe("Ve distributor tests", function () {
 
 
 });
+
+
+export async function checkTotalVeSupply(ve: VeTetu) {
+  const total = +formatUnits(await ve.totalSupply());
+  console.log('total', total)
+  const nftCount = (await ve.tokenId()).toNumber();
+
+  let sum = 0;
+  for (let i = 1; i <= nftCount; ++i) {
+    const bal = +formatUnits(await ve.balanceOfNFT(i))
+    console.log('bal', i, bal)
+    sum += bal;
+  }
+  console.log('sum', sum)
+  expect(sum).approximately(total, 0.0000000000001);
+  console.log('total supply is fine')
+}

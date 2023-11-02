@@ -30,7 +30,7 @@ contract VeDistributor is ControllableV3, IVeDistributor {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant VE_DIST_VERSION = "1.0.1";
+  string public constant VE_DIST_VERSION = "1.0.2";
   uint internal constant WEEK = 7 * 86400;
 
   // *************************************************************
@@ -205,15 +205,6 @@ contract VeDistributor is ControllableV3, IVeDistributor {
       }
     }
     return _min;
-  }
-
-  /// @dev Return ve power at given timestamp
-  function veForAt(uint _tokenId, uint _timestamp) external view returns (uint) {
-    IVeTetu _ve = ve;
-    uint maxUserEpoch = _ve.userPointEpoch(_tokenId);
-    uint epoch = findTimestampUserEpoch(_ve, _tokenId, _timestamp, maxUserEpoch);
-    IVeTetu.Point memory pt = _ve.userPointHistory(_tokenId, epoch);
-    return uint(int256(_positiveInt128(pt.bias - pt.slope * (int128(int256(_timestamp - pt.ts))))));
   }
 
   /// @dev Call ve checkpoint and write veSupply at the current timeCursor
