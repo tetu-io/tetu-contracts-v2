@@ -351,7 +351,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
     return _balanceOfNFT(_tokenId, block.timestamp);
   }
 
-  function balanceOfNFTAt(uint _tokenId, uint _t) external view returns (uint) {
+  function balanceOfNFTAt(uint _tokenId, uint _t) external view override returns (uint) {
     return _balanceOfNFT(_tokenId, _t);
   }
 
@@ -1241,7 +1241,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   /// @notice Calculate total voting power
   /// @dev Adheres to the ERC20 `totalSupply` interface for Aragon compatibility
   /// @return Total voting power
-  function totalSupplyAtT(uint t) public view returns (uint) {
+  function totalSupplyAtT(uint t) public view override returns (uint) {
     uint _epoch = epoch;
     Point memory lastPoint = _pointHistory[_epoch];
     return VeTetuLib.supplyAt(lastPoint, t, slopeChanges) + additionalTotalSupply;
