@@ -74,6 +74,11 @@ describe("Ve distributor tests", function () {
     await TimeUtils.rollback(snapshot);
   });
 
+  it("emergency withdraw", async function () {
+    await veDist.emergencyWithdraw();
+    expect((await tetu.balanceOf(veDist.address)).isZero()).eq(true);
+  });
+
   it("multi checkpointToken with empty balance test", async function () {
     await tetu.transfer(veDist.address, parseUnits('10'));
     await veDist.checkpoint();

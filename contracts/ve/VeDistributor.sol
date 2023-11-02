@@ -109,6 +109,11 @@ contract VeDistributor is ControllableV3, IVeDistributor {
     IERC20(_rewardToken).safeApprove(_ve, type(uint).max);
   }
 
+  function emergencyWithdraw() external {
+    require(isGovernance(msg.sender), "not gov");
+    IERC20(rewardToken).safeTransfer(msg.sender, IERC20(rewardToken).balanceOf(address(this)));
+  }
+
   // *************************************************************
   //                      CHECKPOINT
   // *************************************************************
