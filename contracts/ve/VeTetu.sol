@@ -834,8 +834,8 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
         _tokenId,
         _derivedAmount,
         0,
-        maxLockDuration,
-        maxLockDuration,
+        _lockedEndReal[_tokenId],
+        0,
         false // need to use false for this fake update
       ));
     } else {

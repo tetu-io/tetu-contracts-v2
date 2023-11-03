@@ -468,7 +468,9 @@ describe("veTETU tests", function () {
 
   it("increase_unlock_time test", async function () {
     await TimeUtils.advanceBlocksOnTs(WEEK * 10);
+    await checkTotalVeSupplyAtTS(ve, await currentTS());
     await ve.increaseUnlockTime(1, LOCK_PERIOD);
+    await checkTotalVeSupplyAtTS(ve, await currentTS());
     await expect(ve.increaseUnlockTime(1, LOCK_PERIOD * 2)).revertedWith('HIGH_LOCK_PERIOD');
   });
 
@@ -925,6 +927,35 @@ describe("veTETU tests", function () {
     expect((await tetu.balanceOf(owner.address)).sub(tetuBal).toString()).eq(amnt.toString());
   });
 
+  it("always max lock relock test", async function () {
+    await ve.increaseUnlockTime(1, MAX_LOCK);
+    await checkTotalVeSupplyAtTS(ve, await currentTS());
+
+    const oldPower = +formatUnits(await ve.balanceOfNFT(1));
+    console.log('oldPower', oldPower);
+    const oldTotal = +formatUnits(await ve.totalSupply());
+    console.log('oldTotal', oldTotal);
+
+    await ve.setAlwaysMaxLock(1, true);
+    await checkTotalVeSupplyAtTS(ve, await currentTS());
+
+    const powerAfterLock = +formatUnits(await ve.balanceOfNFT(1));
+    console.log('powerAfterLock', powerAfterLock);
+    const totalAfterLock = +formatUnits(await ve.totalSupply());
+    console.log('totalAfterLock', totalAfterLock);
+
+    await ve.setAlwaysMaxLock(1, false);
+    await checkTotalVeSupplyAtTS(ve, await currentTS());
+
+    const powerAfterLockOff = +formatUnits(await ve.balanceOfNFT(1));
+    console.log('powerAfterLockOff', powerAfterLockOff);
+    const totalAfterLockOff = +formatUnits(await ve.totalSupply());
+    console.log('totalAfterLockOff', totalAfterLockOff);
+
+    expect(oldPower).approximately(powerAfterLockOff, 0.001);
+    expect(oldTotal).approximately(totalAfterLockOff, 0.001);
+  });
+
 });
 
 async function maxLockTime(ve: VeTetu) {
@@ -940,6 +971,7 @@ async function depositOrWithdraw(
   amount: BigNumber,
   lock: number,
 ) {
+  await checkTotalVeSupplyAtTS(ve, await currentTS());
   const veIdLength = await ve.balanceOf(owner.address);
   expect(veIdLength).below(2);
   if (veIdLength.isZero()) {
@@ -961,6 +993,7 @@ async function depositOrWithdraw(
       console.log('no lock for this token')
     }
   }
+  await checkTotalVeSupplyAtTS(ve, await currentTS());
 }
 
 async function withdrawIfExist(

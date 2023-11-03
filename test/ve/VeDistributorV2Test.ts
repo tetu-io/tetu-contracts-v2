@@ -79,6 +79,8 @@ describe("VeDistributorV2Test", function () {
     await checkTotalVeSupplyAtTS(ve, await currentEpochTS());
     console.log('precheck is fine')
 
+    // --- NEW EPOCH
+
     await tetu.transfer(veDist.address, parseUnits('100'));
     expect(await startNewEpoch(ve, veDist)).eq(true);
 
@@ -91,6 +93,8 @@ describe("VeDistributorV2Test", function () {
     await veDist.connect(owner2).claimMany([2]);
 
     expect(+formatUnits(await tetu.balanceOf(veDist.address))).approximately(0, 0.00000000000000001);
+
+    // --- NEW EPOCH
 
     expect(await startNewEpoch(ve, veDist)).eq(false);
 
@@ -110,6 +114,8 @@ describe("VeDistributorV2Test", function () {
 
     expect(+formatUnits(await tetu.balanceOf(veDist.address))).approximately(0, 0.00000000000000001);
 
+    // --- NEW EPOCH
+
     await ve.setAlwaysMaxLock(1, true);
 
     await TimeUtils.advanceBlocksOnTs(WEEK);
@@ -117,6 +123,45 @@ describe("VeDistributorV2Test", function () {
     expect(await startNewEpoch(ve, veDist)).eq(true);
 
     expect((await veDist.epoch()).toNumber()).eq(3);
+
+    expect(+formatUnits(await veDist.claimable(1))).approximately(65, 5);
+    expect(+formatUnits(await veDist.claimable(2))).approximately(35, 5);
+
+    await veDist.claimMany([1]);
+    await veDist.connect(owner2).claimMany([2]);
+
+    expect(+formatUnits(await tetu.balanceOf(veDist.address))).approximately(0, 0.00000000000000001);
+
+    // --- NEW EPOCH
+
+    await ve.setAlwaysMaxLock(1, false);
+
+    await TimeUtils.advanceBlocksOnTs(WEEK * 4);
+    await tetu.transfer(veDist.address, parseUnits('100'));
+    expect(await startNewEpoch(ve, veDist)).eq(true);
+
+    expect((await veDist.epoch()).toNumber()).eq(4);
+
+    expect(+formatUnits(await veDist.claimable(1))).approximately(70, 5);
+    expect(+formatUnits(await veDist.claimable(2))).approximately(30, 5);
+
+    await veDist.claimMany([1]);
+    await veDist.connect(owner2).claimMany([2]);
+
+    expect(+formatUnits(await tetu.balanceOf(veDist.address))).approximately(0, 0.00000000000000001);
+
+    // --- NEW EPOCH
+
+    await ve.connect(owner2).increaseAmount(tetu.address, 2, parseUnits('10'));
+
+    await TimeUtils.advanceBlocksOnTs(WEEK);
+    await tetu.transfer(veDist.address, parseUnits('100'));
+    expect(await startNewEpoch(ve, veDist)).eq(true);
+
+    expect((await veDist.epoch()).toNumber()).eq(5);
+
+    expect(+formatUnits(await veDist.claimable(1))).approximately(20, 5);
+    expect(+formatUnits(await veDist.claimable(2))).approximately(80, 5);
 
     await veDist.claimMany([1]);
     await veDist.connect(owner2).claimMany([2]);
