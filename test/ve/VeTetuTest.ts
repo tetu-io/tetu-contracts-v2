@@ -15,6 +15,7 @@ import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {Misc} from "../../scripts/utils/Misc";
 import {BigNumber} from "ethers";
+import {checkTotalVeSupplyAtTS, currentEpochTS} from "../test-utils";
 
 const {expect} = chai;
 
@@ -371,10 +372,6 @@ describe("veTETU tests", function () {
     await expect(ve.tokenURI(99)).revertedWith('TOKEN_NOT_EXIST');
   });
 
-  it("balanceOfNFTAt for new block revert", async function () {
-    await expect(ve.balanceOfAtNFT(1, Date.now() * 10)).revertedWith('WRONG_INPUT');
-  });
-
   it("totalSupplyAt for new block revert", async function () {
     await expect(ve.totalSupplyAt(Date.now() * 10)).revertedWith('WRONG_INPUT');
   });
@@ -392,6 +389,28 @@ describe("veTETU tests", function () {
     const start = (await ve.pointHistory(0)).blk;
     expect(await ve.totalSupplyAt(start)).eq(0);
     expect(await ve.totalSupplyAt(start.add(1))).eq(0);
+  });
+
+  it("totalSupplyAtT test", async function () {
+    const curBlock = await owner.provider?.getBlockNumber() ?? -1;
+    const blockTs = (await owner.provider?.getBlock(curBlock))?.timestamp ?? -1;
+    expect(curBlock).not.eq(-1);
+    expect(blockTs).not.eq(-1);
+    const supply = +formatUnits(await ve.totalSupply());
+    const supplyBlock = +formatUnits(await ve.totalSupplyAt(curBlock));
+    const supplyTsNow = +formatUnits(await ve.totalSupplyAtT(blockTs));
+    console.log('supply', supply);
+    console.log('supplyBlock', supplyBlock);
+    console.log('supplyTsNow', supplyTsNow);
+
+    expect(supply).eq(supplyBlock);
+    expect(supplyTsNow).eq(supplyBlock);
+
+    const supplyTs = +formatUnits(await ve.totalSupplyAtT(await currentEpochTS()));
+    console.log('supplyTs', supplyTs);
+
+    await checkTotalVeSupplyAtTS(ve, await currentEpochTS() + WEEK)
+
   });
 
   it("totalSupplyAt for second epoch", async function () {
@@ -471,8 +490,72 @@ describe("veTETU tests", function () {
   });
 
   it("balanceOfNFTAt test", async function () {
-    await expect(ve.balanceOfNFTAt(1, 0)).revertedWith('WRONG_INPUT');
-    await ve.balanceOfNFTAt(1, 999_999_999_999);
+    // ve #3
+    await ve.createLock(tetu.address, parseUnits('100'), LOCK_PERIOD);
+    const tId = 3;
+
+    const curBlockB = await owner.provider?.getBlockNumber() ?? -1;
+    const blockTsB = (await owner.provider?.getBlock(curBlockB))?.timestamp ?? -1;
+
+
+    const curBlock = await owner.provider?.getBlockNumber() ?? -1;
+    const blockTs = (await owner.provider?.getBlock(curBlock))?.timestamp ?? -1;
+    const current = +formatUnits(await ve.balanceOfNFTAt(tId, blockTs));
+    console.log('>>> current', current);
+    expect(current).approximately(75, 10);
+    const zero = +formatUnits(await ve.balanceOfNFTAt(tId, 0));
+    const future = +formatUnits(await ve.balanceOfNFTAt(tId, 999_999_999_999));
+    const beforeLock = +formatUnits(await ve.balanceOfNFTAt(tId, blockTsB - 1000));
+    expect(zero).eq(0);
+    expect(future).eq(0);
+    expect(beforeLock).eq(0);
+
+    await TimeUtils.advanceBlocksOnTs(WEEK * 2);
+    await ve.increaseAmount(tetu.address, tId, parseUnits('1000'));
+
+    const curBlockA = await owner.provider?.getBlockNumber() ?? -1;
+    const blockTsA = (await owner.provider?.getBlock(curBlockA))?.timestamp ?? -1;
+    const beforeLockAfterIncrease = +formatUnits(await ve.balanceOfNFTAt(tId, blockTsA - 1000));
+    console.log('>>> beforeLockAfterIncrease', beforeLockAfterIncrease);
+    expect(beforeLockAfterIncrease).approximately(75, 10);
+
+    const currentA = +formatUnits(await ve.balanceOfNFTAt(tId, blockTsA));
+    console.log('>>> currentA', currentA);
+    expect(currentA).approximately(700, 100);
+  });
+
+  it("balanceOfAtNFT test", async function () {
+    await TimeUtils.advanceNBlocks(100)
+    // ve #3
+    await ve.createLock(tetu.address, parseUnits('100'), LOCK_PERIOD);
+    const tId = 3;
+
+    const curBlockB = await owner.provider?.getBlockNumber() ?? -1;
+
+
+    const curBlock = await owner.provider?.getBlockNumber() ?? -1;
+    const current = +formatUnits(await ve.balanceOfAtNFT(tId, curBlock));
+    console.log('>>> current', current);
+    expect(current).approximately(75, 10);
+    const zero = +formatUnits(await ve.balanceOfAtNFT(tId, 0));
+    const future = +formatUnits(await ve.balanceOfAtNFT(tId, 999_999_999_999));
+    const beforeLock = +formatUnits(await ve.balanceOfAtNFT(tId, curBlockB - 10));
+    expect(zero).eq(0);
+    expect(future).eq(0);
+    expect(beforeLock).eq(0);
+
+    await TimeUtils.advanceNBlocks(100)
+    await TimeUtils.advanceBlocksOnTs(WEEK * 2);
+    await ve.increaseAmount(tetu.address, tId, parseUnits('1000'));
+
+    const curBlockA = await owner.provider?.getBlockNumber() ?? -1;
+    const beforeLockAfterIncrease = +formatUnits(await ve.balanceOfAtNFT(tId, curBlockA - 10));
+    console.log('>>> beforeLockAfterIncrease', beforeLockAfterIncrease);
+    expect(beforeLockAfterIncrease).approximately(75, 10);
+
+    const currentA = +formatUnits(await ve.balanceOfAtNFT(tId, curBlockA));
+    console.log('>>> currentA', currentA);
+    expect(currentA).approximately(700, 100);
   });
 
   it("ve flesh transfer + supply checks", async function () {

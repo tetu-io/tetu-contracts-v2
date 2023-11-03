@@ -88,56 +88,80 @@ library VeTetuLib {
   }
 
   /// @notice Measure voting power of `_tokenId` at block height `_block`
-  /// @return Voting power
+  /// @return resultBalance Voting power
   function balanceOfAtNFT(
     uint _tokenId,
     uint _block,
     uint maxEpoch,
+    uint lockedDerivedAmount,
     mapping(uint => uint) storage userPointEpoch,
     mapping(uint => IVeTetu.Point[1000000000]) storage _userPointHistory,
     mapping(uint => IVeTetu.Point) storage _pointHistory
-  ) external view returns (uint) {
-    // Copying and pasting totalSupply code because Vyper cannot pass by
-    // reference yet
-    require(_block <= block.number, "WRONG_INPUT");
+  ) external view returns (uint resultBalance) {
 
-    // Binary search
+    // Binary search closest user point
     uint _min = 0;
-    uint _max = userPointEpoch[_tokenId];
-    for (uint i = 0; i < 128; ++i) {
-      // Will be always enough for 128-bit numbers
-      if (_min >= _max) {
-        break;
-      }
-      uint _mid = (_min + _max + 1) / 2;
-      if (_userPointHistory[_tokenId][_mid].blk <= _block) {
-        _min = _mid;
-      } else {
-        _max = _mid - 1;
+    {
+      uint _max = userPointEpoch[_tokenId];
+      for (uint i = 0; i < 128; ++i) {
+        // Will be always enough for 128-bit numbers
+        if (_min >= _max) {
+          break;
+        }
+        uint _mid = (_min + _max + 1) / 2;
+        if (_userPointHistory[_tokenId][_mid].blk <= _block) {
+          _min = _mid;
+        } else {
+          _max = _mid - 1;
+        }
       }
     }
 
     IVeTetu.Point memory uPoint = _userPointHistory[_tokenId][_min];
 
-    uint _epoch = findBlockEpoch(_block, maxEpoch, _pointHistory);
-    IVeTetu.Point memory point0 = _pointHistory[_epoch];
-    uint dBlock = 0;
-    uint dt = 0;
-    if (_epoch < maxEpoch) {
-      IVeTetu.Point memory point1 = _pointHistory[_epoch + 1];
-      dBlock = point1.blk - point0.blk;
-      dt = point1.ts - point0.ts;
-    } else {
-      dBlock = block.number - point0.blk;
-      dt = block.timestamp - point0.ts;
+    // nft does not exist at this block
+    if (uPoint.blk > _block) {
+      return 0;
     }
-    uint blockTime = point0.ts;
-    if (dBlock != 0 && _block > point0.blk) {
-      blockTime += (dt * (_block - point0.blk)) / dBlock;
+
+    // need to calculate timestamp for the given block
+    uint blockTime;
+    if (_block <= block.number) {
+      uint _epoch = findBlockEpoch(_block, maxEpoch, _pointHistory);
+      IVeTetu.Point memory point0 = _pointHistory[_epoch];
+      uint dBlock = 0;
+      uint dt = 0;
+      if (_epoch < maxEpoch) {
+        IVeTetu.Point memory point1 = _pointHistory[_epoch + 1];
+        dBlock = point1.blk - point0.blk;
+        dt = point1.ts - point0.ts;
+      } else {
+        dBlock = block.number - point0.blk;
+        dt = block.timestamp - point0.ts;
+      }
+      blockTime = point0.ts;
+      if (dBlock != 0 && _block > point0.blk) {
+        blockTime += (dt * (_block - point0.blk)) / dBlock;
+      }
+    } else {
+      // we can not calculate estimation if no checkpoints
+      if (maxEpoch == 0) {
+        return 0;
+      }
+      // for future blocks will use a simple estimation
+      IVeTetu.Point memory point0 = _pointHistory[maxEpoch - 1];
+      uint tsPerBlock18 = (block.timestamp - point0.ts) * 1e18 / (block.number - point0.blk);
+      blockTime = block.timestamp + tsPerBlock18 * (_block - block.number) / 1e18;
     }
 
     uPoint.bias -= uPoint.slope * int128(int256(blockTime - uPoint.ts));
-    return uint(uint128(_positiveInt128(uPoint.bias)));
+
+    resultBalance = uint(uint128(_positiveInt128(uPoint.bias)));
+
+    // make sure we do not return more than nft has
+    if (resultBalance > lockedDerivedAmount) {
+      return 0;
+    }
   }
 
   /// @notice Calculate total voting power at some point in the past
@@ -145,6 +169,9 @@ library VeTetuLib {
   /// @param t Time to calculate the total voting power at
   /// @return Total voting power at that time
   function supplyAt(IVeTetu.Point memory point, uint t, mapping(uint => int128) storage slopeChanges) public view returns (uint) {
+    // this function will return positive value even for block when contract does not exist
+    // for reduce gas cost we assume that it will not be used in such form
+
     IVeTetu.Point memory lastPoint = point;
     uint ti = (lastPoint.ts / WEEK) * WEEK;
     for (uint i = 0; i < 255; ++i) {
@@ -155,7 +182,7 @@ library VeTetuLib {
       } else {
         dSlope = slopeChanges[ti];
       }
-      lastPoint.bias -= lastPoint.slope * int128(int256(ti - lastPoint.ts));
+      lastPoint.bias -= lastPoint.slope * int128(int256(ti) - int256(lastPoint.ts));
       if (ti == t) {
         break;
       }

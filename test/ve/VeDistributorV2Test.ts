@@ -6,11 +6,9 @@ import {ControllerMinimal, MockPawnshop, MockToken, MockVoter, VeDistributorV2, 
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {Misc} from "../../scripts/utils/Misc";
+import {checkTotalVeSupplyAtTS, currentEpochTS, LOCK_PERIOD} from "../test-utils";
 
 const {expect} = chai;
-
-const WEEK = 60 * 60 * 24 * 7;
-const LOCK_PERIOD = 60 * 60 * 24 * 90;
 
 describe("VeDistributorV2Test", function () {
 
@@ -84,7 +82,7 @@ describe("VeDistributorV2Test", function () {
     // check pre conditions
     expect((await veDist.claimable(1)).isZero()).eq(true);
     expect((await veDist.claimable(2)).isZero()).eq(true);
-    await checkTotalVeSupplyAtTS(ve, currentEpochTS());
+    await checkTotalVeSupplyAtTS(ve, await currentEpochTS());
     console.log('precheck is fine')
 
     await tetu.transfer(veDist.address, parseUnits('100'));
@@ -101,22 +99,3 @@ describe("VeDistributorV2Test", function () {
 
 });
 
-function currentEpochTS() {
-  return Math.floor(Date.now() / 1000 / WEEK) * WEEK;
-}
-
-export async function checkTotalVeSupplyAtTS(ve: VeTetu, ts: number) {
-  const total = +formatUnits(await ve.totalSupplyAtT(ts));
-  console.log('total', total)
-  const nftCount = (await ve.tokenId()).toNumber();
-
-  let sum = 0;
-  for (let i = 1; i <= nftCount; ++i) {
-    const bal = +formatUnits(await ve.balanceOfNFTAt(i, ts))
-    console.log('bal', i, bal)
-    sum += bal;
-  }
-  console.log('sum', sum)
-  expect(sum).approximately(total, 0.0000000000001);
-  console.log('total supply is fine')
-}

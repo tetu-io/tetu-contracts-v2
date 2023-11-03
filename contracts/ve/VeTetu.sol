@@ -55,7 +55,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant VE_VERSION = "1.3.2";
+  string public constant VE_VERSION = "1.3.3";
   uint internal constant WEEK = 1 weeks;
   uint internal constant MAX_TIME = 16 weeks;
   uint public constant MAX_ATTACHMENTS = 1;
@@ -1181,12 +1181,12 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   // real coins.
   /////////////////////////////////////////////////////////////////////////////////////
 
-  /// @notice Get the current voting power for `_tokenId`
+  /// @notice Get the voting power for `_tokenId` at given timestamp
   /// @dev Adheres to the ERC20 `balanceOf` interface for Aragon compatibility
   /// @param _tokenId NFT for lock
-  /// @param _t Epoch time to return voting power at
+  /// @param ts Epoch time to return voting power at
   /// @return User voting power
-  function _balanceOfNFT(uint _tokenId, uint _t) internal view returns (uint) {
+  function _balanceOfNFT(uint _tokenId, uint ts) internal view returns (uint) {
     // with max lock return balance as is
     if (isAlwaysMaxLock[_tokenId]) {
       return lockedDerivedAmount[_tokenId];
@@ -1196,11 +1196,32 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
     if (_epoch == 0) {
       return 0;
     } else {
-      Point memory lastPoint = _userPointHistory[_tokenId][_epoch];
-      require(_t >= lastPoint.ts, "WRONG_INPUT");
-      lastPoint.bias -= lastPoint.slope * int128(int256(_t) - int256(lastPoint.ts));
-      if (lastPoint.bias < 0) {
-        lastPoint.bias = 0;
+      // Binary search
+      uint _min = 0;
+      uint _max = _epoch;
+      for (uint i = 0; i < 128; ++i) {
+        // Will be always enough for 128-bit numbers
+        if (_min >= _max) {
+          break;
+        }
+        uint _mid = (_min + _max + 1) / 2;
+        if (_userPointHistory[_tokenId][_mid].ts <= ts) {
+          _min = _mid;
+        } else {
+          _max = _mid - 1;
+        }
+      }
+      IVeTetu.Point memory lastPoint = _userPointHistory[_tokenId][_min];
+
+      if (lastPoint.ts > ts) {
+        return 0;
+      }
+
+      // calculate power at concrete point of time, it can be higher on past and lower in future
+      lastPoint.bias -= lastPoint.slope * int128(int256(ts) - int256(lastPoint.ts));
+      // case if lastPoint.bias > than real locked amount means requested timestamp early than creation time
+      if (lastPoint.bias < 0 || uint(int256(lastPoint.bias)) > lockedDerivedAmount[_tokenId]) {
+        return 0;
       }
       return uint(int256(lastPoint.bias));
     }
@@ -1236,6 +1257,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
       _tokenId,
       _block,
       epoch,
+      lockedDerivedAmount[_tokenId],
       userPointEpoch,
       _userPointHistory,
       _pointHistory
@@ -1246,8 +1268,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   /// @dev Adheres to the ERC20 `totalSupply` interface for Aragon compatibility
   /// @return Total voting power
   function totalSupplyAtT(uint t) public view override returns (uint) {
-    uint _epoch = epoch;
-    Point memory lastPoint = _pointHistory[_epoch];
+    Point memory lastPoint = _pointHistory[epoch];
     return VeTetuLib.supplyAt(lastPoint, t, slopeChanges) + additionalTotalSupply;
   }
 
