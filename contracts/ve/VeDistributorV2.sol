@@ -123,6 +123,7 @@ contract VeDistributorV2 is ControllableV3, IVeDistributor {
     }
 
     IVeTetu _ve = ve;
+    _ve.checkpoint();
     uint veTotalSupply = _ve.totalSupplyAtT(newEpochTs);
     // we can use a simple invariant - sum of all balanceOfNFTAt must be equal to totalSupplyAtT
     uint rewardsPerToken = tokenDiff * 1e18 / veTotalSupply;
@@ -158,7 +159,7 @@ contract VeDistributorV2 is ControllableV3, IVeDistributor {
   // *************************************************************
 
   /// @dev Return available to claim earned amount
-  function claimable(uint _tokenId) public view returns (uint rewardsAmount) {
+  function claimable(uint _tokenId) public view override returns (uint rewardsAmount) {
     uint curEpoch = epoch;
     uint lastPaidEpoch = _lastPaidEpoch[_tokenId];
 

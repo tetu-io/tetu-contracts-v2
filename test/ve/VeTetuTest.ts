@@ -48,6 +48,15 @@ describe("veTETU tests", function () {
     ve = await DeployerUtils.deployVeTetu(owner, tetu.address, controller.address, parseUnits('100'));
     voter = await DeployerUtils.deployMockVoter(owner, ve.address);
     pawnshop = await DeployerUtils.deployContract(owner, 'MockPawnshop') as MockPawnshop;
+
+    const veDist = await DeployerUtils.deployVeDistributor(
+      owner,
+      controller.address,
+      ve.address,
+      tetu.address,
+    );
+
+    await controller.setVeDistributor(veDist.address);
     await controller.setVoter(voter.address);
     await ve.announceAction(2);
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 18);

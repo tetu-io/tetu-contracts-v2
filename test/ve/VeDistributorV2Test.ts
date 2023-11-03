@@ -6,7 +6,6 @@ import {ControllerMinimal, MockPawnshop, MockToken, MockVoter, VeDistributorV2, 
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {Misc} from "../../scripts/utils/Misc";
-import {BigNumber} from "ethers";
 
 const {expect} = chai;
 
@@ -79,4 +78,45 @@ describe("VeDistributorV2Test", function () {
     expect((await tetu.balanceOf(veDist.address)).isZero()).eq(true);
   });
 
+  it("distribute and claim", async function () {
+    // need to wait for make sure everyone has powers at epoch start
+    // await TimeUtils.advanceBlocksOnTs(WEEK * 2);
+    // check pre conditions
+    expect((await veDist.claimable(1)).isZero()).eq(true);
+    expect((await veDist.claimable(2)).isZero()).eq(true);
+    await checkTotalVeSupplyAtTS(ve, currentEpochTS());
+    console.log('precheck is fine')
+
+    await tetu.transfer(veDist.address, parseUnits('100'));
+    await veDist.checkpoint();
+
+    expect(+formatUnits(await veDist.claimable(1))).eq(50);
+    expect(+formatUnits(await veDist.claimable(2))).eq(50);
+
+    await veDist.claimMany([1, 2]);
+
+    expect((await tetu.balanceOf(veDist.address)).isZero()).eq(true);
+
+  });
+
 });
+
+function currentEpochTS() {
+  return Math.floor(Date.now() / 1000 / WEEK) * WEEK;
+}
+
+export async function checkTotalVeSupplyAtTS(ve: VeTetu, ts: number) {
+  const total = +formatUnits(await ve.totalSupplyAtT(ts));
+  console.log('total', total)
+  const nftCount = (await ve.tokenId()).toNumber();
+
+  let sum = 0;
+  for (let i = 1; i <= nftCount; ++i) {
+    const bal = +formatUnits(await ve.balanceOfNFTAt(i, ts))
+    console.log('bal', i, bal)
+    sum += bal;
+  }
+  console.log('sum', sum)
+  expect(sum).approximately(total, 0.0000000000001);
+  console.log('total supply is fine')
+}

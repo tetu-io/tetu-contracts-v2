@@ -11,6 +11,7 @@ import "../interfaces/IController.sol";
 import "../interfaces/IVoter.sol";
 import "../interfaces/IPlatformVoter.sol";
 import "../interfaces/ISmartVault.sol";
+import "../interfaces/IVeDistributor.sol";
 import "../proxy/ControllableV3.sol";
 import "./VeTetuLib.sol";
 
@@ -54,7 +55,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant VE_VERSION = "1.3.1";
+  string public constant VE_VERSION = "1.3.2";
   uint internal constant WEEK = 1 weeks;
   uint internal constant MAX_TIME = 16 weeks;
   uint public constant MAX_ATTACHMENTS = 1;
@@ -808,6 +809,9 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   function setAlwaysMaxLock(uint _tokenId, bool status) external {
     require(isApprovedOrOwner(msg.sender, _tokenId), "NOT_OWNER");
     require(status != isAlwaysMaxLock[_tokenId], "WRONG_INPUT");
+
+    // additional protection against wrong calculation inside VeDist for keep invariant with balances.
+    require(IVeDistributor(IController(controller()).veDistributor()).claimable(_tokenId) == 0, 'CLAIM_REWARDS');
 
     _setAlwaysMaxLock(_tokenId, status);
   }

@@ -254,7 +254,7 @@ contract VeDistributor is ControllableV3, IVeDistributor {
   // *************************************************************
 
   /// @dev Return available to claim earned amount
-  function claimable(uint _tokenId) external view returns (uint) {
+  function claimable(uint _tokenId) external view override returns (uint) {
     uint _lastTokenTime = lastTokenTime / WEEK * WEEK;
     ClaimCalculationResult memory result = _calculateClaim(_tokenId, ve, _lastTokenTime);
     return result.toDistribute;
