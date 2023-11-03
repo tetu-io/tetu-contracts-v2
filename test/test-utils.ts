@@ -13,8 +13,16 @@ export async function currentEpochTS() {
   const blockTs = (await ethers.provider?.getBlock(curBlock))?.timestamp ?? -1;
   return Math.floor(blockTs / WEEK) * WEEK;
 }
+export async function currentTS() {
+  const curBlock = await ethers.provider?.getBlockNumber() ?? -1;
+  return (await ethers.provider?.getBlock(curBlock))?.timestamp ?? -1;
+}
 
 export async function checkTotalVeSupplyAtTS(ve: VeTetu, ts: number) {
+  await ve.checkpoint();
+
+  console.log('additionalTotalSupply', formatUnits(await ve.additionalTotalSupply()))
+
   const total = +formatUnits(await ve.totalSupplyAtT(ts));
   console.log('total', total)
   const nftCount = (await ve.tokenId()).toNumber();

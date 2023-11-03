@@ -2,13 +2,16 @@ import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {ethers} from "hardhat";
 import chai from "chai";
 import {formatUnits, parseUnits} from "ethers/lib/utils";
-import {ControllerMinimal, MockPawnshop, MockToken, MockVoter, VeDistributorV2, VeTetu} from "../../typechain";
+import {ControllerMinimal, MockToken, VeDistributorV2, VeDistributorV2__factory, VeTetu} from "../../typechain";
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {Misc} from "../../scripts/utils/Misc";
-import {checkTotalVeSupplyAtTS, currentEpochTS, LOCK_PERIOD} from "../test-utils";
+import {checkTotalVeSupplyAtTS, currentEpochTS, LOCK_PERIOD, WEEK} from "../test-utils";
+import {CheckpointEventObject} from "../../typechain/ve/VeDistributorV2";
 
 const {expect} = chai;
+
+const checkpointEvent = VeDistributorV2__factory.createInterface().getEvent('Checkpoint');
 
 describe("VeDistributorV2Test", function () {
 
@@ -22,8 +25,6 @@ describe("VeDistributorV2Test", function () {
   let controller: ControllerMinimal;
 
   let ve: VeTetu;
-  let voter: MockVoter;
-  let pawnshop: MockPawnshop;
   let veDist: VeDistributorV2;
 
 
@@ -34,12 +35,6 @@ describe("VeDistributorV2Test", function () {
     tetu = await DeployerUtils.deployMockToken(owner, 'TETU', 18);
     controller = await DeployerUtils.deployMockController(owner);
     ve = await DeployerUtils.deployVeTetu(owner, tetu.address, controller.address);
-    voter = await DeployerUtils.deployMockVoter(owner, ve.address);
-    pawnshop = await DeployerUtils.deployContract(owner, 'MockPawnshop') as MockPawnshop;
-    await controller.setVoter(voter.address);
-    await ve.announceAction(2);
-    await TimeUtils.advanceBlocksOnTs(60 * 60 * 18);
-    await ve.whitelistTransferFor(pawnshop.address);
 
     veDist = await DeployerUtils.deployVeDistributorV2(
       owner,
@@ -47,15 +42,13 @@ describe("VeDistributorV2Test", function () {
       ve.address,
       tetu.address,
     );
+    await controller.setVeDistributor(veDist.address);
 
     await tetu.mint(owner2.address, parseUnits('100'));
     await tetu.approve(ve.address, Misc.MAX_UINT);
     await tetu.connect(owner2).approve(ve.address, Misc.MAX_UINT);
     await ve.createLock(tetu.address, parseUnits('1'), LOCK_PERIOD);
     await ve.connect(owner2).createLock(tetu.address, parseUnits('1'), LOCK_PERIOD);
-
-    await ve.setApprovalForAll(pawnshop.address, true);
-    await ve.connect(owner2).setApprovalForAll(pawnshop.address, true);
   });
 
   after(async function () {
@@ -77,8 +70,9 @@ describe("VeDistributorV2Test", function () {
   });
 
   it("distribute and claim", async function () {
+    expect(await startNewEpoch(ve, veDist)).eq(false);
     // need to wait for make sure everyone has powers at epoch start
-    // await TimeUtils.advanceBlocksOnTs(WEEK * 2);
+    await TimeUtils.advanceBlocksOnTs(WEEK * 2);
     // check pre conditions
     expect((await veDist.claimable(1)).isZero()).eq(true);
     expect((await veDist.claimable(2)).isZero()).eq(true);
@@ -86,16 +80,86 @@ describe("VeDistributorV2Test", function () {
     console.log('precheck is fine')
 
     await tetu.transfer(veDist.address, parseUnits('100'));
-    await veDist.checkpoint();
+    expect(await startNewEpoch(ve, veDist)).eq(true);
+
+    expect((await veDist.epoch()).toNumber()).eq(1);
 
     expect(+formatUnits(await veDist.claimable(1))).eq(50);
     expect(+formatUnits(await veDist.claimable(2))).eq(50);
 
-    await veDist.claimMany([1, 2]);
+    await veDist.claimMany([1]);
+    await veDist.connect(owner2).claimMany([2]);
 
-    expect((await tetu.balanceOf(veDist.address)).isZero()).eq(true);
+    expect(+formatUnits(await tetu.balanceOf(veDist.address))).approximately(0, 0.00000000000000001);
+
+    expect(await startNewEpoch(ve, veDist)).eq(false);
+
+    await tetu.transfer(veDist.address, parseUnits('100'));
+    expect(await startNewEpoch(ve, veDist)).eq(false);
+
+    await TimeUtils.advanceBlocksOnTs(WEEK);
+    expect(await startNewEpoch(ve, veDist)).eq(true);
+
+    expect((await veDist.epoch()).toNumber()).eq(2);
+
+    expect(+formatUnits(await veDist.claimable(1))).eq(50);
+    expect(+formatUnits(await veDist.claimable(2))).eq(50);
+
+    await veDist.claimMany([1]);
+    await veDist.connect(owner2).claimMany([2]);
+
+    expect(+formatUnits(await tetu.balanceOf(veDist.address))).approximately(0, 0.00000000000000001);
+
+    await ve.setAlwaysMaxLock(1, true);
+
+    await TimeUtils.advanceBlocksOnTs(WEEK);
+    await tetu.transfer(veDist.address, parseUnits('100'));
+    expect(await startNewEpoch(ve, veDist)).eq(true);
+
+    expect((await veDist.epoch()).toNumber()).eq(3);
+
+    await veDist.claimMany([1]);
+    await veDist.connect(owner2).claimMany([2]);
+
+    expect(+formatUnits(await tetu.balanceOf(veDist.address))).approximately(0, 0.00000000000000001);
 
   });
 
 });
 
+
+async function startNewEpoch(ve: VeTetu, veDist: VeDistributorV2): Promise<boolean> {
+  const oldEpoch = await veDist.epoch()
+
+  const prevEpochTs = (await veDist.epochInfos(oldEpoch)).ts.toNumber();
+  console.log('prevEpochTs', prevEpochTs);
+  const curTs = await currentEpochTS();
+  console.log('curTs', curTs);
+
+
+  const checkpointTx = await (await veDist.checkpoint()).wait();
+  let checkpoint: CheckpointEventObject | undefined;
+  for (const event of checkpointTx.events ?? []) {
+    if (event.topics[0] !== VeDistributorV2__factory.createInterface().getEventTopic(checkpointEvent)) {
+      continue;
+    }
+    checkpoint = VeDistributorV2__factory.createInterface().decodeEventLog(checkpointEvent, event.data, event.topics) as unknown as CheckpointEventObject;
+  }
+  if (!checkpoint) {
+    return false;
+  }
+
+  console.log('checkpoint epoch', checkpoint.epoch.toNumber());
+  console.log('checkpoint newEpochTs', checkpoint.newEpochTs.toNumber());
+  console.log('checkpoint tokenBalance', formatUnits(checkpoint.tokenBalance));
+  console.log('checkpoint prevTokenBalance', formatUnits(checkpoint.prevTokenBalance));
+  console.log('checkpoint tokenDiff', formatUnits(checkpoint.tokenDiff));
+  console.log('checkpoint rewardsPerToken', formatUnits(checkpoint.rewardsPerToken));
+  console.log('checkpoint veTotalSupply', formatUnits(checkpoint.veTotalSupply));
+
+  expect(curTs).eq(checkpoint.newEpochTs.toNumber());
+
+  await checkTotalVeSupplyAtTS(ve, curTs);
+
+  return oldEpoch.add(1).eq(checkpoint.epoch);
+}

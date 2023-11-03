@@ -15,7 +15,7 @@ import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {Misc} from "../../scripts/utils/Misc";
 import {BigNumber} from "ethers";
-import {checkTotalVeSupplyAtTS, currentEpochTS} from "../test-utils";
+import {checkTotalVeSupplyAtTS, currentEpochTS, currentTS} from "../test-utils";
 
 const {expect} = chai;
 
@@ -874,7 +874,11 @@ describe("veTETU tests", function () {
     const supplyOld = +formatUnits(await ve.totalSupply())
     console.log('old', endOld, balOld, supplyOld, new Date(endOld * 1000))
 
+    await checkTotalVeSupplyAtTS(ve, await currentTS());
+
     await ve.setAlwaysMaxLock(1, true);
+
+    await checkTotalVeSupplyAtTS(ve, await currentTS());
 
     expect((await ve.additionalTotalSupply()).toString()).eq(parseUnits('1').toString());
 

@@ -10,6 +10,9 @@ import "../openzeppelin/Math.sol";
 import "../proxy/ControllableV3.sol";
 
 /// @title Contract for distributing rewards to ve holders.
+///        V2 is simplified and based on internal epochs.
+///        Pay all rewards at once for individual user.
+///        No need to wait any epoch delays
 /// @author belbix
 contract VeDistributorV2 is ControllableV3, IVeDistributor {
   using SafeERC20 for IERC20;
@@ -27,7 +30,7 @@ contract VeDistributorV2 is ControllableV3, IVeDistributor {
 
   /// @dev Version of this contract. Adjust manually on each code modification.
   string public constant VE_DIST_VERSION = "2.0.0";
-  uint internal constant WEEK = 7 * 86400;
+  uint internal constant WEEK = 7 days;
 
   // *************************************************************
   //                        VARIABLES
@@ -44,14 +47,14 @@ contract VeDistributorV2 is ControllableV3, IVeDistributor {
 
   uint public epoch;
   /// @dev epoch => EpochInfo
-  mapping(uint => EpochInfo) internal _epochInfos;
+  mapping(uint => EpochInfo) public epochInfos;
 
-  uint internal _tokensClaimedSinceLastSnapshot;
+  uint public tokensClaimedSinceLastSnapshot;
 
   // --- USER INFO
 
   /// @dev tokenId => paid epoch
-  mapping(uint => uint) internal _lastPaidEpoch;
+  mapping(uint => uint) public lastPaidEpoch;
 
   // *************************************************************
   //                        EVENTS
@@ -104,20 +107,21 @@ contract VeDistributorV2 is ControllableV3, IVeDistributor {
     address _rewardToken = rewardToken;
     uint tokenBalance = IERC20(_rewardToken).balanceOf(address(this));
 
-    // do not start new epoch if zero rewards
+    // do not start new epoch if zero balance
     if (tokenBalance == 0) {
       return;
     }
 
-    EpochInfo memory epochInfo = _epochInfos[_epoch];
-    uint newEpochTs = block.timestamp * WEEK / WEEK;
+    EpochInfo memory _epochInfo = epochInfos[_epoch];
+    uint newEpochTs = block.timestamp / WEEK * WEEK;
 
     // check epoch time only if we already started
-    if (_epoch != 0 && epochInfo.ts >= newEpochTs) {
+    if (_epoch != 0 && _epochInfo.ts >= newEpochTs) {
       return;
     }
 
-    uint tokenDiff = tokenBalance + _tokensClaimedSinceLastSnapshot - epochInfo.tokenBalance;
+    uint tokenDiff = tokenBalance + tokensClaimedSinceLastSnapshot - _epochInfo.tokenBalance;
+    // do nothing if no new rewards
     if (tokenDiff == 0) {
       return;
     }
@@ -129,9 +133,9 @@ contract VeDistributorV2 is ControllableV3, IVeDistributor {
     uint rewardsPerToken = tokenDiff * 1e18 / veTotalSupply;
 
     // write states
-    _tokensClaimedSinceLastSnapshot = 0;
+    tokensClaimedSinceLastSnapshot = 0;
     epoch = _epoch + 1;
-    _epochInfos[_epoch + 1] = EpochInfo({
+    epochInfos[_epoch + 1] = EpochInfo({
       ts: newEpochTs,
       rewardsPerToken: rewardsPerToken,
       tokenBalance: tokenBalance,
@@ -142,7 +146,7 @@ contract VeDistributorV2 is ControllableV3, IVeDistributor {
       _epoch + 1,
       newEpochTs,
       tokenBalance,
-      epochInfo.tokenBalance,
+      _epochInfo.tokenBalance,
       tokenDiff,
       rewardsPerToken,
       veTotalSupply
@@ -161,9 +165,9 @@ contract VeDistributorV2 is ControllableV3, IVeDistributor {
   /// @dev Return available to claim earned amount
   function claimable(uint _tokenId) public view override returns (uint rewardsAmount) {
     uint curEpoch = epoch;
-    uint lastPaidEpoch = _lastPaidEpoch[_tokenId];
+    uint _lastPaidEpoch = lastPaidEpoch[_tokenId];
 
-    uint unpaidEpochCount = curEpoch > lastPaidEpoch ? curEpoch - lastPaidEpoch : 0;
+    uint unpaidEpochCount = curEpoch > _lastPaidEpoch ? curEpoch - _lastPaidEpoch : 0;
 
     if (unpaidEpochCount == 0) {
       return 0;
@@ -177,9 +181,9 @@ contract VeDistributorV2 is ControllableV3, IVeDistributor {
     IVeTetu _ve = ve;
 
     for (uint i; i < unpaidEpochCount; ++i) {
-      EpochInfo storage epochInfo = _epochInfos[lastPaidEpoch + i];
-      uint balanceAtEpoch = _ve.balanceOfNFTAt(_tokenId, epochInfo.ts);
-      rewardsAmount += balanceAtEpoch * epochInfo.rewardsPerToken / 1e18;
+      EpochInfo storage _epochInfo = epochInfos[_lastPaidEpoch + i + 1];
+      uint balanceAtEpoch = _ve.balanceOfNFTAt(_tokenId, _epochInfo.ts);
+      rewardsAmount += balanceAtEpoch * _epochInfo.rewardsPerToken / 1e18;
     }
 
     return rewardsAmount;
@@ -194,8 +198,8 @@ contract VeDistributorV2 is ControllableV3, IVeDistributor {
       require(msg.sender == owner, "not owner");
       IERC20(rewardToken).safeTransfer(owner, toClaim);
 
-      _lastPaidEpoch[_tokenId] = epoch;
-      _tokensClaimedSinceLastSnapshot += toClaim;
+      lastPaidEpoch[_tokenId] = epoch;
+      tokensClaimedSinceLastSnapshot += toClaim;
 
       emit RewardsClaimed(_tokenId, owner, toClaim);
     }
