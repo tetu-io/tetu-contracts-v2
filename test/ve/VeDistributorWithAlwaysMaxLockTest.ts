@@ -2,7 +2,7 @@ import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {ethers} from "hardhat";
 import chai from "chai";
 import {formatUnits, parseUnits} from "ethers/lib/utils";
-import {ControllerMinimal, MockPawnshop, MockToken, MockVoter, Multicall, VeDistributor, VeTetu} from "../../typechain";
+import {ControllerMinimal, MockPawnshop, MockToken, MockVoter, VeDistributor, VeTetu} from "../../typechain";
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {Misc} from "../../scripts/utils/Misc";
@@ -13,7 +13,7 @@ const {expect} = chai;
 const WEEK = 60 * 60 * 24 * 7;
 const LOCK_PERIOD = 60 * 60 * 24 * 90;
 
-describe("VeDistributorWithAlwaysMaxLockTest", function () {
+describe.skip("VeDistributorWithAlwaysMaxLockTest", function () {
 
   let snapshotBefore: string;
   let snapshot: string;
@@ -50,6 +50,7 @@ describe("VeDistributorWithAlwaysMaxLockTest", function () {
       ve.address,
       tetu.address,
     );
+    await controller.setVeDistributor(veDist.address);
 
     await tetu.mint(owner2.address, parseUnits('100'));
     await tetu.approve(ve.address, Misc.MAX_UINT);

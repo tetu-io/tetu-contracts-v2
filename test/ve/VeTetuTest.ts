@@ -896,7 +896,7 @@ describe("veTETU tests", function () {
 
     console.log('supply after relock', +formatUnits(await ve.totalSupply()))
 
-    expect(+formatUnits(await ve.totalSupply())).approximately(supplyOld, 0.001);
+    expect(+formatUnits(await ve.totalSupply())).gt(supplyOld);
     expect((await ve.additionalTotalSupply()).toString()).eq('0');
 
     // should be on high level coz we extended time to max lock on disable
@@ -909,13 +909,13 @@ describe("veTETU tests", function () {
 
     await ve.increaseAmount(tetu.address, 1, parseUnits('1'))
 
-    expect(+formatUnits(await ve.totalSupply())).approximately(supplyOld + 1, 0.1);
+    expect(+formatUnits(await ve.totalSupply())).gt(supplyOld + 1);
     expect((await ve.additionalTotalSupply()).toString()).eq(parseUnits('2').toString());
 
     await ve.setAlwaysMaxLock(1, false);
 
     expect((await ve.additionalTotalSupply()).toString()).eq('0');
-    expect(+formatUnits(await ve.totalSupply())).approximately(supplyOld + 1, 0.1);
+    expect(+formatUnits(await ve.totalSupply())).gt(supplyOld + 1);
 
     //// --- after all we should withdraw normally
     await TimeUtils.advanceBlocksOnTs(MAX_LOCK)

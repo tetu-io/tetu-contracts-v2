@@ -69,6 +69,10 @@ describe("VeDistributorV2Test", function () {
     expect((await tetu.balanceOf(veDist.address)).isZero()).eq(true);
   });
 
+  it("checkpointTotalSupply", async function () {
+    await veDist.checkpointTotalSupply();
+  });
+
   it("distribute and claim", async function () {
     expect(await startNewEpoch(ve, veDist)).eq(false);
     // need to wait for make sure everyone has powers at epoch start
@@ -78,6 +82,9 @@ describe("VeDistributorV2Test", function () {
     expect((await veDist.claimable(2)).isZero()).eq(true);
     await checkTotalVeSupplyAtTS(ve, await currentEpochTS());
     console.log('precheck is fine')
+
+    // empty claim
+    await veDist.claimMany([1]);
 
     // --- NEW EPOCH
 
@@ -90,6 +97,7 @@ describe("VeDistributorV2Test", function () {
     expect(+formatUnits(await veDist.claimable(2))).eq(50);
 
     await veDist.claimMany([1]);
+    await expect(veDist.claimMany([2])).revertedWith('not owner');
     await veDist.connect(owner2).claimMany([2]);
 
     expect(+formatUnits(await tetu.balanceOf(veDist.address))).approximately(0, 0.00000000000000001);

@@ -9,8 +9,7 @@ export const WEEK = 60 * 60 * 24 * 7;
 export const LOCK_PERIOD = 60 * 60 * 24 * 90;
 
 export async function currentEpochTS() {
-  const curBlock = await ethers.provider?.getBlockNumber() ?? -1;
-  const blockTs = (await ethers.provider?.getBlock(curBlock))?.timestamp ?? -1;
+  const blockTs = await currentTS()
   return Math.floor(blockTs / WEEK) * WEEK;
 }
 export async function currentTS() {
