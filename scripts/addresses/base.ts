@@ -48,6 +48,7 @@ export class BaseAddresses {
   // tokens
   public static TETU_TOKEN = "0x5E42c17CAEab64527D9d80d506a3FE01179afa02".toLowerCase();
   public static TETU_tUSDbC_AERODROME_LP = "0x924bb74AD42314E4434af5df984cca28b0529337".toLowerCase();
+  public static USDbC_tUSDbC_AERODROME_LP = "0x07Eca3F678C86B89e428F452B9d5bbcb38B749Cd".toLowerCase();
   public static USDbC_tUSDbC_UNI3_POOL = "0x99a17985111FcB2B0544b0A19d4585ab671681C9".toLowerCase();
 
   public static WETH_TOKEN = '0x4200000000000000000000000000000000000006'.toLowerCase();
