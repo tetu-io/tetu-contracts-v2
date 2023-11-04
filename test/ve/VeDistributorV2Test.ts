@@ -80,7 +80,7 @@ describe("VeDistributorV2Test", function () {
     // check pre conditions
     expect((await veDist.claimable(1)).isZero()).eq(true);
     expect((await veDist.claimable(2)).isZero()).eq(true);
-    await checkTotalVeSupplyAtTS(ve, await currentEpochTS());
+    await checkTotalVeSupplyAtTS(ve, await currentEpochTS(ve));
     console.log('precheck is fine')
 
     // empty claim
@@ -186,7 +186,7 @@ async function startNewEpoch(ve: VeTetu, veDist: VeDistributorV2): Promise<boole
 
   const prevEpochTs = (await veDist.epochInfos(oldEpoch)).ts.toNumber();
   console.log('prevEpochTs', prevEpochTs);
-  const curTs = await currentEpochTS();
+  const curTs = await currentEpochTS(ve);
   console.log('curTs', curTs);
 
 

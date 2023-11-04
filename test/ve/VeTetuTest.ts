@@ -406,10 +406,10 @@ describe("veTETU tests", function () {
     expect(supply).eq(supplyBlock);
     expect(supplyTsNow).eq(supplyBlock);
 
-    const supplyTs = +formatUnits(await ve.totalSupplyAtT(await currentEpochTS()));
+    const supplyTs = +formatUnits(await ve.totalSupplyAtT(await currentEpochTS(ve)));
     console.log('supplyTs', supplyTs);
 
-    await checkTotalVeSupplyAtTS(ve, await currentEpochTS() + WEEK)
+    await checkTotalVeSupplyAtTS(ve, await currentEpochTS(ve) + WEEK)
 
   });
 
@@ -468,9 +468,9 @@ describe("veTETU tests", function () {
 
   it("increase_unlock_time test", async function () {
     await TimeUtils.advanceBlocksOnTs(WEEK * 10);
-    await checkTotalVeSupplyAtTS(ve, await currentTS());
+    await checkTotalVeSupplyAtTS(ve, await currentTS(ve));
     await ve.increaseUnlockTime(1, LOCK_PERIOD);
-    await checkTotalVeSupplyAtTS(ve, await currentTS());
+    await checkTotalVeSupplyAtTS(ve, await currentTS(ve));
     await expect(ve.increaseUnlockTime(1, LOCK_PERIOD * 2)).revertedWith('HIGH_LOCK_PERIOD');
   });
 
@@ -879,11 +879,11 @@ describe("veTETU tests", function () {
     const supplyOld = +formatUnits(await ve.totalSupply())
     console.log('old', endOld, balOld, supplyOld, new Date(endOld * 1000))
 
-    await checkTotalVeSupplyAtTS(ve, await currentTS());
+    await checkTotalVeSupplyAtTS(ve, await currentTS(ve));
 
     await ve.setAlwaysMaxLock(1, true);
 
-    await checkTotalVeSupplyAtTS(ve, await currentTS());
+    await checkTotalVeSupplyAtTS(ve, await currentTS(ve));
 
     expect((await ve.additionalTotalSupply()).toString()).eq(parseUnits('1').toString());
 
@@ -932,7 +932,7 @@ describe("veTETU tests", function () {
 
   it("always max lock relock test", async function () {
     await ve.increaseUnlockTime(1, MAX_LOCK);
-    await checkTotalVeSupplyAtTS(ve, await currentTS());
+    await checkTotalVeSupplyAtTS(ve, await currentTS(ve));
 
     const oldPower = +formatUnits(await ve.balanceOfNFT(1));
     console.log('oldPower', oldPower);
@@ -940,7 +940,7 @@ describe("veTETU tests", function () {
     console.log('oldTotal', oldTotal);
 
     await ve.setAlwaysMaxLock(1, true);
-    await checkTotalVeSupplyAtTS(ve, await currentTS());
+    await checkTotalVeSupplyAtTS(ve, await currentTS(ve));
 
     const powerAfterLock = +formatUnits(await ve.balanceOfNFT(1));
     console.log('powerAfterLock', powerAfterLock);
@@ -948,7 +948,7 @@ describe("veTETU tests", function () {
     console.log('totalAfterLock', totalAfterLock);
 
     await ve.setAlwaysMaxLock(1, false);
-    await checkTotalVeSupplyAtTS(ve, await currentTS());
+    await checkTotalVeSupplyAtTS(ve, await currentTS(ve));
 
     const powerAfterLockOff = +formatUnits(await ve.balanceOfNFT(1));
     console.log('powerAfterLockOff', powerAfterLockOff);
@@ -974,7 +974,7 @@ async function depositOrWithdraw(
   amount: BigNumber,
   lock: number,
 ) {
-  await checkTotalVeSupplyAtTS(ve, await currentTS());
+  await checkTotalVeSupplyAtTS(ve, await currentTS(ve));
   const veIdLength = await ve.balanceOf(owner.address);
   expect(veIdLength).below(2);
   if (veIdLength.isZero()) {
@@ -996,7 +996,7 @@ async function depositOrWithdraw(
       console.log('no lock for this token')
     }
   }
-  await checkTotalVeSupplyAtTS(ve, await currentTS());
+  await checkTotalVeSupplyAtTS(ve, await currentTS(ve));
 }
 
 async function withdrawIfExist(
