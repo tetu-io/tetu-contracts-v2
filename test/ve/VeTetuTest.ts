@@ -870,6 +870,9 @@ describe("veTETU tests", function () {
 
   it("always max lock test", async function () {
     await expect(ve.setAlwaysMaxLock(1, false)).revertedWith('WRONG_INPUT');
+    // align lock time
+    // await TimeUtils.advanceBlocksOnTs(60 * 60 * 24)
+    // await ve.increaseUnlockTime(1, MAX_LOCK);
 
     const endOld = (await ve.lockedEnd(1)).toNumber()
     const balOld = +formatUnits(await ve.balanceOfNFT(1))
@@ -960,7 +963,7 @@ describe("veTETU tests", function () {
 
 async function maxLockTime(ve: VeTetu) {
   const now = (await ve.blockTimestamp()).toNumber()
-  return Math.round((now + MAX_LOCK) / WEEK) * WEEK;
+  return Math.floor((now) / WEEK) * WEEK + MAX_LOCK;
 }
 
 

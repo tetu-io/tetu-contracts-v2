@@ -24,7 +24,7 @@ contract ForwarderV3 is ReentrancyGuard, ControllableV3, IForwarder {
   //                        CONSTANTS
   // *************************************************************
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant FORWARDER_VERSION = "3.0.0";
+  string public constant FORWARDER_VERSION = "3.0.1";
   /// @dev Denominator for different ratios. It is default for the whole platform.
   uint public constant RATIO_DENOMINATOR = 100_000;
   /// @dev If slippage not defined for concrete token will be used 5% tolerance.
@@ -288,6 +288,7 @@ contract ForwarderV3 is ReentrancyGuard, ControllableV3, IForwarder {
         address voter = controller_.voter();
         IERC20(_tetu).safeApprove(voter, toGauges);
         IVoter(voter).notifyRewardAmount(toGauges);
+        IVoter(voter).distributeAll();
       }
 
       if (toBribes != 0) {

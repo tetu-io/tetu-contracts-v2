@@ -35,6 +35,10 @@ contract MockVoter is IVoter {
     // noop
   }
 
+  function distributeAll() external override {
+    // noop
+  }
+
   function voting(uint id) external {
     mockVotes[id]++;
   }

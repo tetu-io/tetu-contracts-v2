@@ -14,6 +14,8 @@ interface IVoter is IVeVotable {
 
   function distribute(address stakingToken) external;
 
+  function distributeAll() external;
+
   function notifyRewardAmount(uint amount) external;
 
   function votedVaultsLength(uint veId) external view returns (uint);
