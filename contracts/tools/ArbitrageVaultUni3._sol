@@ -1,0 +1,338 @@
+//// SPDX-License-Identifier: BUSL-1.1
+//
+//pragma solidity 0.8.17;
+//
+//import "../openzeppelin/Math.sol";
+//import "../interfaces/IERC20.sol";
+//import "hardhat/console.sol";
+//
+//interface IUni3Pool {
+//  /// @notice Swap token0 for token1, or token1 for token0
+//  /// @dev The caller of this method receives a callback in the form of IUniswapV3SwapCallback#uniswapV3SwapCallback
+//  /// @param recipient The address to receive the output of the swap
+//  /// @param zeroForOne The direction of the swap, true for token0 to token1, false for token1 to token0
+//  /// @param amountSpecified The amount of the swap, which implicitly configures the swap as exact input (positive), or exact output (negative)
+//  /// @param sqrtPriceLimitX96 The Q64.96 sqrt price limit. If zero for one, the price cannot be less than this
+//  /// value after the swap. If one for zero, the price cannot be greater than this value after the swap
+//  /// @param data Any data to be passed through to the callback
+//  /// @return amount0 The delta of the balance of token0 of the pool, exact when negative, minimum when positive
+//  /// @return amount1 The delta of the balance of token1 of the pool, exact when negative, minimum when positive
+//  function swap(
+//    address recipient,
+//    bool zeroForOne,
+//    int256 amountSpecified,
+//    uint160 sqrtPriceLimitX96,
+//    bytes calldata data
+//  ) external returns (int256 amount0, int256 amount1);
+//
+//  /// @notice The first of the two tokens of the pool, sorted by address
+//  /// @return The token contract address
+//  function token0() external view returns (address);
+//
+//  /// @notice The second of the two tokens of the pool, sorted by address
+//  /// @return The token contract address
+//  function token1() external view returns (address);
+//
+//  /// @notice The pool's fee in hundredths of a bip, i.e. 1e-6
+//  /// @return The fee
+//  function fee() external view returns (uint24);
+//
+//  /// @notice The 0th storage slot in the pool stores many values, and is exposed as a single method to save gas
+//  /// when accessed externally.
+//  /// @return sqrtPriceX96 The current price of the pool as a sqrt(token1/token0) Q64.96 value
+//  /// tick The current tick of the pool, i.e. according to the last tick transition that was run.
+//  /// This value may not always be equal to SqrtTickMath.getTickAtSqrtRatio(sqrtPriceX96) if the price is on a tick
+//  /// boundary.
+//  /// observationIndex The index of the last oracle observation that was written,
+//  /// observationCardinality The current maximum number of observations stored in the pool,
+//  /// observationCardinalityNext The next maximum number of observations, to be updated when the observation.
+//  /// feeProtocol The protocol fee for both tokens of the pool.
+//  /// Encoded as two 4 bit values, where the protocol fee of token1 is shifted 4 bits and the protocol fee of token0
+//  /// is the lower 4 bits. Used as the denominator of a fraction of the swap fee, e.g. 4 means 1/4th of the swap fee.
+//  /// unlocked Whether the pool is currently locked to reentrancy
+//  function slot0()
+//  external
+//  view
+//  returns (
+//    uint160 sqrtPriceX96,
+//    int24 tick,
+//    uint16 observationIndex,
+//    uint16 observationCardinality,
+//    uint16 observationCardinalityNext,
+//    uint8 feeProtocol,
+//    bool unlocked
+//  );
+//
+//  /// @notice Look up information about a specific tick in the pool
+//  /// @param tick The tick to look up
+//  /// @return liquidityGross the total amount of position liquidity that uses the pool either as tick lower or
+//  /// tick upper,
+//  /// liquidityNet how much liquidity changes when the pool price crosses the tick,
+//  /// feeGrowthOutside0X128 the fee growth on the other side of the tick from the current tick in token0,
+//  /// feeGrowthOutside1X128 the fee growth on the other side of the tick from the current tick in token1,
+//  /// tickCumulativeOutside the cumulative tick value on the other side of the tick from the current tick
+//  /// secondsPerLiquidityOutsideX128 the seconds spent per liquidity on the other side of the tick from the current tick,
+//  /// secondsOutside the seconds spent on the other side of the tick from the current tick,
+//  /// initialized Set to true if the tick is initialized, i.e. liquidityGross is greater than 0, otherwise equal to false.
+//  /// Outside values can only be used if the tick is initialized, i.e. if liquidityGross is greater than 0.
+//  /// In addition, these values are only relative and must be used only in comparison to previous snapshots for
+//  /// a specific position.
+//  function ticks(int24 tick)
+//  external
+//  view
+//  returns (
+//    uint128 liquidityGross,
+//    int128 liquidityNet,
+//    uint256 feeGrowthOutside0X128,
+//    uint256 feeGrowthOutside1X128,
+//    int56 tickCumulativeOutside,
+//    uint160 secondsPerLiquidityOutsideX128,
+//    uint32 secondsOutside,
+//    bool initialized
+//  );
+//}
+//
+//interface IVault {
+//  function sharePrice() external view returns (uint);
+//
+//  function decimals() external view returns (uint);
+//
+//  function withdraw(uint assets, address receiver, address owner) external returns (uint shares);
+//
+//  function redeem(uint shares, address receiver, address owner) external returns (uint assets);
+//
+//  function deposit(uint assets, address receiver) external returns (uint shares);
+//}
+//
+//contract ArbitrageVaultUni3 {
+//
+//  string public constant VERSION = "1.0.0";
+//
+//  address public owner;
+//  address public pendingOwner;
+//  address public operator;
+//
+//  address internal _pool;
+//  // depends on price range
+//  uint public speed = 10;
+//
+//  constructor() {
+//    owner = msg.sender;
+//  }
+//
+//  modifier onlyOwner() {
+//    require(msg.sender == owner, "NOT_OWNER");
+//    _;
+//  }
+//
+//  modifier onlyOperator() {
+//    require(msg.sender == operator || msg.sender == owner, "NOT_OPERATOR");
+//    _;
+//  }
+//
+//  function offerOwnership(address newOwner) external onlyOwner {
+//    require(newOwner != address(0), "ZERO_ADDRESS");
+//    pendingOwner = newOwner;
+//  }
+//
+//  function acceptOwnership() external {
+//    require(msg.sender == pendingOwner, "NOT_OWNER");
+//    owner = pendingOwner;
+//  }
+//
+//  function setOperator(address operator_) external onlyOwner {
+//    operator = operator_;
+//  }
+//
+//  function setSpeed(uint value) external onlyOwner {
+//    speed = value;
+//  }
+//
+//  ////////////////// MAIN LOGIC //////////////////////
+//
+//  function fairPoolPrice(IVault vault) public view returns (uint160) {
+//    console.log("vault.sharePrice()", vault.sharePrice());
+//    // 1000950999999999999
+//    return uint160(
+//      Math.sqrt(vault.sharePrice() *
+//      (
+//        2 ** 192
+//        /
+//        10 ** vault.decimals()
+//      )
+//      )
+//    );
+//  }
+//
+//  // very approximate based on full reserves
+//  // without fees coz anyway approximate
+//  function calculateAmountsForPrice(
+//    IUni3Pool pool,
+//    uint160 sqrtPriceTargetX96
+//  ) public view returns (
+//    uint amount0,
+//    uint amount1,
+//    address token0,
+//    address token1
+//  ) {
+//    (uint160 sqrtPriceX96,,,,,,) = pool.slot0();
+//    console.log("sqrtPriceX96", uint(sqrtPriceX96), sqrtPriceToNormal(sqrtPriceX96));
+//    uint targetPrice = sqrtPriceToNormal(sqrtPriceTargetX96);
+//
+//    token0 = pool.token0();
+//    token1 = pool.token1();
+//    console.log("token0", token0);
+//    console.log("token1", token1);
+//
+//    uint reserve0 = IERC20(token0).balanceOf(address(pool));
+//    uint reserve1 = IERC20(token1).balanceOf(address(pool));
+//    console.log("reserve0", reserve0);
+//    console.log("reserve1", reserve1);
+//
+//    uint256 newReserve0 = reserve0 * targetPrice / 1e18;
+//    console.log("newReserve0", newReserve0);
+//
+//    if (newReserve0 > reserve0) {
+//      amount0 = newReserve0 - reserve0;
+//      amount1 = reserve1 - ((reserve0 + amount0) * reserve1 / newReserve0);
+//    } else {
+//      amount1 = reserve1 - (newReserve0 * reserve1 / reserve0);
+//      amount0 = reserve0 - (reserve1 * reserve0 / (reserve1 - amount1));
+//    }
+//
+//
+//    // todo
+//
+//
+//    return (amount0 * speed, amount1 * speed, token0, token1);
+//  }
+//
+//  struct CallbackData {
+//    IUni3Pool pool;
+//    IVault vault;
+//    address token0;
+//    address token1;
+//  }
+//
+//  function arbitrageUni3WithVault(IUni3Pool pool, IVault vault) external onlyOperator {
+//    uint160 fairPrice = fairPoolPrice(vault);
+//    console.log("fairPrice", uint(fairPrice), sqrtPriceToNormal(fairPrice));
+//
+//    (uint amount0, uint amount1, address token0, address token1) = calculateAmountsForPrice(pool, fairPrice);
+//    console.log("amount0", amount0);
+//    console.log("amount1", amount1);
+//    console.log("token0", token0);
+//    console.log("token1", token1);
+//
+//
+//    uint sharesBefore = IERC20(address(vault)).balanceOf(address(this));
+//
+//    // if we swap vault shares to token we will reseive tokens in exchange. they should be wrapped to shares after the swap
+//    // if we swap token for shares we will receive shares, tokens for swap need to redeem before the swap
+//    _unwrapVault(token0, vault, amount0);
+//    _unwrapVault(token1, vault, amount1);
+//
+//
+//    _pool = address(pool);
+//
+//    // we can not use flash coz vault shares protected
+//    pool.swap(
+//      address(this),
+//      amount0 == 0,
+//      amount0 == 0 ? - int256(amount1) : int256(amount0),
+//      amount0 == 0 ? type(uint160).max : fairPrice,
+//      abi.encode(CallbackData(pool, vault, token0, token1))
+//    );
+//
+//    // 1000950999999999999
+//    // 1000950999999999999
+//    // 1000918505391380437
+//    (uint160 sqrtPriceX96,,,,,,) = pool.slot0();
+//    console.log("AFTER SWAP sqrtPriceX96", uint(sqrtPriceX96), sqrtPriceToNormal(sqrtPriceX96));
+//
+//    require(amount0 == 0 ? sqrtPriceX96 >= fairPrice : sqrtPriceX96 <= fairPrice, "PRICE");
+//
+//    // wrap all tokens back to vault shares
+//    _wrapVault(token0, vault);
+//    _wrapVault(token1, vault);
+//
+//    uint sharesAfter = IERC20(address(vault)).balanceOf(address(this));
+//
+//    console.log("sharesBefore", sharesBefore);
+//    console.log("sharesAfter", sharesAfter);
+//    console.log("profit", sharesAfter > sharesBefore ? sharesAfter - sharesBefore : 0);
+//    console.log("loss", sharesAfter < sharesBefore ? sharesBefore - sharesAfter : 0);
+//    require(sharesAfter > sharesBefore, "NO_PROFIT");
+//  }
+//
+//  /// @notice Called to `msg.sender` after executing a swap via IUniswapV3Pool#swap.
+//  /// @dev In the implementation you must pay the pool tokens owed for the swap.
+//  /// The caller of this method must be checked to be a UniswapV3Pool deployed by the canonical UniswapV3Factory.
+//  /// amount0Delta and amount1Delta can both be 0 if no tokens were swapped.
+//  /// @param amount0Delta The amount of token0 that was sent (negative) or must be received (positive) by the pool by
+//  /// the end of the swap. If positive, the callback must send that amount of token0 to the pool.
+//  /// @param amount1Delta The amount of token1 that was sent (negative) or must be received (positive) by the pool by
+//  /// the end of the swap. If positive, the callback must send that amount of token1 to the pool.
+//  function uniswapV3SwapCallback(
+//    int256 amount0Delta,
+//    int256 amount1Delta,
+//    bytes calldata data
+//  ) external {
+//    address p = _pool;
+//    require(p != address(0), "ZERO_POOL");
+//    require(p == msg.sender, "NOT_POOL");
+//
+//    CallbackData memory decode = abi.decode(data, (CallbackData));
+//
+//    console.log("amount0Delta", amount0Delta > 0 ? uint(amount0Delta) : 0);
+//    console.log("amount1Delta", amount1Delta > 0 ? uint(amount1Delta) : 0);
+//    console.log("bal0", IERC20(IUni3Pool(p).token0()).balanceOf(address(this)));
+//    console.log("bal1", IERC20(IUni3Pool(p).token1()).balanceOf(address(this)));
+//
+//    if (amount0Delta > 0) {
+//      IERC20(decode.token0).transfer(p, uint(amount0Delta));
+//    }
+//    if (amount1Delta > 0) {
+//      IERC20(decode.token1).transfer(p, uint(amount1Delta));
+//    }
+//
+//    delete _pool;
+//  }
+//
+//
+//  function _unwrapVault(address tokenForSwap, IVault vault, uint amountForSwap) internal returns (uint withdrew){
+//    console.log("_unwrapVault", tokenForSwap == address(vault), amountForSwap);
+//    if (tokenForSwap != address(vault) || amountForSwap == 0) {
+//      return 0;
+//    }
+//
+//    withdrew = vault.withdraw(amountForSwap, address(this), address(this));
+//    console.log("withdrew", withdrew);
+//  }
+//
+//  function _wrapVault(address asset, IVault vault) internal returns (uint shares) {
+//    if (asset == address(vault)) {
+//      return 0;
+//    }
+//
+//    uint amount = IERC20(asset).balanceOf(address(this));
+//    if (amount == 0) {
+//      return 0;
+//    }
+//
+//    if (IERC20(asset).allowance(address(this), address(vault)) < amount) {
+//      IERC20(asset).approve(address(vault), type(uint256).max);
+//    }
+//
+//    return vault.deposit(amount, address(this));
+//  }
+//
+//  function sqrtPriceToNormal(uint160 sqrtPriceX96) public pure returns (uint price) {
+//    price = Math.mulDiv(uint(sqrtPriceX96) * 1e9, uint(sqrtPriceX96) * 1e9, 2 ** 192);
+//  }
+//
+//  function poolNormalPrice(IUni3Pool pool) external view returns (uint) {
+//    (uint160 sqrtPriceX96,,,,,,) = pool.slot0();
+//    return sqrtPriceToNormal(sqrtPriceX96);
+//  }
+//}
