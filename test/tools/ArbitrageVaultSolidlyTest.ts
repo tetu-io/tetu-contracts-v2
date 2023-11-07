@@ -84,4 +84,19 @@ describe("ArbitrageVaultSolidlyTest", function () {
   });
 
 
+  it.skip("arbitrage cheap vault shares current", async () => {
+    if (hre.network.config.chainId !== 8453) {
+      return;
+    }
+
+    await TokenUtils.getToken(BaseAddresses.USDbC_TOKEN, signer.address, parseUnits('100000', 6));
+    await IERC20__factory.connect(BaseAddresses.USDbC_TOKEN, signer).approve(BaseAddresses.tUSDbC, Misc.MAX_UINT);
+    await TetuVaultV2__factory.connect(BaseAddresses.tUSDbC, signer).deposit(parseUnits('100', 6), arb.address);
+
+    await TimeUtils.advanceNBlocks(10);
+
+    await arb.arbitrage(BaseAddresses.USDbC_tUSDbC_AERODROME_LP, BaseAddresses.tUSDbC);
+  });
+
+
 })

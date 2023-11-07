@@ -30,6 +30,8 @@ interface IVault {
   function redeem(uint shares, address receiver, address owner) external returns (uint assets);
 
   function deposit(uint assets, address receiver) external returns (uint shares);
+
+  function maxWithdraw(address owner) external view returns (uint);
 }
 
 contract ArbitrageVaultSolidly {
@@ -52,7 +54,7 @@ contract ArbitrageVaultSolidly {
     uint amountForPriceCheck;
   }
 
-  string public constant VERSION = "1.0.0";
+  string public constant VERSION = "1.0.1";
   uint internal constant FEES = 0.0065e18;
   uint internal constant POOL_FEE = 5;
   uint internal constant PRICE_DIFF_TOLERANCE = 10;
@@ -147,8 +149,8 @@ contract ArbitrageVaultSolidly {
   function isSkip(Context memory c) public pure returns (bool) {
     uint gap = c.currentPoolPrice * FEES / 1e18;
     return c.needBuyShares ?
-      (c.currentPoolPrice - c.targetPrice) * 1e18 / c.targetPrice < gap
-      : (c.targetPrice - c.currentPoolPrice) * 1e18 / c.currentPoolPrice < gap;
+      (c.currentPoolPrice - c.targetPrice) * c.vaultDecimals / c.targetPrice < gap
+      : (c.targetPrice - c.currentPoolPrice) * c.vaultDecimals / c.currentPoolPrice < gap;
   }
 
   function calculateAmountsForPrice(Context memory c) public view returns (uint amountIn0, uint amountIn1) {
@@ -280,6 +282,11 @@ contract ArbitrageVaultSolidly {
   function _unwrapVault(address tokenForSwap, IVault vault, uint amountForSwap) internal returns (uint withdrewShares){
     if (tokenForSwap == address(vault) || amountForSwap == 0) {
       return 0;
+    }
+
+    uint max = vault.maxWithdraw(address(this));
+    if(max < amountForSwap) {
+      amountForSwap = max;
     }
     withdrewShares = vault.withdraw(amountForSwap, address(this), address(this));
   }
