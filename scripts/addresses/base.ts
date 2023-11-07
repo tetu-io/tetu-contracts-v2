@@ -23,8 +23,8 @@ export class BaseAddresses {
 
   public static TOOLS_ADDRESSES = new ToolsAddresses(
     "0x22e2625F9d8c28CB4BcE944E9d64efb4388ea991",
-    "",
-    "",
+    "0x51002Cad5e6FbE3856311f431E1c41c46Acc5D47",
+    "0x1Ae75D0A2AFE092b1aC417c5c43515E54eE12E51",
   );
 
   public static GOVERNANCE = "0x3f5075195b96B60d7D26b5cDe93b64A6D9bF33e2".toLowerCase();

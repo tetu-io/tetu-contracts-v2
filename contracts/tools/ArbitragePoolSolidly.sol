@@ -4,21 +4,7 @@ pragma solidity 0.8.17;
 
 import "../openzeppelin/Math.sol";
 import "../interfaces/IERC20Metadata.sol";
-
-interface ISolidlyPair {
-
-  function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external;
-
-  function getReserves() external view returns (uint _reserve0, uint _reserve1, uint32 _blockTimestampLast);
-
-  function getAmountOut(uint, address) external view returns (uint);
-
-  function tokens() external view returns (address, address);
-
-  function factory() external view returns (address);
-
-  function stable() external view returns (bool);
-}
+import "./ISolidlyPair.sol";
 
 interface ISolidlyFactory {
   function getFee(address pool, bool stable) external view returns (uint);

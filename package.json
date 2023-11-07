@@ -1,6 +1,6 @@
 {
   "name": "@tetu_io/tetu-contracts-v2",
-  "version": "2.1.3",
+  "version": "2.1.4",
   "description": "TETU solidity base contracts V2",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
