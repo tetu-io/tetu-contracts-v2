@@ -12,4 +12,6 @@ interface IVeDistributor {
 
   function claim(uint _tokenId) external returns (uint);
 
+  function claimable(uint _tokenId) external view returns (uint);
+
 }

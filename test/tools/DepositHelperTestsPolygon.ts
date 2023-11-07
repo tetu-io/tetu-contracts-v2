@@ -1,7 +1,7 @@
 import {ethers, web3} from "hardhat";
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
-import { DepositHelper, IERC20__factory, MockToken, MockVault, VeTetu, VeTetu__factory } from '../../typechain';
+import { DepositHelperPolygon, IERC20__factory, MockToken, MockVault, VeTetu, VeTetu__factory } from '../../typechain';
 import {TimeUtils} from "../TimeUtils";
 import {expect} from "chai";
 import fetch from "node-fetch";
@@ -22,7 +22,7 @@ describe("Deposit helper Tests poly", function () {
 
   let tetu: MockToken;
   let vault: MockVault;
-  let helper: DepositHelper;
+  let helper: DepositHelperPolygon;
   let ve: VeTetu;
   const vaultAsset = PolygonAddresses.TETU_TOKEN;
 
@@ -39,7 +39,7 @@ describe("Deposit helper Tests poly", function () {
     tetu = await DeployerUtils.deployMockToken(signer);
     const controller = await DeployerUtils.deployMockController(signer);
     vault = await DeployerUtils.deployMockVault(signer, controller.address, vaultAsset, 'V', strategy.address, 1);
-    helper = await DeployerUtils.deployContract(signer, 'DepositHelper', PolygonAddresses.ONE_INCH_ROUTER_V5) as DepositHelper;
+    helper = await DeployerUtils.deployContract(signer, 'DepositHelperPolygon', PolygonAddresses.ONE_INCH_ROUTER_V5) as DepositHelperPolygon;
 
     ve = await DeployerUtils.deployVeTetu(signer, PolygonAddresses.BALANCER_TETU_USDC, controller.address);
 

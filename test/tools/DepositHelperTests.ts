@@ -1,7 +1,7 @@
 import {ethers} from "hardhat";
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
-import {DepositHelper, IERC20__factory, MockToken, MockVault, VeTetu} from "../../typechain";
+import {DepositHelperPolygon, IERC20__factory, MockToken, MockVault, VeTetu} from "../../typechain";
 import {TimeUtils} from "../TimeUtils";
 import {expect} from "chai";
 import {Misc} from "../../scripts/utils/Misc";
@@ -17,7 +17,7 @@ describe("Deposit helper Tests", function () {
   let token: MockToken;
   let token2: MockToken;
   let vault: MockVault;
-  let helper: DepositHelper;
+  let helper: DepositHelperPolygon;
   let ve: VeTetu;
 
   before(async function () {
@@ -28,7 +28,7 @@ describe("Deposit helper Tests", function () {
     token = await DeployerUtils.deployMockToken(signer);
     token2 = await DeployerUtils.deployMockToken(signer);
     vault = await DeployerUtils.deployMockVault(signer, controller.address, token.address, 'V', strategy.address, 1);
-    helper = await DeployerUtils.deployContract(signer, 'DepositHelper', token.address) as DepositHelper;
+    helper = await DeployerUtils.deployContract(signer, 'DepositHelperPolygon', token.address) as DepositHelperPolygon;
 
     ve = await DeployerUtils.deployVeTetu(signer, token.address, controller.address);
 

@@ -39,6 +39,8 @@ interface IVeTetu is IERC721Metadata {
 
   function balanceOfNFT(uint) external view returns (uint);
 
+  function balanceOfNFTAt(uint _tokenId, uint _t) external view returns (uint);
+
   function isApprovedOrOwner(address, uint) external view returns (bool);
 
   function createLockFor(address _token, uint _value, uint _lockDuration, address _to) external returns (uint);
@@ -64,4 +66,6 @@ interface IVeTetu is IERC721Metadata {
   function abstain(uint tokenId) external;
 
   function totalSupplyAt(uint _block) external view returns (uint);
+
+  function totalSupplyAtT(uint timestamp) external view returns (uint);
 }

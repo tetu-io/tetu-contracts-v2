@@ -368,7 +368,7 @@ contract TetuVoter is ReentrancyGuard, ControllableV3, IVoter {
   }
 
   /// @dev Distribute rewards to all valid vaults.
-  function distributeAll() external {
+  function distributeAll() external override {
     uint length = validVaultsLength();
     IController c = IController(controller());
     for (uint x; x < length; x++) {

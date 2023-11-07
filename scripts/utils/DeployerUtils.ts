@@ -1,12 +1,12 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
-import {BigNumber, ContractFactory} from "ethers";
+import {ContractFactory} from "ethers";
 import logSettings from "../../log_settings";
 import {Logger} from "tslog";
 import {parseUnits} from "ethers/lib/utils";
 import {
   ControllerMinimal,
   ControllerV2,
-  ControllerV2__factory, ERC4626Strict,
+  ControllerV2__factory,
   ForwarderV3,
   ForwarderV3__factory,
   MockStakingToken,
@@ -20,7 +20,8 @@ import {
   PlatformVoter__factory,
   ProxyControlled,
   StrategySplitterV2,
-  StrategySplitterV2__factory, TetuEmitter__factory,
+  StrategySplitterV2__factory,
+  TetuEmitter__factory,
   TetuVaultV2,
   TetuVaultV2__factory,
   TetuVoter,
@@ -28,6 +29,7 @@ import {
   VaultFactory,
   VaultInsurance,
   VeDistributor__factory,
+  VeDistributorV2__factory,
   VeTetu,
   VeTetu__factory
 } from "../../typechain";
@@ -56,7 +58,7 @@ export class DeployerUtils {
 
   public static async deployMockToken(signer: SignerWithAddress, name = 'MOCK', decimals = 18, premint = true) {
     const token = await DeployerUtils.deployContract(signer, 'MockToken', name + '_MOCK_TOKEN', name, decimals) as MockToken;
-    if(premint) {
+    if (premint) {
       await RunHelper.runAndWait(() => token.mint(signer.address, parseUnits('1000000', decimals)));
     }
     return token;
@@ -189,6 +191,23 @@ export class DeployerUtils {
       rewardToken
     ));
     return VeDistributor__factory.connect(proxy.address, signer);
+  }
+
+  public static async deployVeDistributorV2(
+    signer: SignerWithAddress,
+    controller: string,
+    ve: string,
+    rewardToken: string,
+  ) {
+    const logic = await DeployerUtils.deployContract(signer, 'VeDistributorV2');
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
+    await RunHelper.runAndWait(() => proxy.initProxy(logic.address));
+    await RunHelper.runAndWait(() => VeDistributorV2__factory.connect(proxy.address, signer).init(
+      controller,
+      ve,
+      rewardToken
+    ));
+    return VeDistributorV2__factory.connect(proxy.address, signer);
   }
 
   public static async deployTetuVaultV2(
