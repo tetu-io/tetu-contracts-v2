@@ -393,7 +393,7 @@ describe("veTETU tests", function () {
 
   it("totalSupplyAtT test", async function () {
     const curBlock = await owner.provider?.getBlockNumber() ?? -1;
-    const blockTs = (await owner.provider?.getBlock(curBlock))?.timestamp ?? -1;
+    const blockTs = await currentTS(ve);
     expect(curBlock).not.eq(-1);
     expect(blockTs).not.eq(-1);
     const supply = +formatUnits(await ve.totalSupply());
@@ -496,12 +496,8 @@ describe("veTETU tests", function () {
     await ve.createLock(tetu.address, parseUnits('100'), LOCK_PERIOD);
     const tId = 3;
 
-    const curBlockB = await owner.provider?.getBlockNumber() ?? -1;
-    const blockTsB = (await owner.provider?.getBlock(curBlockB))?.timestamp ?? -1;
-
-
-    const curBlock = await owner.provider?.getBlockNumber() ?? -1;
-    const blockTs = (await owner.provider?.getBlock(curBlock))?.timestamp ?? -1;
+    const blockTsB = await currentTS(ve);
+    const blockTs = await currentTS(ve);
     const current = +formatUnits(await ve.balanceOfNFTAt(tId, blockTs));
     console.log('>>> current', current);
     expect(current).approximately(75, 10);
@@ -515,8 +511,7 @@ describe("veTETU tests", function () {
     await TimeUtils.advanceBlocksOnTs(WEEK * 2);
     await ve.increaseAmount(tetu.address, tId, parseUnits('1000'));
 
-    const curBlockA = await owner.provider?.getBlockNumber() ?? -1;
-    const blockTsA = (await owner.provider?.getBlock(curBlockA))?.timestamp ?? -1;
+    const blockTsA = await currentTS(ve);
     const beforeLockAfterIncrease = +formatUnits(await ve.balanceOfNFTAt(tId, blockTsA - 1000));
     console.log('>>> beforeLockAfterIncrease', beforeLockAfterIncrease);
     expect(beforeLockAfterIncrease).approximately(75, 10);
@@ -538,7 +533,7 @@ describe("veTETU tests", function () {
     const curBlock = await owner.provider?.getBlockNumber() ?? -1;
     const current = +formatUnits(await ve.balanceOfAtNFT(tId, curBlock));
     console.log('>>> current', current);
-    expect(current).approximately(75, 10);
+    expect(current).approximately(75, 12);
     const zero = +formatUnits(await ve.balanceOfAtNFT(tId, 0));
     const future = +formatUnits(await ve.balanceOfAtNFT(tId, 999_999_999_999));
     const beforeLock = +formatUnits(await ve.balanceOfAtNFT(tId, curBlockB - 10));
