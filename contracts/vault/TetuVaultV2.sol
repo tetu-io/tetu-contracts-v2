@@ -86,7 +86,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   event FeeChanged(uint depositFee, uint withdrawFee);
   event DoHardWorkOnInvestChanged(bool oldValue, bool newValue);
   event FeeTransfer(uint amount);
-  event LossCovered(uint amount);
+  event LossCovered(uint amount, uint requestedAmount, uint balance);
   event WithdrawRequested(address sender, uint startBlock);
   event WithdrawRequestBlocks(uint blocks);
 
@@ -444,7 +444,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
     uint balance = _asset.balanceOf(address(_insurance));
     uint toRecover = Math.min(amount, balance);
     _insurance.transferToVault(toRecover);
-    emit LossCovered(toRecover);
+    emit LossCovered(toRecover, amount, balance);
   }
 
   // *************************************************************
