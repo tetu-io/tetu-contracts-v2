@@ -13,7 +13,6 @@ interface ISolidlyFactory {
 contract ArbitragePoolSolidly {
 
   struct Context {
-    ISolidlyPair pool;
     address token0;
     address token1;
     uint reserve0;
@@ -32,12 +31,12 @@ contract ArbitragePoolSolidly {
 
   string public constant VERSION = "1.0.0";
   uint internal constant PRICE_DIFF_TOLERANCE = 10;
+  uint internal constant POOL_FEE_DENOMINATOR = 10_000;
 
   address public owner;
   address public pendingOwner;
   address public operator;
 
-  address internal _pool;
   uint public amountForPriceCheck = 1e18;
 
   constructor() {
@@ -82,11 +81,11 @@ contract ArbitragePoolSolidly {
 
   function getCurrentPrice(ISolidlyPair pool) external view returns (uint) {
     Context memory c = createContext(pool, 1);
-    return getPoolPriceWithCustomReserves(c, c.reserve0, c.reserve1);
+    return _getPoolPriceWithCustomReserves(c, c.reserve0, c.reserve1);
   }
 
-  function getPoolPriceWithCustomReserves(Context memory c, uint reserve0, uint reserve1) public pure returns (uint) {
-    return getAmountOut(c, c.amountForPriceCheck, c.token0, reserve0, reserve1) * c.decimals0 / c.amountForPriceCheck;
+  function _getPoolPriceWithCustomReserves(Context memory c, uint reserve0, uint reserve1) internal pure returns (uint) {
+    return _getAmountOut(c, c.amountForPriceCheck, c.token0, reserve0, reserve1) * c.decimals0 / c.amountForPriceCheck;
   }
 
   function createContext(ISolidlyPair pool, uint targetPrice) public view returns (Context memory) {
@@ -96,7 +95,6 @@ contract ArbitragePoolSolidly {
     uint decimals1 = 10 ** IERC20Metadata(token1).decimals();
 
     Context memory c = Context({
-      pool: pool,
       token0: token0,
       token1: token1,
       reserve0: reserve0,
@@ -115,7 +113,7 @@ contract ArbitragePoolSolidly {
 
     c.poolFee = ISolidlyFactory(pool.factory()).getFee(address(pool), c.stable);
 
-    c.currentPoolPrice = getPoolPriceWithCustomReserves(c, reserve0, reserve1);
+    c.currentPoolPrice = _getPoolPriceWithCustomReserves(c, reserve0, reserve1);
     c.needBuyToken0 = c.currentPoolPrice < targetPrice;
 
     c.tokenIn = c.needBuyToken0 ? c.token1 : c.token0;
@@ -164,7 +162,7 @@ contract ArbitragePoolSolidly {
   }
 
   function getExpectedPrice(Context memory c, uint amountIn, address tokenIn) public pure returns (uint expectedPrice) {
-    uint outPrev = getAmountOut(
+    uint outPrev = _getAmountOut(
       c,
       amountIn,
       tokenIn,
@@ -172,10 +170,10 @@ contract ArbitragePoolSolidly {
       c.reserve1
     );
 
-    uint r0 = c.reserve0 + (tokenIn == c.token0 ? amountIn : 0) - (tokenIn == c.token0 ? 0 : outPrev) - (tokenIn == c.token0 ? amountIn * c.poolFee / 10000 : 0);
-    uint r1 = c.reserve1 + (tokenIn == c.token0 ? 0 : amountIn) - (tokenIn == c.token0 ? outPrev : 0) - (tokenIn == c.token0 ? 0 : amountIn * c.poolFee / 10000);
+    uint r0 = c.reserve0 + (tokenIn == c.token0 ? amountIn : 0) - (tokenIn == c.token0 ? 0 : outPrev) - (tokenIn == c.token0 ? amountIn * c.poolFee / POOL_FEE_DENOMINATOR : 0);
+    uint r1 = c.reserve1 + (tokenIn == c.token0 ? 0 : amountIn) - (tokenIn == c.token0 ? outPrev : 0) - (tokenIn == c.token0 ? 0 : amountIn * c.poolFee / POOL_FEE_DENOMINATOR);
 
-    expectedPrice = getPoolPriceWithCustomReserves(c, r0, r1);
+    expectedPrice = _getPoolPriceWithCustomReserves(c, r0, r1);
   }
 
   function arbitrage(ISolidlyPair pool, uint token0ToToken1DesiredPrice) external onlyOperator {
@@ -190,7 +188,7 @@ contract ArbitragePoolSolidly {
       if (bal < amountIn0) {
         amountIn0 = bal;
       }
-      amountOut1 = getAmountOut(c, amountIn0, c.token0, c.reserve0, c.reserve1);
+      amountOut1 = _getAmountOut(c, amountIn0, c.token0, c.reserve0, c.reserve1);
       IERC20(c.token0).transfer(address(pool), amountIn0);
     }
     if (amountIn1 != 0) {
@@ -198,7 +196,7 @@ contract ArbitragePoolSolidly {
       if (bal < amountIn1) {
         amountIn1 = bal;
       }
-      amountOut0 = getAmountOut(c, amountIn1, c.token1, c.reserve0, c.reserve1);
+      amountOut0 = _getAmountOut(c, amountIn1, c.token1, c.reserve0, c.reserve1);
       IERC20(c.token1).transfer(address(pool), amountIn1);
     }
 
@@ -212,7 +210,7 @@ contract ArbitragePoolSolidly {
 
     (uint reserve0, uint reserve1,) = pool.getReserves();
 
-    uint newPrice = getPoolPriceWithCustomReserves(c, reserve0, reserve1);
+    uint newPrice = _getPoolPriceWithCustomReserves(c, reserve0, reserve1);
 
     require(!c.needBuyToken0 ?
       newPrice / PRICE_DIFF_TOLERANCE >= c.targetPrice / PRICE_DIFF_TOLERANCE
@@ -222,19 +220,19 @@ contract ArbitragePoolSolidly {
 
   //////////////////////////
 
-  function getAmountOut(
+  function _getAmountOut(
     Context memory c,
     uint amountIn,
     address tokenIn,
     uint _reserve0,
     uint _reserve1
-  ) public pure returns (uint) {
+  ) internal pure returns (uint) {
     uint decimals0 = c.decimals0;
     uint decimals1 = c.decimals1;
     address token0 = c.token0;
     uint fee = c.poolFee;
     bool stable = c.stable;
-    amountIn -= (amountIn * fee) / 10000; // remove fee from amount received
+    amountIn -= (amountIn * fee) / POOL_FEE_DENOMINATOR; // remove fee from amount received
     return _getAmountOut(amountIn, tokenIn, _reserve0, _reserve1, decimals0, decimals1, stable, token0);
   }
 
