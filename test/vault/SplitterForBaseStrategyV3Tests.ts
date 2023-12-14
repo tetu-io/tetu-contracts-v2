@@ -731,7 +731,7 @@ describe("SplitterForBaseStrategyV3Tests", function () {
     });
 
     it("set compound ratio from not voter revert", async () => {
-      await expect(strategy.setCompoundRatio(100)).revertedWith("SB: Denied");
+      await expect(strategy.connect(signer1).setCompoundRatio(100)).revertedWith("SB: Denied");
     });
 
     it("set compound ratio too high revert", async () => {

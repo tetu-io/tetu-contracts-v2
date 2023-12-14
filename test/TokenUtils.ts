@@ -24,6 +24,8 @@ export class TokenUtils {
     [MaticAddresses.BALANCER_TETU_USDC, '0x2F5294b805f6c0b4B7942c88111d8fB3c0597051'.toLowerCase()],
 
     [BaseAddresses.USDbC_TOKEN, '0x4c80e24119cfb836cdf0a6b53dc23f04f7e652ca'.toLowerCase()],
+    [BaseAddresses.TETU_TOKEN, '0x0644141dd9c2c34802d28d334217bd2034206bf7'.toLowerCase()],
+    [BaseAddresses.tUSDbC, '0x0644141dd9c2c34802d28d334217bd2034206bf7'.toLowerCase()],
   ]);
 
   public static async getToken(token: string, to: string, amount?: BigNumber) {

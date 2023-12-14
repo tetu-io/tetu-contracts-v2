@@ -48,7 +48,6 @@ describe("ArbitrageVaultSolidlyTest", function () {
     await TetuVaultV2__factory.connect(BaseAddresses.tUSDbC, signer).deposit(parseUnits('20000', 6), arb.address);
     await TetuVaultV2__factory.connect(BaseAddresses.tUSDbC, signer).deposit(parseUnits('10000', 6), BaseAddresses.USDbC_tUSDbC_AERODROME_LP);
     await IERC20__factory.connect(BaseAddresses.USDbC_TOKEN, signer).transfer(BaseAddresses.USDbC_tUSDbC_AERODROME_LP, parseUnits('10000', 6));
-    await ISolidlyPair__factory.connect(BaseAddresses.USDbC_tUSDbC_AERODROME_LP, signer).sync();
 
     await TimeUtils.advanceNBlocks(10);
 
