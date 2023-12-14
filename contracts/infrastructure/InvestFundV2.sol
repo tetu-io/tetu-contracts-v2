@@ -5,6 +5,7 @@ pragma solidity 0.8.17;
 import "../proxy/ControllableV3.sol";
 import "../openzeppelin/SafeERC20.sol";
 import "../openzeppelin/EnumerableSet.sol";
+import "../interfaces/IERC4626.sol";
 
 /// @title Upgradable contract with assets for invest in different places under control of Tetu platform.
 /// @author belbix
@@ -17,7 +18,7 @@ contract InvestFundV2 is ControllableV3 {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant INVEST_FUND_VERSION = "2.0.0";
+  string public constant INVEST_FUND_VERSION = "2.0.1";
 
   // *************************************************************
   //                        VARIABLES
@@ -84,7 +85,23 @@ contract InvestFundV2 is ControllableV3 {
   //                      FUND CONTROL
   // *************************************************************
 
-  // TBD - implement invest strategy
-  // implementation highly depends on the Tetu Second Stage
+  function investToVault(address vault, uint amountOfAssets) external {
+    IController c = IController(controller());
+    require(c.isOperator(msg.sender), "!operator");
+    require(c.isValidVault(vault), "!vault");
+
+    address asset = IERC4626(vault).asset();
+
+    IERC20(asset).approve(vault, amountOfAssets);
+    IERC4626(vault).deposit(amountOfAssets, address(this));
+  }
+
+  function redeemFromVault(address vault, uint amountOfShares) external {
+    IController c = IController(controller());
+    require(c.isOperator(msg.sender), "!operator");
+    require(c.isValidVault(vault), "!vault");
+
+    IERC4626(vault).redeem(amountOfShares, address(this), address(this));
+  }
 
 }
