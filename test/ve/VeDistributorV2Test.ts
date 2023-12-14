@@ -174,7 +174,7 @@ describe("VeDistributorV2Test", function () {
     await veDist.claimMany([1]);
     await veDist.connect(owner2).claimMany([2]);
 
-    expect(+formatUnits(await tetu.balanceOf(veDist.address))).approximately(0, 0.00000000000000001);
+    expect(+formatUnits(await tetu.balanceOf(veDist.address))).approximately(0, 0.000000000000001);
 
   });
 

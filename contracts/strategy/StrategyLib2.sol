@@ -74,7 +74,7 @@ library StrategyLib2 {
   // *************************************************************
 
   function _changeCompoundRatio(IStrategyV3.BaseState storage baseState, address controller, uint newValue) external {
-    onlyPlatformVoter(controller);
+    onlyPlatformVoterOrGov(controller);
     require(newValue <= COMPOUND_DENOMINATOR, TOO_HIGH);
 
     uint oldValue = baseState.compoundRatio;
@@ -103,8 +103,8 @@ library StrategyLib2 {
   }
 
   /// @dev Restrict access only for platform voter
-  function onlyPlatformVoter(address controller) public view {
-    require(IController(controller).platformVoter() == msg.sender, DENIED);
+  function onlyPlatformVoterOrGov(address controller) public view {
+    require(IController(controller).platformVoter() == msg.sender || IController(controller).governance() == msg.sender, DENIED);
   }
 
   /// @dev Restrict access only for splitter

@@ -9,6 +9,8 @@ import {
   ControllerV2__factory,
   ForwarderV3,
   ForwarderV3__factory,
+  ForwarderV4,
+  ForwarderV4__factory,
   MockStakingToken,
   MockToken,
   MockVault,
@@ -16,6 +18,7 @@ import {
   MockVoter,
   MultiBribe__factory,
   MultiGauge__factory,
+  MultiGaugeNoBoost__factory,
   PlatformVoter,
   PlatformVoter__factory,
   ProxyControlled,
@@ -26,6 +29,7 @@ import {
   TetuVaultV2__factory,
   TetuVoter,
   TetuVoter__factory,
+  TetuVoterSimplified__factory,
   VaultFactory,
   VaultInsurance,
   VeDistributor__factory,
@@ -138,6 +142,23 @@ export class DeployerUtils {
     return TetuVoter__factory.connect(proxy.address, signer);
   }
 
+  public static async deployTetuVoterSimplified(
+    signer: SignerWithAddress,
+    controller: string,
+    rewardToken: string,
+    gauge: string,
+  ) {
+    const logic = await DeployerUtils.deployContract(signer, 'TetuVoterSimplified');
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
+    await RunHelper.runAndWait(() => proxy.initProxy(logic.address));
+    await RunHelper.runAndWait(() => TetuVoterSimplified__factory.connect(proxy.address, signer).init(
+      controller,
+      rewardToken,
+      gauge,
+    ));
+    return TetuVoterSimplified__factory.connect(proxy.address, signer);
+  }
+
   public static async deployMultiGauge(
     signer: SignerWithAddress,
     controller: string,
@@ -153,6 +174,21 @@ export class DeployerUtils {
       defaultRewardToken,
     ));
     return MultiGauge__factory.connect(proxy.address, signer);
+  }
+
+  public static async deployMultiGaugeNoBoost(
+    signer: SignerWithAddress,
+    controller: string,
+    defaultRewardToken: string,
+  ) {
+    const logic = await DeployerUtils.deployContract(signer, 'MultiGaugeNoBoost');
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
+    await RunHelper.runAndWait(() => proxy.initProxy(logic.address));
+    await RunHelper.runAndWait(() => MultiGaugeNoBoost__factory.connect(proxy.address, signer).init(
+      controller,
+      defaultRewardToken,
+    ));
+    return MultiGaugeNoBoost__factory.connect(proxy.address, signer);
   }
 
   public static async deployMultiBribe(
@@ -269,6 +305,22 @@ export class DeployerUtils {
       controller,
       tetu,
       bribe
+    ));
+    return forwarder;
+  }
+
+  public static async deployForwarderSimplified(
+    signer: SignerWithAddress,
+    controller: string,
+    tetu: string,
+  ) {
+    const logic = await DeployerUtils.deployContract(signer, 'ForwarderV4');
+    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
+    await RunHelper.runAndWait(() => proxy.initProxy(logic.address));
+    const forwarder = ForwarderV4__factory.connect(proxy.address, signer);
+    await RunHelper.runAndWait(() => forwarder.init(
+      controller,
+      tetu,
     ));
     return forwarder;
   }

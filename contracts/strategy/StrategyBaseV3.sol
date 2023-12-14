@@ -17,7 +17,7 @@ abstract contract StrategyBaseV3 is IStrategyV3, ControllableV3 {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant STRATEGY_BASE_VERSION = "3.0.0";
+  string public constant STRATEGY_BASE_VERSION = "3.0.1";
 
   // *************************************************************
   //                        VARIABLES
