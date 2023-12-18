@@ -15,6 +15,7 @@ import "../proxy/ControllableV3.sol";
 import "../interfaces/ITetuLiquidator.sol";
 import "../interfaces/ITetuVaultV2.sol";
 import "../interfaces/IERC4626.sol";
+import "hardhat/console.sol";
 
 /// @title Voter for veTETU.
 ///        Based on Solidly contract.
@@ -139,45 +140,64 @@ contract TetuVoterSimplified is ReentrancyGuard, ControllableV3, IVoter {
 
   /// @dev Add rewards to this contract. It will be distributed to gauges.
   function notifyRewardAmount(uint amount) external override {
+    console.log("notifyRewardAmount.amount", amount);
     require(amount != 0, "zero amount");
 
     IController c = IController(controller());
     ITetuLiquidator liquidator = ITetuLiquidator(c.liquidator());
     address _token = token;
     address _gauge = gauge;
+    console.log("notifyRewardAmount.1");
 
     IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
     emit NotifyReward(msg.sender, amount);
+    console.log("notifyRewardAmount.2");
 
     amount = IERC20(_token).balanceOf(address(this));
+    console.log("notifyRewardAmount.3");
 
     uint length = c.vaultsListLength();
+    console.log("notifyRewardAmount.4");
 
     address[] memory _vaults = new address[](length);
     uint[] memory tvlInTokenValues = new uint[](length);
     uint tvlSum;
+    console.log("notifyRewardAmount.5");
 
     for (uint i; i < length; ++i) {
+      console.log("notifyRewardAmount.6");
       IERC4626 vault = IERC4626(c.vaults(i));
+      console.log("vault", address(vault));
       _vaults[i] = address(vault);
+      console.log("1");
       uint tvl = vault.totalAssets();
+      console.log("2");
       address asset = vault.asset();
+      console.log("3");
 
       uint tvlInTokenValue = liquidator.getPrice(asset, _token, tvl);
+      console.log("4");
       tvlInTokenValues[i] = tvlInTokenValue;
+      console.log("5");
       tvlSum += tvlInTokenValue;
+      console.log("notifyRewardAmount.7");
     }
 
 
 
     for (uint i; i < length; ++i) {
+      console.log("notifyRewardAmount.8");
       uint ratio = tvlInTokenValues[i] * 1e18 / tvlSum;
       uint toDistro = amount * ratio / 1e18;
       if (toDistro != 0 && IERC20(_token).balanceOf(address(this)) >= toDistro) {
+        console.log("notifyRewardAmount.9");
         IGauge(_gauge).notifyRewardAmount(_vaults[i], _token, toDistro);
+        console.log("notifyRewardAmount.10");
         emit DistributeReward(msg.sender, _vaults[i], toDistro);
       }
+      console.log("notifyRewardAmount.11");
     }
+    console.log("notifyRewardAmount.12");
   }
 
   function distribute(address /*_vault*/) external pure override {
