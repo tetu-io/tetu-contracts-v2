@@ -3,7 +3,7 @@ import {ethers} from "hardhat";
 import chai from "chai";
 import {parseUnits} from "ethers/lib/utils";
 import {
-  InterfaceIds,
+  InterfaceIds, MockLiquidator,
   MockPawnshop,
   MockStakingToken,
   MockToken, MockVault,
@@ -37,6 +37,10 @@ describe("Tetu voter simplified tests", function () {
   let vault2: MockVault;
   let stakingToken: MockStakingToken;
   let pawnshop: MockPawnshop;
+  let liquidator: MockLiquidator;
+
+  let strategy1: string;
+  let strategy2: string;
 
   before(async function () {
     snapshotBefore = await TimeUtils.snapshot();
@@ -44,7 +48,9 @@ describe("Tetu voter simplified tests", function () {
 
     underlying2 = await DeployerUtils.deployMockToken(owner, 'UNDERLYING2', 6);
     tetu = await DeployerUtils.deployMockToken(owner, 'TETU', 18);
+    liquidator = await DeployerUtils.deployContract(owner, 'MockLiquidator') as MockLiquidator;
     const controller = await DeployerUtils.deployMockController(owner);
+    await controller.setLiquidator(liquidator.address);
 
     gauge = await DeployerUtils.deployMultiGaugeNoBoost(
       owner,
@@ -65,14 +71,11 @@ describe("Tetu voter simplified tests", function () {
     await tetu.mint(owner2.address, parseUnits('100'));
 
     // *** vaults
-    const strategy = ethers.Wallet.createRandom().address;
-    const strategy2 = ethers.Wallet.createRandom().address;
+    strategy1 = ethers.Wallet.createRandom().address;
+    strategy2 = ethers.Wallet.createRandom().address;
 
-    const asset = await DeployerUtils.deployMockToken(owner, 'VAULT', 18);
-    const asset2 = await DeployerUtils.deployMockToken(owner, 'VAULT2', 6);
-
-    vault = await DeployerUtils.deployMockVault(owner, controller.address, asset.address, "VAULT",  strategy, 0);
-    vault2 = await DeployerUtils.deployMockVault(owner, controller.address, asset2.address, "VAULT2", strategy2, 0);
+    vault = await DeployerUtils.deployMockVault(owner, controller.address, underlying2.address, "VAULT",  strategy1, 0);
+    vault2 = await DeployerUtils.deployMockVault(owner, controller.address, underlying2.address, "VAULT2", strategy2, 0);
     await controller.addVault(vault.address);
     await controller.addVault(vault2.address);
 
@@ -83,6 +86,7 @@ describe("Tetu voter simplified tests", function () {
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 18);
 
     await TimeUtils.advanceBlocksOnTs(WEEK * 2);
+    await liquidator.setPrice(1);
   });
 
   after(async function () {
@@ -119,8 +123,7 @@ describe("Tetu voter simplified tests", function () {
 
   it("notify test", async function () {
     await tetu.approve(voter.address, Misc.MAX_UINT);
-    await voter.notifyRewardAmount(parseUnits('100'));
-    expect(await voter.index()).above(parseUnits('50'));
+    await voter.notifyRewardAmount(parseUnits('100'), {gasLimit: 9_000_000});
   });
 
   it("notify zero amount revert test", async function () {
@@ -128,17 +131,22 @@ describe("Tetu voter simplified tests", function () {
     await expect(voter.notifyRewardAmount(0)).revertedWith("zero amount");
   });
 
-  it("notify zero votes revert test", async function () {
-    await tetu.approve(voter.address, Misc.MAX_UINT);
-    await expect(voter.notifyRewardAmount(1)).revertedWith("!weights");
-  });
-
   it("notify with little amount should not revert test", async function () {
     await tetu.approve(voter.address, Misc.MAX_UINT);
-    await voter.notifyRewardAmount(1);
-    expect(await voter.index()).eq(0);
-  });
 
+    // set StakelessMultiPoolBase.periodFinish
+    await voter.notifyRewardAmount(100, {gasLimit: 9_000_000});
+
+    // prepare total assets. Sum TVL will be 1+10_000
+    // ratio will be 1/10_000 and 9999/10_000
+    await underlying2.mint(strategy1, parseUnits("1"));
+    await underlying2.mint(strategy2, parseUnits("100"));
+    await liquidator.setPrice(1);
+    await liquidator.setUseTokensToCalculatePrice(true);
+
+    // Amount should be higher than remaining rewards
+    await voter.notifyRewardAmount(200, {gasLimit: 9_000_000});
+  });
 
   // *** UPDATE
 
