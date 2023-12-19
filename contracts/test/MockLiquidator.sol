@@ -10,9 +10,14 @@ contract MockLiquidator is ITetuLiquidator {
   uint internal price = 100_000 * 1e18;
   string internal error = "";
   uint internal routeLength = 1;
+  bool internal useTokensToCalculatePrice;
 
   function setPrice(uint value) external {
     price = value;
+  }
+
+  function setUseTokensToCalculatePrice(bool value) external {
+    useTokensToCalculatePrice = value;
   }
 
   function setError(string memory value) external {
@@ -23,8 +28,10 @@ contract MockLiquidator is ITetuLiquidator {
     routeLength = value;
   }
 
-  function getPrice(address, address, uint) external view override returns (uint) {
-    return price;
+  function getPrice(address, address, uint tokens) external view override returns (uint) {
+    return useTokensToCalculatePrice
+      ? price * tokens
+      : price;
   }
 
   function getPriceForRoute(PoolData[] memory, uint) external view override returns (uint) {

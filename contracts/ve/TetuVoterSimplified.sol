@@ -142,12 +142,24 @@ contract TetuVoterSimplified is ReentrancyGuard, ControllableV3, IVoter {
     require(amount != 0, "zero amount");
 
     IController c = IController(controller());
-    ITetuLiquidator liquidator = ITetuLiquidator(c.liquidator());
     address _token = token;
     address _gauge = gauge;
 
     IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
     emit NotifyReward(msg.sender, amount);
+
+    // gauge is able to revert if reward amount is too small
+    // in this case let's rollback transferring rewards to all vaults,
+    // and keep rewards on balance up to the next attempt
+    try TetuVoterSimplified(address(this))._notifyRewardAmount(c, _token, _gauge, amount) {} catch {}
+  }
+
+  /// @notice Try to send all available rewards to vaults
+  /// @dev We need this external function to be able to call it inside try/catch
+  ///      and revert transferring of rewards to all vaults simultaneously if transferring to any vault reverts
+  function _notifyRewardAmount(IController c, address _token, address _gauge, uint amount) external {
+    // any sender is allowed, no limitations
+    ITetuLiquidator liquidator = ITetuLiquidator(c.liquidator());
 
     amount = IERC20(_token).balanceOf(address(this));
 
@@ -167,8 +179,6 @@ contract TetuVoterSimplified is ReentrancyGuard, ControllableV3, IVoter {
       tvlInTokenValues[i] = tvlInTokenValue;
       tvlSum += tvlInTokenValue;
     }
-
-
 
     for (uint i; i < length; ++i) {
       uint ratio = tvlInTokenValues[i] * 1e18 / tvlSum;
