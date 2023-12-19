@@ -120,32 +120,46 @@ describe("Tetu voter simplified tests", function () {
   });
 
   // *** NOTIFY
+  describe("notifyRewardAmount", () => {
+    it("notify zero amount revert test", async function () {
+      await tetu.approve(voter.address, Misc.MAX_UINT);
 
-  it("notify test", async function () {
-    await tetu.approve(voter.address, Misc.MAX_UINT);
-    await voter.notifyRewardAmount(parseUnits('100'), {gasLimit: 9_000_000});
-  });
+      await expect(voter.notifyRewardAmount(0)).revertedWith("zero amount");
+    });
 
-  it("notify zero amount revert test", async function () {
-    await tetu.approve(voter.address, Misc.MAX_UINT);
-    await expect(voter.notifyRewardAmount(0)).revertedWith("zero amount");
-  });
+    it("should send all rewards to vaults", async function () {
+      await tetu.approve(voter.address, Misc.MAX_UINT);
 
-  it("notify with little amount should not revert test", async function () {
-    await tetu.approve(voter.address, Misc.MAX_UINT);
+      const balanceBefore = await tetu.balanceOf(voter.address);
+      await voter.notifyRewardAmount(parseUnits('100'), {gasLimit: 9_000_000});
+      const balanceAfter = await tetu.balanceOf(voter.address);
 
-    // set StakelessMultiPoolBase.periodFinish
-    await voter.notifyRewardAmount(100, {gasLimit: 9_000_000});
+      expect(balanceBefore).eq(0);
+      expect(balanceAfter).eq(0);
+    });
 
-    // prepare total assets. Sum TVL will be 1+10_000
-    // ratio will be 1/10_000 and 9999/10_000
-    await underlying2.mint(strategy1, parseUnits("1"));
-    await underlying2.mint(strategy2, parseUnits("100"));
-    await liquidator.setPrice(1);
-    await liquidator.setUseTokensToCalculatePrice(true);
+    it("should try to send all rewards to vaults but keep them on balance", async function () {
+      await tetu.approve(voter.address, Misc.MAX_UINT);
 
-    // Amount should be higher than remaining rewards
-    await voter.notifyRewardAmount(200, {gasLimit: 9_000_000});
+      // set StakelessMultiPoolBase.periodFinish
+      await voter.notifyRewardAmount(100, {gasLimit: 9_000_000});
+
+      // prepare total assets. Sum TVL will be 1+100
+      // ratio will be 1/100 and 99/100
+      // as result, it should produce exception "Amount should be higher than remaining rewards"
+      // inside StakelessMultiPoolBase
+      await underlying2.mint(strategy1, parseUnits("1"));
+      await underlying2.mint(strategy2, parseUnits("100"));
+      await liquidator.setPrice(1);
+      await liquidator.setUseTokensToCalculatePrice(true);
+
+      // The app should try to transfer rewards to vaults, revert the transferring and keep the rewards on balance
+      const balanceBefore = await tetu.balanceOf(voter.address);
+      await voter.notifyRewardAmount(200, {gasLimit: 9_000_000});
+      const balanceAfter = await tetu.balanceOf(voter.address);
+
+      expect(balanceAfter).gt(balanceBefore);
+    });
   });
 
   // *** UPDATE

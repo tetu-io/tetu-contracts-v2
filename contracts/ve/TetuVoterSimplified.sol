@@ -15,18 +15,6 @@ import "../proxy/ControllableV3.sol";
 import "../interfaces/ITetuLiquidator.sol";
 import "../interfaces/ITetuVaultV2.sol";
 import "../interfaces/IERC4626.sol";
-import "hardhat/console.sol";
-
-interface ITest {
-  function _notifyRewardAmount(
-    uint amount,
-    uint tvlSum,
-    uint[] memory tvlInTokenValues,
-    address[] memory vaults_,
-    address _token,
-    address _gauge
-  ) external;
-}
 
 /// @title Voter for veTETU.
 ///        Based on Solidly contract.
@@ -163,12 +151,10 @@ contract TetuVoterSimplified is ReentrancyGuard, ControllableV3, IVoter {
     // gauge is able to revert if reward amount is too small
     // in this case let's rollback transferring rewards to all vaults,
     // and keep rewards on balance up to the next attempt
-    try TetuVoterSimplified(address(this))._notifyRewardAmount(c, _token, _gauge, amount) {
-    } catch {
-      console.log("revert");
-    }
+    try TetuVoterSimplified(address(this))._notifyRewardAmount(c, _token, _gauge, amount) {} catch {}
   }
 
+  /// @notice Try to send all available rewards to vaults
   /// @dev We need this external function to be able to call it inside try/catch
   ///      and revert transferring of rewards to all vaults simultaneously if transferring to any vault reverts
   function _notifyRewardAmount(IController c, address _token, address _gauge, uint amount) external {
