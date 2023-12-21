@@ -5,24 +5,24 @@ import {CoreAddresses} from "../models/CoreAddresses";
 import {ToolsAddresses} from "../models/ToolsAddresses";
 
 // noinspection SpellCheckingInspection
-export class BaseAddresses {
+export class ZkEvmAddresses {
 
   public static CORE_ADDRESSES = new CoreAddresses(
     "0x7C1B24c139a3EdA18Ab77C8Fa04A0F816C23e6D4", // tetu
-    "", // controller
-    "", // ve
-    "", // veDist
-    "", // gauge
-    "", // bribe
-    "", // tetuVoter
-    "", // platformVoter
-    "", // forwarder
-    "", // vaultFactory
-    "", // investFundV2
+    "0x35B0329118790B8c8FC36262812D92a4923C6795", // controller
+    "0x0000000000000000000000000000000000000000", // ve
+    "0x0000000000000000000000000000000000000000", // veDist
+    "0xd353254872E8797B159594c1E528b8Be9a6cb1F8", // gauge
+    "0x0000000000000000000000000000000000000000", // bribe
+    "0x099C314F792e1F91f53765Fc64AaDCcf4dCf1538", // tetuVoter
+    "0x0000000000000000000000000000000000000000", // platformVoter
+    "0x255707B70BF90aa112006E1b07B9AeA6De021424", // forwarder
+    "0xeFBc16b8c973DecA383aAAbAB07153D2EB676556", // vaultFactory
+    "0x5373C3d09C39D8F256f88E08aa61402FE14A3792", // investFundV2
   );
 
   public static TOOLS_ADDRESSES = new ToolsAddresses(
-    "",// todo
+    "0xBcda73B7184D5974F77721db79ff8BA190b342ce",
     "",// todo
     "",// todo
   );
