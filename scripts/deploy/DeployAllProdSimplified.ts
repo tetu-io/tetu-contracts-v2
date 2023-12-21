@@ -17,7 +17,7 @@ async function main() {
   const forwarder = await DeployerUtils.deployForwarderSimplified(signer, controller.address, tetu);
   const fundAdr = await DeployerUtils.deployProxy(signer, 'InvestFundV2');
   const investFund = InvestFundV2__factory.connect(fundAdr, signer);
-  await RunHelper.runAndWait(() => investFund.init(controller.address));
+  await RunHelper.runAndWait2(investFund.populateTransaction.init(controller.address));
 
   const vaultImpl = await DeployerUtils.deployContract(signer, 'TetuVaultV2');
   const vaultInsuranceImpl = await DeployerUtils.deployContract(signer, 'VaultInsurance');
@@ -31,16 +31,16 @@ async function main() {
     splitterImpl.address,
   );
 
-  await RunHelper.runAndWait(() => controller.announceAddressChange(2, tetuVoter.address));
-  await RunHelper.runAndWait(() => controller.announceAddressChange(4, tools.liquidator));
-  await RunHelper.runAndWait(() => controller.announceAddressChange(5, forwarder.address));
-  await RunHelper.runAndWait(() => controller.announceAddressChange(6, fundAdr));
+  await RunHelper.runAndWait2(controller.populateTransaction.announceAddressChange(2, tetuVoter.address));
+  await RunHelper.runAndWait2(controller.populateTransaction.announceAddressChange(4, tools.liquidator));
+  await RunHelper.runAndWait2(controller.populateTransaction.announceAddressChange(5, forwarder.address));
+  await RunHelper.runAndWait2(controller.populateTransaction.announceAddressChange(6, fundAdr));
 
 
-  await RunHelper.runAndWait(() => controller.changeAddress(2)); // TETU_VOTER
-  await RunHelper.runAndWait(() => controller.changeAddress(4)); // LIQUIDATOR
-  await RunHelper.runAndWait(() => controller.changeAddress(5)); // FORWARDER
-  await RunHelper.runAndWait(() => controller.changeAddress(6)); // INVEST_FUND
+  await RunHelper.runAndWait2(controller.populateTransaction.changeAddress(2)); // TETU_VOTER
+  await RunHelper.runAndWait2(controller.populateTransaction.changeAddress(4)); // LIQUIDATOR
+  await RunHelper.runAndWait2(controller.populateTransaction.changeAddress(5)); // FORWARDER
+  await RunHelper.runAndWait2(controller.populateTransaction.changeAddress(6)); // INVEST_FUND
 
   const result = `  public static CORE_ADDRESSES = new CoreAddresses(
     "${tetu}", // tetu
@@ -60,7 +60,10 @@ async function main() {
 }
 
 main()
-  .then(() => process.exit(0))
+  .then(() => {
+    console.log('Script finished successfully');
+    process.exit(0);
+  })
   .catch(error => {
     console.error(error);
     process.exit(1);
