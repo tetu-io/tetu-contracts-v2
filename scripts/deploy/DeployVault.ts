@@ -9,9 +9,10 @@ import {
 } from "../../typechain";
 import {RunHelper} from "../utils/RunHelper";
 import {BaseAddresses} from "../addresses/base";
+import {ZkEvmAddresses} from "../addresses/zkevm";
 
 
-const ASSET = BaseAddresses.USDbC_TOKEN;
+const ASSET = ZkEvmAddresses.USDC_TOKEN;
 const BUFFER = 1000; // 1%
 const DEPOSIT_FEE = 300; // 0.3%
 const WITHDRAW_FEE = 300; // 0.3%
@@ -25,7 +26,7 @@ async function main() {
 
   const factory = VaultFactory__factory.connect(core.vaultFactory, signer)
 
-  await RunHelper.runAndWait(() => factory.createVault(
+  await RunHelper.runAndWait2(factory.populateTransaction.createVault(
     ASSET,
     'Tetu V2 ' + vaultSymbol,
     vaultSymbol,
@@ -36,9 +37,9 @@ async function main() {
   const vault = await factory.deployedVaults(l - 1);
   console.log(l, 'VAULT: ', vault)
 
-  await RunHelper.runAndWait(() => TetuVaultV2__factory.connect(vault, signer).setFees(DEPOSIT_FEE, WITHDRAW_FEE));
-  await RunHelper.runAndWait(() => ControllerV2__factory.connect(core.controller, signer).registerVault(vault));
-  await RunHelper.runAndWait(() => MultiGauge__factory.connect(core.gauge, signer).addStakingToken(vault));
+  await RunHelper.runAndWait2(TetuVaultV2__factory.connect(vault, signer).populateTransaction.setFees(DEPOSIT_FEE, WITHDRAW_FEE));
+  await RunHelper.runAndWait2(ControllerV2__factory.connect(core.controller, signer).populateTransaction.registerVault(vault));
+  await RunHelper.runAndWait2(MultiGauge__factory.connect(core.gauge, signer).populateTransaction.addStakingToken(vault));
 }
 
 main()
