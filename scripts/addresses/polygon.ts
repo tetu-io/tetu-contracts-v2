@@ -60,6 +60,7 @@ export class PolygonAddresses {
 
   public static ONE_INCH_ROUTER_V4 = "0x1111111254fb6c44bAC0beD2854e76F90643097d".toLowerCase();
   public static ONE_INCH_ROUTER_V5 = "0x1111111254EEB25477B68fb85Ed929f73A960582".toLowerCase();
+  public static OPENOCEAN_ROUTER = "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64".toLowerCase();
 
   // tokens
   public static WETH_TOKEN = "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619".toLowerCase();

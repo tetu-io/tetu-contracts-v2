@@ -23,11 +23,11 @@ export class ZkEvmAddresses {
 
   public static TOOLS_ADDRESSES = new ToolsAddresses(
     "0xBcda73B7184D5974F77721db79ff8BA190b342ce",
-    "",// todo
-    "",// todo
+    "0x60E684643d546b657bfeE9c01Cb40E62EC1fe1e2",
+    "0x914F48367E54033Be83d939ed20e6611e23DDB99",
   );
 
-  public static GOVERNANCE = "".toLowerCase();
+  public static GOVERNANCE = "".toLowerCase(); // todo
 
   // Additional TETU contracts
   public static HARDWORK_RESOLVER = "".toLowerCase();
@@ -38,23 +38,25 @@ export class ZkEvmAddresses {
   public static REWARDS_REDIRECTOR = "".toLowerCase(); // todo
   public static BRIBE_DISTRIBUTION = "".toLowerCase();
   public static DEPOSIT_HELPER_V2 = "".toLowerCase(); // todo
-  public static ONE_INCH_ROUTER_V5 = "0x1111111254EEB25477B68fb85Ed929f73A960582".toLowerCase();
+
+  public static ONE_INCH_ROUTER_V5 = "TODO:0x1111111254EEB25477B68fb85Ed929f73A960582".toLowerCase(); // todo there is no 1inch on zkEvm
+  public static OPENOCEAN_ROUTER = "0x6dd434082EAB5Cd134B33719ec1FF05fE985B97b".toLowerCase();
 
   // Tetu V2 vaults and strategies
 
-  public static tUSDbC = "".toLowerCase(); // todo
+  public static tUSDC = "0x3650823873F34a019533db164f492e09365cfa7E".toLowerCase();
 
 
   // tokens
-  public static TETU_TOKEN = "0x7C1B24c139a3EdA18Ab77C8Fa04A0F816C23e6D4".toLowerCase(); // todo
+  public static TETU_TOKEN = "0x7C1B24c139a3EdA18Ab77C8Fa04A0F816C23e6D4".toLowerCase();
 
-  public static WETH_TOKEN = ''.toLowerCase(); // todo
+  public static WETH_TOKEN = '0x4F9A0e7FD2Bf6067db6994CF12E4495Df938E6e9'.toLowerCase();
 
-  public static USDC_TOKEN = ''.toLowerCase(); // todo
-  public static USDT_TOKEN = ''.toLowerCase(); // todo
+  public static USDC_TOKEN = '0xA8CE8aee21bC2A48a5EF670afCc9274C7bbbC035'.toLowerCase();
+  public static USDT_TOKEN = '0x1E4a5963aBFD975d8c9021ce480b42188849D41d'.toLowerCase();
 
-  public static WBTC_TOKEN = ''.toLowerCase(); // todo
-  public static DAI_TOKEN = ''.toLowerCase(); // todo
+  public static WBTC_TOKEN = '0xEA034fb02eB1808C2cc3adbC15f447B93CbE08e1'.toLowerCase();
+  public static DAI_TOKEN = '0xC5015b9d9161Dca7e18e32f6f25C4aD850731Fd4'.toLowerCase();
 
 
 }
