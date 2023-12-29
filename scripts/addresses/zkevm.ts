@@ -42,7 +42,7 @@ export class ZkEvmAddresses {
 
   // Tetu V2 vaults and strategies
 
-  public static tUSDC = "".toLowerCase(); // todo
+  public static tUSDC = "0x3650823873F34a019533db164f492e09365cfa7E".toLowerCase();
 
 
   // tokens
