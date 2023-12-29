@@ -63,7 +63,7 @@ export class DeployerUtils {
   public static async deployMockToken(signer: SignerWithAddress, name = 'MOCK', decimals = 18, premint = true) {
     const token = await DeployerUtils.deployContract(signer, 'MockToken', name + '_MOCK_TOKEN', name, decimals) as MockToken;
     if (premint) {
-      await RunHelper.runAndWait2(token.populateTransaction.mint(signer.address, parseUnits('1000000', decimals)));
+      await RunHelper.runAndWait2ExplicitSigner(signer, token.populateTransaction.mint(signer.address, parseUnits('1000000', decimals)));
     }
     return token;
   }

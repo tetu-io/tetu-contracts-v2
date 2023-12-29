@@ -24,7 +24,7 @@ export class ZkEvmAddresses {
   public static TOOLS_ADDRESSES = new ToolsAddresses(
     "0xBcda73B7184D5974F77721db79ff8BA190b342ce",
     "0x60E684643d546b657bfeE9c01Cb40E62EC1fe1e2",
-    "",// todo
+    "0x914F48367E54033Be83d939ed20e6611e23DDB99",
   );
 
   public static GOVERNANCE = "".toLowerCase(); // todo
@@ -38,7 +38,9 @@ export class ZkEvmAddresses {
   public static REWARDS_REDIRECTOR = "".toLowerCase(); // todo
   public static BRIBE_DISTRIBUTION = "".toLowerCase();
   public static DEPOSIT_HELPER_V2 = "".toLowerCase(); // todo
+
   public static ONE_INCH_ROUTER_V5 = "TODO:0x1111111254EEB25477B68fb85Ed929f73A960582".toLowerCase(); // todo there is no 1inch on zkEvm
+  public static OPENOCEAN_ROUTER = "0x6dd434082EAB5Cd134B33719ec1FF05fE985B97b".toLowerCase();
 
   // Tetu V2 vaults and strategies
 
