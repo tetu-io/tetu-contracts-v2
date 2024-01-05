@@ -132,27 +132,22 @@ async function verifyWithArgs(hre: any, address: string, args: any[]) {
 
 
 export async function txParams(hre: HardhatRuntimeEnvironment, provider: providers.Provider) {
+  const feeData = await provider.getFeeData();
 
-  const gasPrice = (await provider.getGasPrice()).toNumber();
-  console.log('Gas price:', formatUnits(gasPrice, 9));
-  const maxFee = '0x' + Math.floor(gasPrice * 1.5).toString(16);
-  if (hre.network.name === 'hardhat') {
+  console.log('maxPriorityFeePerGas', formatUnits(feeData.maxPriorityFeePerGas?.toString() ?? '0', 9));
+  console.log('maxFeePerGas', formatUnits(feeData.maxFeePerGas?.toString() ?? '0', 9));
+  console.log('gas price:', formatUnits(feeData.gasPrice?.toString() ?? '0', 9));
+
+  if (feeData.maxFeePerGas && feeData.maxPriorityFeePerGas) {
+    const maxPriorityFeePerGas = Math.max(feeData.maxPriorityFeePerGas?.toNumber() ?? 1, feeData.lastBaseFeePerGas?.toNumber() ?? 1);
+    const maxFeePerGas = (feeData.maxFeePerGas?.toNumber() ?? 1) * 2;
     return {
-      maxPriorityFeePerGas: parseUnits('1', 9).toHexString(),
-      maxFeePerGas: maxFee,
+      maxPriorityFeePerGas: maxPriorityFeePerGas.toFixed(0),
+      maxFeePerGas: maxFeePerGas.toFixed(0),
     };
-  } else if (hre.network.config.chainId === 137) {
+  } else {
     return {
-      maxPriorityFeePerGas: parseUnits('31', 9).toHexString(),
-      maxFeePerGas: maxFee,
-    };
-  } else if (hre.network.config.chainId === 1) {
-    return {
-      maxPriorityFeePerGas: parseUnits('1', 9).toHexString(),
-      maxFeePerGas: maxFee,
+      gasPrice: ((feeData.gasPrice?.toNumber() ?? 1) * 1.2).toFixed(0),
     };
   }
-  return {
-    gasPrice: '0x' + Math.floor(gasPrice * 1.1).toString(16),
-  };
 }
