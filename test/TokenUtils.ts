@@ -4,6 +4,7 @@ import {PolygonAddresses as MaticAddresses} from "../scripts/addresses/polygon";
 import {parseUnits} from "ethers/lib/utils";
 import {Misc} from "../scripts/utils/Misc";
 import {BaseAddresses} from "../scripts/addresses/base";
+import {ZkEvmAddresses} from "../scripts/addresses/zkevm";
 
 export class TokenUtils {
 
@@ -26,6 +27,9 @@ export class TokenUtils {
     [BaseAddresses.USDbC_TOKEN, '0x4c80e24119cfb836cdf0a6b53dc23f04f7e652ca'.toLowerCase()],
     [BaseAddresses.TETU_TOKEN, '0x0644141dd9c2c34802d28d334217bd2034206bf7'.toLowerCase()],
     [BaseAddresses.tUSDbC, '0x0644141dd9c2c34802d28d334217bd2034206bf7'.toLowerCase()],
+
+    [ZkEvmAddresses.USDC_TOKEN, '0x99B31498B0a1Dae01fc3433e3Cb60F095340935C'.toLowerCase()],
+    [ZkEvmAddresses.USDT_TOKEN, '0x4943b0C9959dcf58871A799dfB71becE0D97c9f4'.toLowerCase()],
   ]);
 
   public static async getToken(token: string, to: string, amount?: BigNumber) {

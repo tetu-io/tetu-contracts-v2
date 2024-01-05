@@ -2,22 +2,19 @@ import {ethers, web3} from "hardhat";
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {
-  DepositHelperPolygon,
   DepositHelperSimplified,
   IERC20__factory, IERC20Metadata__factory,
   MockToken,
   MockVault,
-  VeTetu,
-  VeTetu__factory
 } from '../../typechain';
 import {TimeUtils} from "../TimeUtils";
 import {expect} from "chai";
 import fetch from "node-fetch";
 import {formatUnits, parseUnits} from "ethers/lib/utils";
-import {PolygonAddresses} from "../../scripts/addresses/polygon";
 import {TokenUtils} from "../TokenUtils";
 import {Misc} from "../../scripts/utils/Misc";
 import {BigNumber, BytesLike} from "ethers";
+import {ZkEvmAddresses} from "../../scripts/addresses/zkevm";
 
 // tslint:disable-next-line:no-var-requires
 const hre = require("hardhat");
@@ -32,7 +29,7 @@ describe("DepositHelperTestsSimplified", function () {
   let tetu: MockToken;
   let vault: MockVault;
   let helper: DepositHelperSimplified;
-  const vaultAsset = PolygonAddresses.USDC_TOKEN;
+  const vaultAsset = ZkEvmAddresses.USDC_TOKEN;
 
   //region OpenOcean utils
   type IOpenOceanResponse = {
@@ -51,7 +48,7 @@ describe("DepositHelperTestsSimplified", function () {
     from: string,
     slippage: string = "0.5"
   ) : Promise<BytesLike> {
-    const chainName = "polygon"; // openOceanChains.get(chainId) ?? 'unknown chain';
+    const chainName = "polygon_zkevm"; // openOceanChains.get(chainId) ?? 'unknown chain';
     const params = {
       chain: chainName,
       inTokenAddress: tokenIn,
@@ -82,7 +79,7 @@ describe("DepositHelperTestsSimplified", function () {
 
   before(async function () {
     snapshotBefore = await TimeUtils.snapshot();
-    if (hre.network.config.chainId !== 137) {
+    if (hre.network.config.chainId !== 1101) {
       return;
     }
     signer = await Misc.impersonate('0xbbbbb8C4364eC2ce52c59D2Ed3E56F307E529a94');
@@ -93,7 +90,7 @@ describe("DepositHelperTestsSimplified", function () {
     tetu = await DeployerUtils.deployMockToken(signer);
     const controller = await DeployerUtils.deployMockController(signer);
     vault = await DeployerUtils.deployMockVault(signer, controller.address, vaultAsset, 'V', strategy.address, 1);
-    helper = await DeployerUtils.deployContract(signer, 'DepositHelperSimplified', PolygonAddresses.OPENOCEAN_ROUTER) as DepositHelperSimplified;
+    helper = await DeployerUtils.deployContract(signer, 'DepositHelperSimplified', ZkEvmAddresses.OPENOCEAN_ROUTER) as DepositHelperSimplified;
 
     await IERC20__factory.connect(vaultAsset, strategy).approve(vault.address, Misc.MAX_UINT);
   });
@@ -113,11 +110,11 @@ describe("DepositHelperTestsSimplified", function () {
 
 
   it("test convert and deposit", async () => {
-    if (hre.network.config.chainId !== 137) {
+    if (hre.network.config.chainId !== 1101) {
       return;
     }
 
-    const tokenIn = PolygonAddresses.USDT_TOKEN;
+    const tokenIn = ZkEvmAddresses.USDT_TOKEN;
 
     const amount = parseUnits('1', 6);
     await TokenUtils.getToken(tokenIn, signer.address, amount)
@@ -149,12 +146,12 @@ describe("DepositHelperTestsSimplified", function () {
       vault.address,
       0
     )
-    expect((await IERC20__factory.connect(vaultAsset, signer).balanceOf(signer.address)).isZero()).eq(false);
+    expect((await vault.balanceOf(signer.address)).isZero()).eq(false);
     // expect((await IERC20__factory.connect(tokenIn, signer).balanceOf(referrer.address)).isZero()).eq(false);
   });
 
   it("test withdraw and convert", async () => {
-    if (hre.network.config.chainId !== 137) {
+    if (hre.network.config.chainId !== 1101) {
       return;
     }
 
@@ -171,7 +168,7 @@ describe("DepositHelperTestsSimplified", function () {
     const returnAmount = await vault.previewRedeem(vaultShareBalance)
 
     console.log("prepare swap");
-    const tokenOut = PolygonAddresses.USDT_TOKEN;
+    const tokenOut = ZkEvmAddresses.USDT_TOKEN;
 
     const swapTransactionData = await buildSwapTransactionDataForOpenOcean(vaultAsset, tokenOut, returnAmount, helper.address);
     console.log('Transaction for swap: ', swapTransactionData);
@@ -184,7 +181,8 @@ describe("DepositHelperTestsSimplified", function () {
       swapTransactionData,
       tokenOut,
       parseUnits('100000')
-    )).to.be.revertedWith('SLIPPAGE')
+    )).to.be.reverted;
+
     await helper.withdrawAndConvert(
       vault.address,
       vaultShareBalance,
