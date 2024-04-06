@@ -14,7 +14,7 @@ contract ControllerMinimal is TetuERC165, IController {
   address public override liquidator;
   address public override forwarder;
   address public override investFund;
-  address public override veDistributor;
+  address public veDistributor;
   address public override platformVoter;
   address[] public override vaults;
   mapping(address => bool) public operators;

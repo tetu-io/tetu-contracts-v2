@@ -72,7 +72,7 @@ contract ControllerV2 is ControllableV3, IController {
   /// @dev Contract for holding assets for the Second Stage
   address public override investFund;
   /// @dev Contract for accumulate TETU rewards for veTETU and weekly distribute them.
-  address public override veDistributor;
+  address public veDistributor;
   /// @dev Special voter for platform attributes.
   address public override platformVoter;
 
