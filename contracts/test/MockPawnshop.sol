@@ -26,13 +26,10 @@ contract MockPawnshop is IERC721Receiver{
   function veFlashTransfer(address ve, uint tokenId) external {
     IERC721(ve).safeTransferFrom(msg.sender, address(this), tokenId);
     require(IVeTetu(ve).balanceOfNFT(tokenId) == 0, "not zero balance");
-    IVeTetu(ve).totalSupplyAt(block.number);
     IVeTetu(ve).checkpoint();
     IVeTetu(ve).checkpoint();
     IVeTetu(ve).checkpoint();
     IVeTetu(ve).checkpoint();
-    IVeTetu(ve).totalSupplyAt(block.number);
-    IVeTetu(ve).totalSupplyAt(block.number - 1);
     IERC721(ve).safeTransferFrom(address(this), msg.sender, tokenId);
   }
 

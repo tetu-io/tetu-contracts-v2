@@ -10,7 +10,6 @@ async function main() {
   const tetu = await DeployerUtils.deployMockToken(signer, 'TETU');
   const controller = await DeployerUtils.deployController(signer);
   const ve = await DeployerUtils.deployVeTetu(signer, tetu.address, controller.address);
-  const veDist = await DeployerUtils.deployVeDistributor(signer, controller.address, ve.address, tetu.address);
   const gauge = await DeployerUtils.deployMultiGauge(signer, controller.address, ve.address, tetu.address);
   const bribe = await DeployerUtils.deployMultiBribe(signer, controller.address, ve.address, tetu.address);
   const tetuVoter = await DeployerUtils.deployTetuVoter(signer, controller.address, ve.address, tetu.address, gauge.address, bribe.address);
@@ -37,7 +36,7 @@ async function main() {
   // await controller.announceAddressChange(4, .address); // LIQUIDATOR
   await RunHelper.runAndWait(() => controller.announceAddressChange(5, forwarder.address)); // FORWARDER
   await RunHelper.runAndWait(() => controller.announceAddressChange(6, fundAdr)); // INVEST_FUND
-  await RunHelper.runAndWait(() => controller.announceAddressChange(7, veDist.address)); // VE_DIST
+  await RunHelper.runAndWait(() => controller.announceAddressChange(7, signer.address)); // VE_DIST
 
 
   await RunHelper.runAndWait(() => controller.changeAddress(2)); // TETU_VOTER

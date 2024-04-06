@@ -21,13 +21,13 @@ export async function checkTotalVeSupplyAtTS(ve: VeTetu, ts: number) {
 
   console.log('additionalTotalSupply', formatUnits(await ve.additionalTotalSupply()))
 
-  const total = +formatUnits(await ve.totalSupplyAtT(ts));
+  const total = +formatUnits(await ve.totalSupply());
   console.log('total', total)
   const nftCount = (await ve.tokenId()).toNumber();
 
   let sum = 0;
   for (let i = 1; i <= nftCount; ++i) {
-    const bal = +formatUnits(await ve.balanceOfNFTAt(i, ts))
+    const bal = +formatUnits(await ve.balanceOfNFT(i))
     console.log('bal', i, bal)
     sum += bal;
   }

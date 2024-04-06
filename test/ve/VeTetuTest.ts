@@ -50,14 +50,7 @@ describe("veTETU tests", function () {
     voter = await DeployerUtils.deployMockVoter(owner, ve.address);
     pawnshop = await DeployerUtils.deployContract(owner, 'MockPawnshop') as MockPawnshop;
 
-    const veDist = await DeployerUtils.deployVeDistributor(
-      owner,
-      controller.address,
-      ve.address,
-      tetu.address,
-    );
 
-    await controller.setVeDistributor(veDist.address);
     await controller.setVoter(voter.address);
     await ve.announceAction(2);
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 18);
@@ -372,64 +365,14 @@ describe("veTETU tests", function () {
     await expect(ve.tokenURI(99)).revertedWith('TOKEN_NOT_EXIST');
   });
 
-  it("totalSupplyAt for new block revert", async function () {
-    await expect(ve.totalSupplyAt(Date.now() * 10)).revertedWith('WRONG_INPUT');
-  });
-
   it("tokenUri for expired lock", async function () {
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 365 * 5);
     expect(await ve.tokenURI(1)).not.eq('');
   });
 
-  it("totalSupplyAt for not exist epoch", async function () {
-    expect(await ve.totalSupplyAt(0)).eq(0);
-  });
-
-  it("totalSupplyAt for first epoch", async function () {
-    const start = (await ve.pointHistory(0)).blk;
-    expect(await ve.totalSupplyAt(start)).eq(0);
-    expect(await ve.totalSupplyAt(start.add(1))).eq(0);
-  });
-
-  it("totalSupplyAtT test", async function () {
-    const curBlock = await ethers.provider.getBlockNumber();
-    const blockTs = await currentTS(ve);
-    expect(curBlock).not.eq(-1);
-    expect(blockTs).not.eq(-1);
-    const supply = +formatUnits(await ve.totalSupply());
-    const supplyBlock = +formatUnits(await ve.totalSupplyAt(curBlock));
-    const supplyTsNow = +formatUnits(await ve.totalSupplyAtT(blockTs));
-    console.log('supply', supply);
-    console.log('supplyBlock', supplyBlock);
-    console.log('supplyTsNow', supplyTsNow);
-
-    expect(supply).eq(supplyBlock);
-    expect(supplyTsNow).eq(supplyBlock);
-
-    const supplyTs = +formatUnits(await ve.totalSupplyAtT(await currentEpochTS(ve)));
-    console.log('supplyTs', supplyTs);
-
-    await checkTotalVeSupplyAtTS(ve, await currentEpochTS(ve) + WEEK)
-
-  });
-
-  it("totalSupplyAt for second epoch", async function () {
-    const start = (await ve.pointHistory(1)).blk;
-    expect(await ve.totalSupplyAt(start)).not.eq(0);
-    expect(await ve.totalSupplyAt(start.add(1))).not.eq(0);
-  });
-
   it("checkpoint for a long period", async function () {
     await TimeUtils.advanceBlocksOnTs(WEEK * 10);
     await ve.checkpoint();
-  });
-
-  it("balanceOfNFTAt with history test", async function () {
-    const cp0 = (await ve.userPointHistory(2, 0));
-    await ve.balanceOfAtNFT(2, cp0.blk);
-    const cp1 = (await ve.userPointHistory(2, 1));
-    await TimeUtils.advanceNBlocks(1);
-    await ve.balanceOfAtNFT(2, cp1.blk.add(1));
   });
 
   it("supportsInterface test", async function () {
@@ -489,70 +432,6 @@ describe("veTETU tests", function () {
     console.log(svg);
     expect(svg).contains('333')
     // expect(svg).contains('88 days')
-  });
-
-  it("balanceOfNFTAt test", async function () {
-    // ve #3
-    await ve.createLock(tetu.address, parseUnits('100'), LOCK_PERIOD);
-    const tId = 3;
-
-    const blockTsB = await currentTS(ve);
-    const blockTs = await currentTS(ve);
-    const current = +formatUnits(await ve.balanceOfNFTAt(tId, blockTs));
-    console.log('>>> current', current);
-    expect(current).approximately(75, 15);
-    const zero = +formatUnits(await ve.balanceOfNFTAt(tId, 0));
-    const future = +formatUnits(await ve.balanceOfNFTAt(tId, 999_999_999_999));
-    const beforeLock = +formatUnits(await ve.balanceOfNFTAt(tId, blockTsB - 1000));
-    expect(zero).eq(0);
-    expect(future).eq(0);
-    expect(beforeLock).eq(0);
-
-    await TimeUtils.advanceBlocksOnTs(WEEK * 2);
-    await ve.increaseAmount(tetu.address, tId, parseUnits('1000'));
-
-    const blockTsA = await currentTS(ve);
-    const beforeLockAfterIncrease = +formatUnits(await ve.balanceOfNFTAt(tId, blockTsA - 1000));
-    console.log('>>> beforeLockAfterIncrease', beforeLockAfterIncrease);
-    expect(beforeLockAfterIncrease).approximately(75, 15);
-
-    const currentA = +formatUnits(await ve.balanceOfNFTAt(tId, blockTsA));
-    console.log('>>> currentA', currentA);
-    expect(currentA).approximately(700, 150);
-  });
-
-  it("balanceOfAtNFT test", async function () {
-    await TimeUtils.advanceNBlocks(100)
-    // ve #3
-    await ve.createLock(tetu.address, parseUnits('100'), LOCK_PERIOD);
-    const tId = 3;
-
-    const curBlockB = await ethers.provider.getBlockNumber();
-
-
-    const curBlock = await ethers.provider.getBlockNumber();
-    const current = +formatUnits(await ve.balanceOfAtNFT(tId, curBlock));
-    console.log('>>> current', current);
-    expect(current).approximately(75, 15);
-    const zero = +formatUnits(await ve.balanceOfAtNFT(tId, 0));
-    const future = +formatUnits(await ve.balanceOfAtNFT(tId, 999_999_999_999));
-    const beforeLock = +formatUnits(await ve.balanceOfAtNFT(tId, curBlockB - 10));
-    expect(zero).eq(0);
-    expect(future).eq(0);
-    expect(beforeLock).eq(0);
-
-    await TimeUtils.advanceNBlocks(100)
-    await TimeUtils.advanceBlocksOnTs(WEEK * 2);
-    await ve.increaseAmount(tetu.address, tId, parseUnits('1000'));
-
-    const curBlockA = await ethers.provider.getBlockNumber();
-    const beforeLockAfterIncrease = +formatUnits(await ve.balanceOfAtNFT(tId, curBlockA - 10));
-    console.log('>>> beforeLockAfterIncrease', beforeLockAfterIncrease);
-    expect(beforeLockAfterIncrease).approximately(75, 15);
-
-    const currentA = +formatUnits(await ve.balanceOfAtNFT(tId, curBlockA));
-    console.log('>>> currentA', currentA);
-    expect(currentA).approximately(700, 150);
   });
 
   it("ve flesh transfer + supply checks", async function () {
