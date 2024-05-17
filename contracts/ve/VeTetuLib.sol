@@ -6,7 +6,6 @@ import "../openzeppelin/Math.sol";
 import "../interfaces/IVeTetu.sol";
 import "../lib/Base64.sol";
 import "./../lib/StringLib.sol";
-import "hardhat/console.sol";
 
 /// @title Library with additional ve functions
 /// @author belbix
@@ -307,10 +306,6 @@ library VeTetuLib {
       blk: lastPoint.blk,
       bias: lastPoint.bias
     });
-    console.log("lastPoint.0.blk,bias", lastPoint.blk);console.logInt(lastPoint.bias);
-    console.log("lastPoint.0.ts,slope", lastPoint.ts);console.logInt(lastPoint.slope);
-    console.log("initialLastPoint.0.blk,bias", initialLastPoint.blk);console.logInt(initialLastPoint.bias);
-    console.log("initialLastPoint.0.ts,slope", initialLastPoint.ts);console.logInt(initialLastPoint.slope);
 
     uint blockSlope = 0;
     // dblock/dt
@@ -341,22 +336,13 @@ library VeTetuLib {
 
         info.epoch += 1;
         if (ti == block.timestamp) {
-          console.log("block.timestamp", block.timestamp);
-          console.log("block.number", block.number);
-          console.log("lastPoint.blk", block.number);
           lastPoint.blk = block.number;
           break;
         } else {
           _pointHistory[info.epoch] = lastPoint;
-          console.log("lastPoint.i.blk,bias", i, lastPoint.blk);console.logInt(lastPoint.bias);
-          console.log("lastPoint.i.ts,slope", i, lastPoint.ts);console.logInt(lastPoint.slope);
         }
       }
     }
-    console.log("lastPoint.final.blk,bias", lastPoint.blk);console.logInt(lastPoint.bias);
-    console.log("lastPoint.final.ts,slope", lastPoint.ts);console.logInt(lastPoint.slope);
-    console.log("initialLastPoint.final.blk,bias", initialLastPoint.blk);console.logInt(initialLastPoint.bias);
-    console.log("initialLastPoint.final.ts,slope", initialLastPoint.ts);console.logInt(initialLastPoint.slope);
 
     newEpoch = info.epoch;
     // Now pointHistory is filled until t=now
