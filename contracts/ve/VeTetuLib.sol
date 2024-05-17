@@ -301,8 +301,6 @@ library VeTetuLib {
     // initialLastPoint is used for extrapolation to calculate block number
     // (approximately, for *At methods) and save them
     // as we cannot figure that out exactly from inside the contract
-
-    // WRONG IVeTetu.Point memory initialLastPoint = lastPoint;
     IVeTetu.Point memory initialLastPoint = IVeTetu.Point({
       ts: lastPoint.ts,
       slope: lastPoint.slope,
@@ -343,10 +341,15 @@ library VeTetuLib {
 
         info.epoch += 1;
         if (ti == block.timestamp) {
+          console.log("block.timestamp", block.timestamp);
+          console.log("block.number", block.number);
+          console.log("lastPoint.blk", block.number);
           lastPoint.blk = block.number;
           break;
         } else {
           _pointHistory[info.epoch] = lastPoint;
+          console.log("lastPoint.i.blk,bias", i, lastPoint.blk);console.logInt(lastPoint.bias);
+          console.log("lastPoint.i.ts,slope", i, lastPoint.ts);console.logInt(lastPoint.slope);
         }
       }
     }
