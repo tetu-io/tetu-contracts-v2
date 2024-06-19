@@ -3,6 +3,7 @@ import {ethers} from "hardhat";
 import chai from "chai";
 import {formatUnits, parseUnits} from "ethers/lib/utils";
 import {
+  ERC721ReentrancyAttacker,
   IERC20Metadata__factory,
   MockPawnshop,
   MockToken,
@@ -38,10 +39,13 @@ describe("veTETU tests", function () {
   let voter: MockVoter;
   let pawnshop: MockPawnshop;
 
+  let attacker: SignerWithAddress;
+  let erc721ReentrancyAttacker: ERC721ReentrancyAttacker;
+
 
   before(async function () {
     snapshotBefore = await TimeUtils.snapshot();
-    [owner, owner2, owner3] = await ethers.getSigners();
+    [owner, owner2, owner3, attacker] = await ethers.getSigners();
 
     underlying2 = await DeployerUtils.deployMockToken(owner, 'UNDERLYING2', 6);
     tetu = await DeployerUtils.deployMockToken(owner, 'TETU', 18);
@@ -74,6 +78,11 @@ describe("veTETU tests", function () {
 
     const platformVoter = await DeployerUtils.deployPlatformVoter(owner, controller.address, ve.address);
     await controller.setPlatformVoter(platformVoter.address);
+
+
+    const ERC721ReentrancyAttacker = await ethers.getContractFactory("ERC721ReentrancyAttacker");
+    erc721ReentrancyAttacker = await ERC721ReentrancyAttacker.deploy(ve.address);
+    await erc721ReentrancyAttacker.deployed();
   });
 
   after(async function () {
@@ -954,6 +963,16 @@ describe("veTETU tests", function () {
     expect(oldTotal).approximately(totalAfterLockOff, 0.001);
   });
 
+
+
+  it("should be vulnerable to reentrancy", async () => {
+    console.log("Attacker NFT balance before the hack: ", (await ve.balanceOf(erc721ReentrancyAttacker.address)).toString());
+
+    console.log("Attacker is attacking...");
+    await erc721ReentrancyAttacker.connect(attacker).attack(pawnshop.address);
+
+    console.log("Attacker NFT balance after the hack: ", (await ve.balanceOf(erc721ReentrancyAttacker.address)).toString());
+  });
 });
 
 async function maxLockTime(ve: VeTetu) {
@@ -1014,3 +1033,4 @@ async function withdrawIfExist(
     }
   }
 }
+

