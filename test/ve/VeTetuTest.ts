@@ -5,7 +5,7 @@ import {formatUnits, parseUnits} from "ethers/lib/utils";
 import {
   ERC721ReentrancyAttacker,
   IERC20Metadata__factory,
-  MockPawnshop,
+  MockPawnshop, MockPawnshop__factory,
   MockToken,
   MockVoter,
   ProxyControlled,
@@ -1011,6 +1011,43 @@ describe("veTETU tests", function () {
   //
   //   console.log("Attacker NFT balance after the hack: ", (await veLocal.balanceOf(erc721ReentrancyAttacker.address)).toString());
   // });
+
+  it("should be vulnerable to reentrancy", async () => {
+    console.log("Attacker NFT balance before the hack: ", (await ve.balanceOf(erc721ReentrancyAttacker.address)).toString());
+
+    console.log("Attacker is attacking...");
+    await erc721ReentrancyAttacker.connect(attacker).attack(10, pawnshop.address);
+
+    console.log("Attacker NFT balance after the hack: ", (await ve.balanceOf(erc721ReentrancyAttacker.address)).toString());
+  });
+
+  it("attach through pawnshop", async () => {
+    const tokenId = await ve.tokenId();
+    console.log("tokenId", tokenId);
+
+    const tokenOwner = await ve.ownerOf(tokenId);
+    console.log("tokenOwner", tokenOwner);
+
+    const tokenId1m = 1;
+    const tokenOwner1 = await ve.ownerOf(tokenId1m);
+
+    // assume, that both tokens 1 and 2 are whitelisted
+    await ve.announceAction(2);
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 18);
+    await ve.whitelistTransferFor(tokenOwner);
+
+    await ve.announceAction(2);
+    await TimeUtils.advanceBlocksOnTs(60 * 60 * 18);
+    await ve.whitelistTransferFor(tokenOwner1);
+
+    console.log("Attacker NFT balance before the hack: ", (await ve.balanceOf(erc721ReentrancyAttacker.address)).toString());
+
+    console.log("Attacker is attacking...");
+    console.log("pawnshop.address", pawnshop.address);
+    await pawnshop.attackTransfer(ve.address, tokenOwner, erc721ReentrancyAttacker.address, tokenId);
+
+    console.log("Attacker NFT balance after the hack: ", (await ve.balanceOf(erc721ReentrancyAttacker.address)).toString());
+  });
 });
 
 async function maxLockTime(ve: VeTetu) {

