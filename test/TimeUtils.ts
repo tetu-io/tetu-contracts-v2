@@ -6,22 +6,26 @@ export const LOCK_PERIOD = 60 * 60 * 24 * 7 * 16;
 
 export class TimeUtils {
 
-  public static async advanceBlocksOnTs(add: number) {
+  public static async advanceBlocksOnTs(add: number, verbose = false) {
     const start = Date.now();
     // const block = await TimeUtils.currentBlock();
     await ethers.provider.send('evm_increaseTime', [add]);
     await ethers.provider.send('evm_mine', []);
     // await TimeUtils.mineAndCheck();
-    Misc.printDuration('advanceBlocksOnTs ' + add + ' completed', start);
+    if (verbose) {
+      Misc.printDuration('advanceBlocksOnTs ' + add + ' completed', start);
+    }
   }
 
-  public static async advanceNBlocks(n: number) {
+  public static async advanceNBlocks(n: number, verbose = false) {
     const start = Date.now();
     await ethers.provider.send('evm_increaseTime', [+(n * 2.35).toFixed(0)]);
     for (let i = 0; i < n; i++) {
       await ethers.provider.send('evm_mine', []);
     }
-    Misc.printDuration('advanceNBlocks ' + n + ' completed', start);
+    if (verbose) {
+      Misc.printDuration('advanceNBlocks ' + n + ' completed', start);
+    }
   }
 
   public static async mineAndCheck() {
@@ -63,12 +67,12 @@ export class TimeUtils {
 
   public static async snapshot() {
     const id = await ethers.provider.send("evm_snapshot", []);
-    console.log("made snapshot", id);
+    // console.log("made snapshot", id);
     return id;
   }
 
   public static async rollback(id: string) {
-    console.log("restore snapshot", id);
+    // console.log("restore snapshot", id);
     return ethers.provider.send("evm_revert", [id]);
   }
 

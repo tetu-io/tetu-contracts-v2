@@ -12,7 +12,7 @@ const log: Logger<unknown> = new Logger(logSettings);
 export class RunHelper {
 
   public static async runAndWait(callback: () => Promise<ContractTransaction>, stopOnError = true, wait = true) {
-    console.log('Start on-chain transaction')
+    // console.log('Start on-chain transaction')
     const start = Date.now();
 
     if (hre.network.name === 'hardhat') {
@@ -21,7 +21,7 @@ export class RunHelper {
 
     const tr = await callback();
     if (!wait) {
-      Misc.printDuration('runAndWait completed', start);
+      // Misc.printDuration('runAndWait completed', start);
       return;
     }
     const r0 = await tr.wait(WAIT_BLOCKS_BETWEEN_DEPLOY);
@@ -46,13 +46,13 @@ export class RunHelper {
   }
 
   public static async runAndWait2(txPopulated: Promise<PopulatedTransaction>, stopOnError = true, wait = true) {
-    console.log('prepare run and wait2')
+    // console.log('prepare run and wait2')
     const tx = await txPopulated;
     const signer = (await ethers.getSigners())[0];
     const gas = (await signer.estimateGas(tx)).toNumber()
 
     const params = await RunHelper.txParams();
-    console.log('params', params)
+    // console.log('params', params)
 
     tx.gasLimit = BigNumber.from(gas).mul(15).div(10);
 
@@ -64,12 +64,12 @@ export class RunHelper {
   }
 
   public static async runAndWait2ExplicitSigner(signer: SignerWithAddress, txPopulated: Promise<PopulatedTransaction>, stopOnError = true, wait = true) {
-    console.log('prepare run and wait2')
+    // console.log('prepare run and wait2')
     const tx = await txPopulated;
     const gas = (await signer.estimateGas(tx)).toNumber()
 
     const params = await RunHelper.txParams();
-    console.log('params', params)
+    // console.log('params', params)
 
     tx.gasLimit = BigNumber.from(gas).mul(15).div(10);
 
@@ -85,9 +85,9 @@ export class RunHelper {
     const feeData = await provider.getFeeData();
 
 
-    console.log('maxPriorityFeePerGas', formatUnits(feeData.maxPriorityFeePerGas?.toString() ?? '0', 9));
-    console.log('maxFeePerGas', formatUnits(feeData.maxFeePerGas?.toString() ?? '0', 9));
-    console.log('gas price:', formatUnits(feeData.gasPrice?.toString() ?? '0', 9));
+    // console.log('maxPriorityFeePerGas', formatUnits(feeData.maxPriorityFeePerGas?.toString() ?? '0', 9));
+    // console.log('maxFeePerGas', formatUnits(feeData.maxFeePerGas?.toString() ?? '0', 9));
+    // console.log('gas price:', formatUnits(feeData.gasPrice?.toString() ?? '0', 9));
 
     if (feeData.maxFeePerGas && feeData.maxPriorityFeePerGas) {
       const maxPriorityFeePerGas = Math.max(feeData.maxPriorityFeePerGas?.toNumber() ?? 1, feeData.lastBaseFeePerGas?.toNumber() ?? 1);

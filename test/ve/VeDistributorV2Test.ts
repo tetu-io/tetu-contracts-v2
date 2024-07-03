@@ -81,7 +81,7 @@ describe("VeDistributorV2Test", function () {
     expect((await veDist.claimable(1)).isZero()).eq(true);
     expect((await veDist.claimable(2)).isZero()).eq(true);
     await checkTotalVeSupplyAtTS(ve, await currentEpochTS(ve));
-    console.log('precheck is fine')
+    // console.log('precheck is fine')
 
     // empty claim
     await veDist.claimMany([1]);
@@ -185,9 +185,9 @@ async function startNewEpoch(ve: VeTetu, veDist: VeDistributorV2): Promise<boole
   const oldEpoch = await veDist.epoch()
 
   const prevEpochTs = (await veDist.epochInfos(oldEpoch)).ts.toNumber();
-  console.log('prevEpochTs', prevEpochTs);
+  // console.log('prevEpochTs', prevEpochTs);
   const curTs = await currentEpochTS(ve);
-  console.log('curTs', curTs);
+  // console.log('curTs', curTs);
 
 
   const checkpointTx = await (await veDist.checkpoint()).wait();
@@ -202,13 +202,13 @@ async function startNewEpoch(ve: VeTetu, veDist: VeDistributorV2): Promise<boole
     return false;
   }
 
-  console.log('checkpoint epoch', checkpoint.epoch.toNumber());
-  console.log('checkpoint newEpochTs', checkpoint.newEpochTs.toNumber());
-  console.log('checkpoint tokenBalance', formatUnits(checkpoint.tokenBalance));
-  console.log('checkpoint prevTokenBalance', formatUnits(checkpoint.prevTokenBalance));
-  console.log('checkpoint tokenDiff', formatUnits(checkpoint.tokenDiff));
-  console.log('checkpoint rewardsPerToken', formatUnits(checkpoint.rewardsPerToken));
-  console.log('checkpoint veTotalSupply', formatUnits(checkpoint.veTotalSupply));
+  // console.log('checkpoint epoch', checkpoint.epoch.toNumber());
+  // console.log('checkpoint newEpochTs', checkpoint.newEpochTs.toNumber());
+  // console.log('checkpoint tokenBalance', formatUnits(checkpoint.tokenBalance));
+  // console.log('checkpoint prevTokenBalance', formatUnits(checkpoint.prevTokenBalance));
+  // console.log('checkpoint tokenDiff', formatUnits(checkpoint.tokenDiff));
+  // console.log('checkpoint rewardsPerToken', formatUnits(checkpoint.rewardsPerToken));
+  // console.log('checkpoint veTotalSupply', formatUnits(checkpoint.veTotalSupply));
 
   expect(curTs).eq(checkpoint.newEpochTs.toNumber());
 

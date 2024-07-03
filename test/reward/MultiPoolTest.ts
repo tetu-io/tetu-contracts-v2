@@ -189,7 +189,7 @@ describe("multi pool tests", function () {
     const loops = 9;
     for (let i = 0; i < loops; i++) {
       const rt = await DeployerUtils.deployMockToken(owner, 'RT', 18);
-      console.log(i, (await pool.rewardTokensLength(wmatic.address)).toString())
+      // console.log(i, (await pool.rewardTokensLength(wmatic.address)).toString())
       if (i < loops) {
         await pool.registerRewardToken(wmatic.address, rt.address);
       } else {

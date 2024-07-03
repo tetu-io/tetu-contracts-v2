@@ -25,20 +25,28 @@ export async function deployContract<T extends ContractFactory>(
   // tslint:disable-next-line:no-any
   ...args: any[]
 ) {
+  const verbose = hre.network.name !== 'hardhat'
   if (hre.network.name !== 'hardhat') {
     await hre.run("compile")
   }
 
   const ethers = hre.ethers;
-  log.info(`Deploying ${name}`);
-  log.info("Account balance: " + utils.formatUnits(await signer.getBalance(), 18));
+
+  if (verbose) {
+    log.info(`Deploying ${name}`);
+    log.info("Account balance: " + utils.formatUnits(await signer.getBalance(), 18));
+  }
 
   const gasPrice = await ethers.provider.getGasPrice();
-  log.info("Gas price: " + formatUnits(gasPrice, 9));
+  if (verbose) {
+    log.info("Gas price: " + formatUnits(gasPrice, 9));
+  }
   const lib: string | undefined = libraries.get(name);
   let _factory;
   if (lib) {
-    log.info('DEPLOY LIBRARY', lib, 'for', name);
+    if (verbose) {
+      log.info('DEPLOY LIBRARY', lib, 'for', name);
+    }
     const libAddress = (await deployContract(hre, signer, lib)).address;
     const librariesObj: Libraries = {};
     librariesObj[lib] = libAddress;
@@ -70,11 +78,15 @@ export async function deployContract<T extends ContractFactory>(
   });
 
   // const instance = await _factory.deploy(...args);
-  log.info('Deploy tx:', instance.deployTransaction.hash);
+  if (verbose) {
+    log.info('Deploy tx:', instance.deployTransaction.hash);
+  }
   await instance.deployed();
 
   const receipt = await ethers.provider.getTransactionReceipt(instance.deployTransaction.hash);
-  console.log('DEPLOYED: ', name, receipt.contractAddress);
+  if (verbose) {
+    console.log('DEPLOYED: ', name, receipt.contractAddress);
+  }
 
   if (hre.network.name !== 'hardhat') {
     await wait(hre, WAIT_BLOCKS_BETWEEN_DEPLOY);
@@ -134,7 +146,7 @@ async function verifyWithArgs(hre: any, address: string, args: any[]) {
 export async function txParams(hre: HardhatRuntimeEnvironment, provider: providers.Provider) {
 
   const gasPrice = (await provider.getGasPrice()).toNumber();
-  console.log('Gas price:', formatUnits(gasPrice, 9));
+  // console.log('Gas price:', formatUnits(gasPrice, 9));
   const maxFee = '0x' + Math.floor(gasPrice * 1.5).toString(16);
   if (hre.network.name === 'hardhat') {
     return {

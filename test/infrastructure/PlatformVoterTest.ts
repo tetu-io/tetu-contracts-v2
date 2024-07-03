@@ -424,7 +424,7 @@ describe("Platform voter tests", function () {
     const types = new Set<number>();
     for (const vote of votes) {
       expect(types.has(vote._type)).eq(false);
-      console.log(vote._type);
+      // console.log(vote._type);
       types.add(vote._type)
     }
   });

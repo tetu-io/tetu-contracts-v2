@@ -50,11 +50,11 @@ describe("Slots Tests", function () {
   it("Slots returns same as sets after proxy upgrade", async () => {
     const values = [11, 22, 33, 44, 55];
     for (let i = 0; i < values.length; i++) {
-      console.log('set A', i, values[i]);
+      // console.log('set A', i, values[i]);
       await slotsTest.setMapA(i, values[i]);
     }
 
-    console.log('deploy SlotsTest2 logic');
+    // console.log('deploy SlotsTest2 logic');
     const slotsTest2Impl = await DeployerUtils.deployContract(signer, 'SlotsTest2') as SlotsTest2;
     await controller.updateProxies([slotsTest.address], [slotsTest2Impl.address]);
     const slotsTest2 = SlotsTest2__factory.connect(slotsTest.address, signer);
@@ -63,13 +63,13 @@ describe("Slots Tests", function () {
     const mulB = 100;
     for (let i = 0; i < values.length; i++) {
       const val = values[i] * mulB;
-      console.log('set B', i, val);
+      // console.log('set B', i, val);
       await slotsTest2.setMapB(i, val);
     }
 
     for (let i = 0; i < values.length; i++) {
       const slotStruct = await slotsTest2.map(i);
-      console.log('get struct', i, slotStruct);
+      // console.log('get struct', i, slotStruct);
       expect(slotStruct.a).is.eq(values[i])
       expect(slotStruct.b).is.eq(values[i] * mulB)
     }
