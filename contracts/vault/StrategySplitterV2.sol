@@ -311,7 +311,6 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     delete isValidStrategy[strategy];
 
     // for expensive strategies should be called before removing
-    // without loss covering
     IStrategyV2(strategy).withdrawAllToSplitter();
     emit StrategyRemoved(strategy);
   }
@@ -558,7 +557,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
   /// @dev Register profit/loss data for the strategy.
   ///      Sender assume to be a registered strategy.
-  ///      Suppose to be used in actions where we updated assets price and need to cover the price diff gap.
+  ///      Suppose to be used in actions where we updated assets price and need to check the price diff gap.
   function registerStrategyLoss(uint earned, uint lost) external override {
     address strategy = msg.sender;
     require(isValidStrategy[strategy], "SS: Invalid strategy");
@@ -651,9 +650,9 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   ) internal returns (uint apr, uint avgApr) {
     apr = 0;
     avgApr = 0;
-    uint lostForCovering = lost > earned ? lost - earned : 0;
-    if (lostForCovering > 0) {
-      _checkLoss(lostForCovering, HARDWORK_LOSS_TOLERANCE, strategyTvl);
+    uint lostForCheck = lost > earned ? lost - earned : 0;
+    if (lostForCheck > 0) {
+      _checkLoss(lostForCheck, HARDWORK_LOSS_TOLERANCE, strategyTvl);
     }
 
     if (registerApr) {

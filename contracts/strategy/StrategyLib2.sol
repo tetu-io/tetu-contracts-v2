@@ -43,7 +43,7 @@ library StrategyLib2 {
   event InvestAll(uint balance);
   event WithdrawAllToSplitter(uint amount);
   event WithdrawToSplitter(uint amount, uint sent, uint balance);
-  event PerformanceFeeChanged(uint fee, address receiver, uint ratio);
+  event PerformanceFeeChanged(uint fee, address receiver);
 
   // *************************************************************
   //                        CHECKS AND EMITS
@@ -60,12 +60,11 @@ library StrategyLib2 {
     emit InvestAll(assetBalance);
   }
 
-  function _checkSetupPerformanceFee(address controller, uint fee_, address receiver_, uint ratio_) internal {
+  function _checkSetupPerformanceFee(address controller, uint fee_, address receiver_) internal {
     onlyGovernance(controller);
     require(fee_ <= DENOMINATOR, TOO_HIGH);
     require(receiver_ != address(0), WRONG_VALUE);
-    require(ratio_ <= DENOMINATOR, TOO_HIGH);
-    emit PerformanceFeeChanged(fee_, receiver_, ratio_);
+    emit PerformanceFeeChanged(fee_, receiver_);
   }
 
   // *************************************************************
@@ -128,11 +127,10 @@ library StrategyLib2 {
     require(IControllable(splitter_).isController(controller_), WRONG_VALUE);
   }
 
-  function setupPerformanceFee(IStrategyV3.BaseState storage baseState, uint fee_, address receiver_, uint ratio_, address controller_) external {
-    _checkSetupPerformanceFee(controller_, fee_, receiver_, ratio_);
+  function setupPerformanceFee(IStrategyV3.BaseState storage baseState, uint fee_, address receiver_, address controller_) external {
+    _checkSetupPerformanceFee(controller_, fee_, receiver_);
     baseState.performanceFee = fee_;
     baseState.performanceReceiver = receiver_;
-    baseState.performanceFeeRatio = ratio_;
   }
 
   /// @notice Calculate withdrawn amount in USD using the {assetPrice}.

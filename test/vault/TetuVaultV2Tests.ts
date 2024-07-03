@@ -324,16 +324,6 @@ describe("Tetu Vault V2 tests", function () {
       await expect(vault.connect(signer2).setDoHardWorkOnInvest(false)).revertedWith("DENIED");
     });
 
-    /*it("insurance transfer revert", async () => {
-      const insurance = VaultInsurance__factory.connect(await vault.insurance(), signer);
-      await expect(insurance.init(Misc.ZERO_ADDRESS, Misc.ZERO_ADDRESS)).revertedWith("INITED");
-    });*/
-
-    /*it("insurance transfer revert", async () => {
-      const insurance = VaultInsurance__factory.connect(await vault.insurance(), signer);
-      await expect(insurance.transferToVault(1)).revertedWith("!VAULT");
-    });*/
-
     it("set DoHardWorkOnInvest test", async () => {
       await vault.setDoHardWorkOnInvest(false);
       expect(await vault.doHardWorkOnInvest()).eq(false);

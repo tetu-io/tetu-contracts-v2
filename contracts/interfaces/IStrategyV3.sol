@@ -19,9 +19,7 @@ interface IStrategyV3 is IStrategyV2 {
     /// @dev {DEFAULT_PERFORMANCE_FEE} by default, FEE_DENOMINATOR is used
     uint performanceFee;
 
-    /// @notice Ratio to split performance fee on toPerf + toInsurance, [0..100_000]
-    ///         100_000 - send full amount toPerf, 0 - send full amount toInsurance.
-    uint performanceFeeRatio;
+    uint __deprecated;
 
     /// @dev Percent of profit for autocompound inside this strategy.
     uint compoundRatio;

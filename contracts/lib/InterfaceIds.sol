@@ -33,7 +33,6 @@ library InterfaceIds {
   bytes4 public constant I_PLATFORM_VOTER = bytes4(keccak256("IPlatformVoter"));
   bytes4 public constant I_VE_DISTRIBUTOR = bytes4(keccak256("IVeDistributor"));
   bytes4 public constant I_TETU_CONVERTER = bytes4(keccak256("ITetuConverter"));
-  bytes4 public constant I_VAULT_INSURANCE = bytes4(keccak256("IVaultInsurance"));
   bytes4 public constant I_STRATEGY_STRICT = bytes4(keccak256("IStrategyStrict"));
   bytes4 public constant I_ERC4626 = bytes4(keccak256("IERC4626"));
 

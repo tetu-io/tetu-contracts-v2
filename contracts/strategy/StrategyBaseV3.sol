@@ -75,10 +75,6 @@ abstract contract StrategyBaseV3 is IStrategyV3, ControllableV3 {
     return baseState.performanceFee;
   }
 
-  function performanceFeeRatio() external view returns (uint) {
-    return baseState.performanceFeeRatio;
-  }
-
   function strategySpecificName() external view returns (string memory) {
     return baseState.strategySpecificName;
   }
@@ -122,8 +118,8 @@ abstract contract StrategyBaseV3 is IStrategyV3, ControllableV3 {
   // *************************************************************
 
   /// @notice Set performance fee, receiver and ratio
-  function setupPerformanceFee(uint fee_, address receiver_, uint ratio_) external {
-    StrategyLib2.setupPerformanceFee(baseState, fee_, receiver_, ratio_, controller());
+  function setupPerformanceFee(uint fee_, address receiver_) external {
+    StrategyLib2.setupPerformanceFee(baseState, fee_, receiver_, controller());
   }
 
   // *************************************************************
