@@ -267,9 +267,9 @@ export class DeployerUtils {
       gauge,
       buffer,
     );
-    const insurance = await DeployerUtils.deployContract(signer, 'VaultInsurance') as VaultInsurance;
-    await insurance.init(vault.address, asset);
-    await vault.initInsurance(insurance.address);
+    // const insurance = await DeployerUtils.deployContract(signer, 'VaultInsurance') as VaultInsurance;
+    // await insurance.init(vault.address, asset);
+    // await vault.initInsurance(insurance.address);
     return vault;
   }
 

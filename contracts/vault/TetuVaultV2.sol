@@ -39,8 +39,6 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   ISplitter public splitter;
   /// @dev Connected gauge for stakeless rewards
   IGauge public gauge;
-  /// @dev Dedicated contract for holding insurance for covering share price loss.
-  IVaultInsurance public override insurance;
   /// @dev Percent of assets that will always stay in this vault.
   uint public buffer;
 
@@ -127,15 +125,6 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
       _gauge,
       _buffer
     );
-  }
-
-  function initInsurance(IVaultInsurance _insurance) external override {
-    require(address(insurance) == address(0), "INITED");
-    _requireInterface(address(_insurance), InterfaceIds.I_VAULT_INSURANCE);
-
-    require(_insurance.vault() == address(this), "!VAULT");
-    require(_insurance.asset() == address(_asset), "!ASSET");
-    insurance = _insurance;
   }
 
   // *************************************************************

@@ -14,8 +14,6 @@ import {
   ProxyControlled,
   TetuVaultV2,
   TetuVaultV2__factory,
-  VaultInsurance,
-  VaultInsurance__factory
 } from "../../typechain";
 import {Misc} from "../../scripts/utils/Misc";
 import {formatUnits, parseUnits} from "ethers/lib/utils";
@@ -178,8 +176,6 @@ describe("Tetu Vault V2 tests", function () {
       expect(await vault.balanceOf(signer.address)).eq(1000000); // NO DEPOSIT FEES
       expect(bal2.sub(await usdc.balanceOf(signer.address))).eq(parseUnits('1', 6));
 
-      const insurance = await vault.insurance();
-      expect(await usdc.balanceOf(insurance)).eq(0); // INSURANCE IS DEPRECATED
       expect(await vault.sharePrice()).eq(parseUnits('1', 6))
     });
 
@@ -194,8 +190,6 @@ describe("Tetu Vault V2 tests", function () {
       expect(await vault.balanceOf(signer.address)).eq(990_000);
       expect(bal2.sub(await usdc.balanceOf(signer.address))).eq(990_000);
 
-      const insurance = await vault.insurance();
-      expect(await usdc.balanceOf(insurance)).eq(0);
       expect(await vault.sharePrice()).eq(parseUnits('1', 6))
     });
 
@@ -216,8 +210,6 @@ describe("Tetu Vault V2 tests", function () {
       expect(shares1.sub(await vault.balanceOf(signer.address))).eq(shares);
       expect((await usdc.balanceOf(signer.address)).sub(bal1)).eq(assetsMinusTax);
 
-      const insurance = await vault.insurance();
-      expect(await usdc.balanceOf(insurance)).eq(0);
       expect(await vault.sharePrice()).eq(parseUnits('1', 6))
     });
 
@@ -238,8 +230,6 @@ describe("Tetu Vault V2 tests", function () {
       expect(shares1.sub(await vault.balanceOf(signer.address))).eq(shares);
       expect((await usdc.balanceOf(signer.address)).sub(bal1)).eq(assetsMinusTax);
 
-      const insurance = await vault.insurance();
-      expect(await usdc.balanceOf(insurance)).eq(0);
       expect(await vault.sharePrice()).eq(parseUnits('1', 6))
     });
 
@@ -334,15 +324,15 @@ describe("Tetu Vault V2 tests", function () {
       await expect(vault.connect(signer2).setDoHardWorkOnInvest(false)).revertedWith("DENIED");
     });
 
-    it("insurance transfer revert", async () => {
+    /*it("insurance transfer revert", async () => {
       const insurance = VaultInsurance__factory.connect(await vault.insurance(), signer);
       await expect(insurance.init(Misc.ZERO_ADDRESS, Misc.ZERO_ADDRESS)).revertedWith("INITED");
-    });
+    });*/
 
-    it("insurance transfer revert", async () => {
+    /*it("insurance transfer revert", async () => {
       const insurance = VaultInsurance__factory.connect(await vault.insurance(), signer);
       await expect(insurance.transferToVault(1)).revertedWith("!VAULT");
-    });
+    });*/
 
     it("set DoHardWorkOnInvest test", async () => {
       await vault.setDoHardWorkOnInvest(false);
@@ -459,7 +449,7 @@ describe("Tetu Vault V2 tests", function () {
       expect(bal.sub(balAfter)).eq(1000);
     });
 
-    describe("splitter/insurance setup tests", function () {
+    describe("splitter setup tests", function () {
       let v: TetuVaultV2;
       before(async function () {
         const logic = await DeployerUtils.deployContract(signer, 'TetuVaultV2') as TetuVaultV2;
@@ -474,22 +464,6 @@ describe("Tetu Vault V2 tests", function () {
           mockGauge.address,
           10,
         )
-      });
-
-      it("init insurance already inited revert", async () => {
-        await expect(vault.initInsurance(Misc.ZERO_ADDRESS)).revertedWith('INITED');
-      });
-
-      it("init insurance wrong vault revert", async () => {
-        const insurance = await DeployerUtils.deployContract(signer, 'VaultInsurance') as VaultInsurance;
-        await insurance.init(vault.address, usdc.address);
-        await expect(v.initInsurance(insurance.address)).revertedWith('!VAULT');
-      });
-
-      it("init insurance wrong asset revert", async () => {
-        const insurance = await DeployerUtils.deployContract(signer, 'VaultInsurance') as VaultInsurance;
-        await insurance.init(v.address, tetu.address);
-        await expect(v.initInsurance(insurance.address)).revertedWith('!ASSET');
       });
 
       it("set splitter from 3d party revert", async () => {

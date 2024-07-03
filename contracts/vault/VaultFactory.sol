@@ -16,6 +16,13 @@ import "../lib/InterfaceIds.sol";
 contract VaultFactory is TetuERC165 {
 
   // *************************************************************
+  //                        CONSTANTS
+  // *************************************************************
+
+  /// @dev Version of this contract. Adjust manually on each code modification.
+  string public constant FACTORY_VERSION = "2.0.0";
+
+  // *************************************************************
   //                        VARIABLES
   // *************************************************************
 
@@ -45,7 +52,6 @@ contract VaultFactory is TetuERC165 {
     uint buffer,
     address vaultProxy,
     address vaultLogic,
-    address insurance,
     address splitterProxy,
     address splitterLogic
   );
@@ -141,12 +147,6 @@ contract VaultFactory is TetuERC165 {
       gauge,
       buffer
     );
-    // clone insurance
-    VaultInsurance insurance = new VaultInsurance();
-    // init insurance
-    insurance.init(vaultProxy, address(asset));
-    // set insurance to vault
-    ITetuVaultV2(vaultProxy).initInsurance(insurance);
 
     // clone splitter
     address splitterProxy = address(new ProxyControlled());
@@ -169,7 +169,6 @@ contract VaultFactory is TetuERC165 {
       buffer,
       vaultProxy,
       vaultLogic,
-      address(insurance),
       splitterProxy,
       splitterLogic
     );

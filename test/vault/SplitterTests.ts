@@ -502,20 +502,20 @@ describe("SplitterTests", function () {
       await expect(vault.withdrawAll()).revertedWith("SS: Loss too high");
     });
 
-    it("withdraw all with slippage covering from insurance test", async () => {
+    it("withdraw all with slippage test", async () => {
       await vault.deposit(1000, signer.address);
       await strategy2.setSlippage(300);
       await vault.withdrawAll()
     });
 
-    it("withdraw all with slippage NOT covering from insurance not enough revert", async () => {
+    it("withdraw all with slippage not enough revert", async () => {
       await vault.deposit(1000, signer.address);
       await strategy2.setSlippage(600);
       // await vault.setFees(0, 250)
       await expect(vault.withdrawAll()).revertedWith("SS: Loss too hig");
     });
 
-    it("withdraw with 100% slippage NOT covering from insurance test", async () => {
+    it("withdraw with 100% slippage test", async () => {
       await strategy2.setUseTrueExpectedWithdraw(true);
       await strategy2.setSlippage(100);
       // await vault.setFees(1_000, 1_000)
@@ -526,7 +526,7 @@ describe("SplitterTests", function () {
     });
 
     // todo probably need to fix
-    it("withdraw all with 100% slippage covering from insurance test", async () => {
+    it("withdraw all with 100% slippage test", async () => {
       await vault.redeem(900, signer.address, signer.address)
       // await vault.setFees(100, 100)
       await vault.deposit(1000_000, signer.address)
@@ -560,10 +560,9 @@ describe("SplitterTests", function () {
       await vault.withdraw(99, signer.address, signer.address,);
     });
 
-    it("withdraw with slippage covering from insurance test", async () => {
+    it("withdraw with slippage test", async () => {
       await vault.deposit(1000, signer.address);
       await strategy2.setSlippage(1_000);
-      // await vault.setFees(0, 1_000)
       await vault.withdraw(99, signer.address, signer.address,);
     });
 
@@ -665,14 +664,13 @@ describe("SplitterTests", function () {
 
     it("rebalance with negative totalAssetsDelta", async () => {
       expect(await vault.sharePrice()).eq(1000000);
-      await usdc.mint(await vault.insurance(), 1000_000);
       await splitter.setAPRs([strategy.address], [200]);
 
       await vault.deposit(1000_000, signer.address);
       await strategy2.setSlippage(25);
       await splitter.rebalance(100, 30);
 
-      expect(await vault.totalAssets()).eq(2000000);
+      expect(await vault.totalAssets()).eq(1999750);
     });
   });
 
@@ -763,18 +761,18 @@ describe("SplitterTests", function () {
     describe("with totalAssetsDelta != 0", async () => {
       describe("investAll", () => {
         it("should cover expected loss if totalAssets-after is less than totalAssets-before", async () => {
-          const insurance = await vault.insurance();
+          // const insurance = await vault.insurance();
           await splitter.addStrategies([strategy.address], [100], [0]);
 
-          await usdc.mint(insurance, 500_000);
-          const insuranceBefore = await usdc.balanceOf(insurance);
+          // await usdc.mint(insurance, 500_000);
+          // const insuranceBefore = await usdc.balanceOf(insurance);
           await strategy.setSlippageDeposit(100);
           await vault.deposit(1000_000, signer.address);
-          const insuranceAfter = await usdc.balanceOf(insurance);
+          // const insuranceAfter = await usdc.balanceOf(insurance);
 
-          expect(insuranceAfter).eq(insuranceBefore.sub(1000));
+          // expect(insuranceAfter).eq(insuranceBefore.sub(1000));
         });
-        it("should not use insurance if totalAssets-after is greater than totalAssets-before", async () => {
+        /*it("should not use insurance if totalAssets-after is greater than totalAssets-before", async () => {
           const insurance = await vault.insurance();
           await splitter.addStrategies([strategy.address], [100], [0]);
 
@@ -785,25 +783,25 @@ describe("SplitterTests", function () {
           const insuranceAfter = await usdc.balanceOf(insurance);
 
           expect(insuranceAfter.eq(insuranceBefore)).eq(true);
-        });
+        });*/
       });
       describe("withdrawToVault", () => {
         it.skip("should cover expected loss if totalAssets-after is less than totalAssets-before", async () => {
-          const insurance = await vault.insurance();
+          // const insurance = await vault.insurance();
           await splitter.addStrategies([strategy.address], [100], [0]);
 
-          await usdc.mint(insurance, 50000);
+          // await usdc.mint(insurance, 50000);
           await vault.deposit(100000, signer.address);
           // await vault.setFees(0, 200)
 
-          const insuranceBefore = await usdc.balanceOf(insurance);
+          // const insuranceBefore = await usdc.balanceOf(insurance);
           await strategy.setSlippage(100);
           await vault.withdraw(50000, signer.address, signer.address);
-          const insuranceAfter = await usdc.balanceOf(insurance);
+          // const insuranceAfter = await usdc.balanceOf(insurance);
 
-          expect(insuranceAfter).eq(49950);
+          // expect(insuranceAfter).eq(49950);
         });
-        it("should not use insurance if totalAssets-after is greater than totalAssets-before", async () => {
+        /*it("should not use insurance if totalAssets-after is greater than totalAssets-before", async () => {
           const insurance = await vault.insurance();
           await splitter.addStrategies([strategy.address], [100], [0]);
 
@@ -816,25 +814,25 @@ describe("SplitterTests", function () {
           const insuranceAfter = await usdc.balanceOf(insurance);
 
           expect(insuranceAfter.eq(insuranceBefore)).eq(true);
-        });
+        });*/
       });
       describe("withdrawAll", () => {
         it("should cover expected loss if totalAssets-after is less than totalAssets-before", async () => {
-          const insurance = await vault.insurance();
+          // const insurance = await vault.insurance();
           await splitter.addStrategies([strategy.address], [100], [0]);
 
-          await usdc.mint(insurance, 5000_000);
+          // await usdc.mint(insurance, 5000_000);
           await vault.deposit(10_000_000, signer.address);
           await vault.connect(await Misc.impersonate('0xdEad000000000000000000000000000000000000')).transfer(signer.address, await vault.balanceOf('0xdEad000000000000000000000000000000000000'));
 
-          const insuranceBefore = await usdc.balanceOf(insurance);
+          // const insuranceBefore = await usdc.balanceOf(insurance);
           await strategy.setSlippage(100);
           await vault.withdrawAll();
-          const insuranceAfter = await usdc.balanceOf(insurance);
+          // const insuranceAfter = await usdc.balanceOf(insurance);
 
           // console.log("insuranceBefore", insuranceBefore);
           // console.log("insuranceAfter", insuranceAfter);
-          expect(insuranceAfter).eq(insuranceBefore.sub(10000));
+          // expect(insuranceAfter).eq(insuranceBefore.sub(10000));
         });
         // it("should not use insurance if totalAssets-after is greater than totalAssets-before", async () => {
         //   const insurance = await vault.insurance();
@@ -854,8 +852,8 @@ describe("SplitterTests", function () {
     });
   });
 
-  it("should not change share price during insurance covering", async () => {
-    const insurance = await vault.insurance();
+  it("should not change share price", async () => {
+    // const insurance = await vault.insurance();
 
     await strategy.init(controller.address, splitter.address);
     await splitter.addStrategies([strategy.address], [100], [0]);
@@ -874,7 +872,7 @@ describe("SplitterTests", function () {
 
     expect(sharePriceBefore).eq(await vault.sharePrice());
 
-    const insuranceBefore = await usdc.balanceOf(insurance);
+    // const insuranceBefore = await usdc.balanceOf(insurance);
     // console.log('insuranceBefore', insuranceBefore)
 
     await strategy.setUseTrueExpectedWithdraw(true)
@@ -883,9 +881,9 @@ describe("SplitterTests", function () {
 
     await vault.withdrawAll();
 
-    const insuranceAfter = await usdc.balanceOf(insurance);
+    // const insuranceAfter = await usdc.balanceOf(insurance);
     // console.log('insuranceAfter', insuranceAfter)
-    expect(insuranceAfter).eq(0);
+    // expect(insuranceAfter).eq(0);
 
     expect(sharePriceBefore).eq(await vault.sharePrice());
   });
@@ -897,18 +895,18 @@ describe("SplitterTests", function () {
     // console.log('add strategy')
     await splitter.addStrategies([strategy.address], [100], [0]);
     // console.log('check not a strategy')
-    await expect(splitter.coverPossibleStrategyLoss(0, 500_000)).rejectedWith("SS: Invalid strategy");
+    await expect(splitter.registerStrategyLoss(0, 500_000)).rejectedWith("SS: Invalid strategy");
 
     // console.log('deposit')
     await vault.deposit(10_000_000, signer.address);
 
     // console.log('register huge loss revert')
-    await expect(splitter.connect(await Misc.impersonate(strategy.address)).coverPossibleStrategyLoss(0, 500_000)).rejectedWith("SS: Loss too high");
-    await splitter.connect(await Misc.impersonate(strategy.address)).coverPossibleStrategyLoss(1000_000, 500_000);
+    await expect(splitter.connect(await Misc.impersonate(strategy.address)).registerStrategyLoss(0, 500_000)).rejectedWith("SS: Loss too high");
+    await splitter.connect(await Misc.impersonate(strategy.address)).registerStrategyLoss(1000_000, 500_000);
 
     await vault.deposit(10_000_000, signer.address);
 
-    await splitter.connect(await Misc.impersonate(strategy.address)).coverPossibleStrategyLoss(0, 100);
+    await splitter.connect(await Misc.impersonate(strategy.address)).registerStrategyLoss(0, 100);
   });
 
 });
