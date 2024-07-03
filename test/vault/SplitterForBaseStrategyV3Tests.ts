@@ -888,25 +888,25 @@ describe("SplitterForBaseStrategyV3Tests", function () {
     expect(sharePriceBefore).eq(await vault.sharePrice());
   });
 
-  it("should register loss with coverPossibleStrategyLoss call", async () => {
+  it("should register loss with registerStrategyLoss call", async () => {
     await strategy.init(controller.address, splitter.address);
     // await vault.setFees(300, 300);
 
     // console.log('add strategy')
     await splitter.addStrategies([strategy.address], [100], [0]);
     // console.log('check not a strategy')
-    await expect(splitter.coverPossibleStrategyLoss(0, 500_000)).rejectedWith("SS: Invalid strategy");
+    await expect(splitter.registerStrategyLoss(0, 500_000)).rejectedWith("SS: Invalid strategy");
 
     // console.log('deposit')
     await vault.deposit(10_000_000, signer.address);
 
     // console.log('register huge loss revert')
-    await expect(splitter.connect(await Misc.impersonate(strategy.address)).coverPossibleStrategyLoss(0, 500_000)).rejectedWith("SS: Loss too high");
-    await splitter.connect(await Misc.impersonate(strategy.address)).coverPossibleStrategyLoss(1000_000, 500_000);
+    await expect(splitter.connect(await Misc.impersonate(strategy.address)).registerStrategyLoss(0, 500_000)).rejectedWith("SS: Loss too high");
+    await splitter.connect(await Misc.impersonate(strategy.address)).registerStrategyLoss(1000_000, 500_000);
 
     await vault.deposit(10_000_000, signer.address);
 
-    await splitter.connect(await Misc.impersonate(strategy.address)).coverPossibleStrategyLoss(0, 100);
+    await splitter.connect(await Misc.impersonate(strategy.address)).registerStrategyLoss(0, 100);
   });
 
 });
