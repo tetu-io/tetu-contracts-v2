@@ -454,14 +454,9 @@ describe("Tetu Vault V2 tests", function () {
     it("cover loss test", async () => {
       const bal = await usdc.balanceOf(signer.address);
       await vault.deposit(parseUnits('1', 6), signer.address);
-      await mockSplitter.coverLoss(10_000);
       await vault.withdrawAll();
       const balAfter = await usdc.balanceOf(signer.address);
       expect(bal.sub(balAfter)).eq(1000);
-    });
-
-    it("cover loss revert", async () => {
-      await expect(vault.coverLoss(1)).revertedWith('!SPLITTER');
     });
 
     describe("splitter/insurance setup tests", function () {

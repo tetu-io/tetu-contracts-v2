@@ -23,8 +23,6 @@ interface ITetuVaultV2 {
 
   function setSplitter(address _splitter) external;
 
-  function coverLoss(uint amount) external;
-
   function initInsurance(IVaultInsurance _insurance) external;
 
 }

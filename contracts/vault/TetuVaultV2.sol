@@ -243,7 +243,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   }
 
   /// @dev Calculate available to invest amount and send this amount to splitter
-  function afterDeposit(uint assets, uint /*shares*/, address receiver) internal override {
+  function afterDeposit(uint /*assets*/, uint /*shares*/, address receiver) internal override {
     // reset withdraw request if necessary
     if (withdrawRequestBlocks != 0) {
       withdrawRequests[receiver] = block.number;
@@ -391,19 +391,6 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
       // if zero should be resolved on splitter side
       _splitter.withdrawToVault(missing);
     }
-  }
-
-  // *************************************************************
-  //                 INSURANCE LOGIC
-  // *************************************************************
-
-  function coverLoss(uint amount) external override {
-    require(msg.sender == address(splitter), "!SPLITTER");
-    IVaultInsurance _insurance = insurance;
-    uint balance = _asset.balanceOf(address(_insurance));
-    uint toRecover = Math.min(amount, balance);
-    _insurance.transferToVault(toRecover);
-    emit LossCovered(toRecover, amount, balance);
   }
 
   // *************************************************************
