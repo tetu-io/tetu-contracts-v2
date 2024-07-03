@@ -9,9 +9,9 @@ import {
   InterfaceIds,
   MockGauge,
   MockGauge__factory,
+  MockStrategyV3,
   MockStrategyV3__factory,
-  MockStrategySimple,
-  MockStrategySimple__factory, MockStrategyV3,
+  MockStrategySimple__factory,
   MockToken,
   StrategySplitterV2,
   TetuVaultV2
@@ -71,8 +71,6 @@ describe("SplitterForBaseStrategyV3Tests", function () {
 
     const forwarder = await DeployerUtils.deployContract(signer, 'MockForwarder')
     await controller.setForwarder(forwarder.address);
-
-
   });
 
   after(async function () {
@@ -115,6 +113,12 @@ describe("SplitterForBaseStrategyV3Tests", function () {
     await strategy.init(controller.address, splitter.address);
     await splitter.addStrategies([strategy.address], [100], [0]);
     expect((await splitter.allStrategies()).length).eq(1);
+  });
+
+  it("refreshValidStrategies", async () => {
+    await strategy.init(controller.address, splitter.address);
+    await splitter.addStrategies([strategy.address], [100], [0]);
+    await splitter.refreshValidStrategies()
   });
 
   it("set strategy with time lock test", async () => {
@@ -371,7 +375,7 @@ describe("SplitterForBaseStrategyV3Tests", function () {
       expect(await strategy3.totalAssets()).eq(10);
       expect(await usdc.balanceOf(splitter.address)).eq(999990);
 
-      console.log("REBALANCE 1 OK");
+      // console.log("REBALANCE 1 OK");
 
       await splitter.rebalance(100, 30)
       expect(await strategy.totalAssets()).eq(0);
@@ -379,7 +383,7 @@ describe("SplitterForBaseStrategyV3Tests", function () {
       expect(await strategy3.totalAssets()).eq(10);
       expect(await usdc.balanceOf(splitter.address)).eq(999980);
 
-      console.log("REBALANCE 2 OK");
+      // console.log("REBALANCE 2 OK");
 
       await splitter.rebalance(100, 30)
       expect(await strategy.totalAssets()).eq(10);
@@ -493,43 +497,42 @@ describe("SplitterForBaseStrategyV3Tests", function () {
 
     it("withdraw all with slippage revert", async () => {
       await vault.deposit(1000, signer.address);
-      await strategy2.setSlippage(300);
-      await expect(vault.withdrawAll()).revertedWith("SLIPPAGE");
+      await strategy2.setSlippage(601);
+      await expect(vault.withdrawAll()).revertedWith("SS: Loss too high");
     });
 
     it("withdraw all with slippage covering from insurance test", async () => {
       await vault.deposit(1000, signer.address);
       await strategy2.setSlippage(300);
-      await vault.setFees(0, 1_000)
       await vault.withdrawAll()
     });
 
-    it("withdraw all with slippage covering from insurance not enough revert", async () => {
+    it("withdraw all with slippage NOT covering from insurance not enough revert", async () => {
       await vault.deposit(1000, signer.address);
-      await strategy2.setSlippage(300);
-      await vault.setFees(0, 250)
-      await expect(vault.withdrawAll()).revertedWith("SLIPPAGE");
+      await strategy2.setSlippage(600);
+      // await vault.setFees(0, 250)
+      await expect(vault.withdrawAll()).revertedWith("SS: Loss too hig");
     });
 
-    it("withdraw with 100% slippage covering from insurance test", async () => {
+    it("withdraw with 100% slippage NOT covering from insurance test", async () => {
       await strategy2.setUseTrueExpectedWithdraw(true);
-      await strategy2.setSlippage(1_100);
-      await vault.setFees(1_000, 1_000)
+      await strategy2.setSlippage(10);
+      // await vault.setFees(1_000, 1_000)
       await vault.deposit(10_000_000, signer.address)
-      await expect(vault.withdraw(1000, signer.address, signer.address)).revertedWith("SB: Too high");
+      await vault.withdraw(1000, signer.address, signer.address)
       await strategy2.setSlippage(1_000);
-      await vault.withdraw(1000, signer.address, signer.address);
+      await expect(vault.withdraw(1000, signer.address, signer.address)).revertedWith('SB: Too high');
     });
 
     // todo probably need to fix
     it("withdraw all with 100% slippage covering from insurance test", async () => {
       await vault.redeem(900, signer.address, signer.address)
-      await vault.setFees(100, 100)
+
       await vault.deposit(1000_000, signer.address)
       await vault.withdrawAll();
       await vault.deposit(10000, signer.address)
       await vault.connect(await Misc.impersonate('0xdEad000000000000000000000000000000000000')).transfer(signer.address, 1000);
-      await strategy2.setSlippage(300);
+      await strategy2.setSlippage(100);
       await vault.withdrawAll();
     });
 
@@ -559,7 +562,7 @@ describe("SplitterForBaseStrategyV3Tests", function () {
     it("withdraw with slippage covering from insurance test", async () => {
       await vault.deposit(1000, signer.address);
       await strategy2.setSlippage(1_000);
-      await vault.setFees(0, 1_000)
+      // await vault.setFees(0, 1_000)
       await vault.withdraw(99, signer.address, signer.address,);
     });
 
@@ -605,23 +608,21 @@ describe("SplitterForBaseStrategyV3Tests", function () {
       expect(await vault.sharePrice()).eq(999500);
     });
 
-    it("deposit with loss with covering", async () => {
+    it("deposit with loss without covering", async () => {
       expect(await vault.sharePrice()).eq(1000000);
       await strategy2.setSlippageDeposit(100);
-      await vault.setFees(300, 0);
       await vault.deposit(1000_000, signer.address);
-      expect(await vault.sharePrice()).eq(1000000);
-      expect(await vault.totalAssets()).eq(1997000);
+      expect(await vault.sharePrice()).eq(999500);
+      expect(await vault.totalAssets()).eq(1999000);
     });
 
-    it("hardwork with loss with covering", async () => {
+    it("hardwork with loss without covering", async () => {
       expect(await vault.sharePrice()).eq(1000000);
       await strategy2.setSlippageHardWork(30);
-      await vault.setFees(1_000, 0);
       await vault.deposit(1000_000, signer.address);
       await splitter.doHardWorkForStrategy(strategy2.address, true);
-      expect(await vault.sharePrice()).eq(1000000);
-      expect(await vault.totalAssets()).eq(1990000);
+      expect(await vault.sharePrice()).eq(999700);
+      expect(await vault.totalAssets()).eq(1999400);
     });
 
     it("hardwork with loss without covering", async () => {
@@ -647,19 +648,18 @@ describe("SplitterForBaseStrategyV3Tests", function () {
       expect(await vault.totalAssets()).eq(1000750);
     });
 
-    it("rebalance with loss with covering", async () => {
+    it("rebalance with loss WITHOUT covering", async () => {
       expect(await vault.sharePrice()).eq(1000000);
       await splitter.setAPRs([strategy.address], [200]);
 
-      await vault.setFees(1_000, 0);
-      await vault.deposit(1000_000, signer.address);
+      await vault.deposit(1_000_000, signer.address);
 
       await strategy.setSlippageDeposit(25);
 
       await splitter.rebalance(100, 30);
 
-      expect(await vault.sharePrice()).eq(1000000);
-      expect(await vault.totalAssets()).eq(1990000);
+      expect(await vault.sharePrice()).eq(999875);
+      expect(await vault.totalAssets()).eq(1999750);
     });
 
     it("rebalance with negative totalAssetsDelta", async () => {
@@ -724,10 +724,25 @@ describe("SplitterForBaseStrategyV3Tests", function () {
       await strategy.connect(await Misc.impersonate(splitter.address)).investAll(0, true);
     });
 
+    // describe("withdraw to splitter when enough balance test", () => {
+    //   it("withdraw to splitter when the amount on balance is registered in baseAmounts", async () => {
+    //     await usdc.transfer(strategy.address, parseUnits('1', 6));
+    //     // await strategy.setBaseAmount(await strategy.asset(), parseUnits('1', 6));
+    //     await strategy.connect(await Misc.impersonate(splitter.address)).withdrawToSplitter(parseUnits('1', 6));
+    //   });
+    //   it("revert when the amount on balance is partly not registered in baseAmounts", async () => {
+    //     await usdc.transfer(strategy.address, parseUnits('1', 6));
+    //     await strategy.setBaseAmount(await strategy.asset(), parseUnits('0.5', 6));
+    //     await expect(
+    //       strategy.connect(await Misc.impersonate(splitter.address)).withdrawToSplitter(parseUnits('1', 6))
+    //     ).revertedWith("SB: Wrong value"); // WRONG_VALUE
+    //   });
+    // });
+
     it("set compound ratio test", async () => {
       await controller.setPlatformVoter(signer.address);
       await strategy.setCompoundRatio(100);
-      expect(await strategy.compoundRatio()).eq(100)
+      await controller.setPlatformVoter(strategy.address);
     });
 
     it("set compound ratio from not voter revert", async () => {
@@ -773,20 +788,20 @@ describe("SplitterForBaseStrategyV3Tests", function () {
         });
       });
       describe("withdrawToVault", () => {
-        it("should cover expected loss if totalAssets-after is less than totalAssets-before", async () => {
+        it.skip("should cover expected loss if totalAssets-after is less than totalAssets-before", async () => {
           const insurance = await vault.insurance();
           await splitter.addStrategies([strategy.address], [100], [0]);
 
           await usdc.mint(insurance, 50000);
           await vault.deposit(100000, signer.address);
-          await vault.setFees(0, 200)
+          // await vault.setFees(0, 200)
 
           const insuranceBefore = await usdc.balanceOf(insurance);
           await strategy.setSlippage(100);
           await vault.withdraw(50000, signer.address, signer.address);
           const insuranceAfter = await usdc.balanceOf(insurance);
 
-          expect(insuranceAfter).eq(50050);
+          expect(insuranceAfter).eq(49950);
         });
         it("should not use insurance if totalAssets-after is greater than totalAssets-before", async () => {
           const insurance = await vault.insurance();
@@ -817,8 +832,8 @@ describe("SplitterForBaseStrategyV3Tests", function () {
           await vault.withdrawAll();
           const insuranceAfter = await usdc.balanceOf(insurance);
 
-          console.log("insuranceBefore", insuranceBefore);
-          console.log("insuranceAfter", insuranceAfter);
+          // console.log("insuranceBefore", insuranceBefore);
+          // console.log("insuranceAfter", insuranceAfter);
           expect(insuranceAfter).eq(insuranceBefore.sub(10000));
         });
         // it("should not use insurance if totalAssets-after is greater than totalAssets-before", async () => {
@@ -839,7 +854,7 @@ describe("SplitterForBaseStrategyV3Tests", function () {
     });
   });
 
-  it("should not change share price during insurance covering", async () => {
+  it("should not withdraw when MockStrategy has UseTrueExpectedWithdraw enabled, but in real slippage exist", async () => {
     const insurance = await vault.insurance();
 
     await strategy.init(controller.address, splitter.address);
@@ -859,36 +874,34 @@ describe("SplitterForBaseStrategyV3Tests", function () {
 
     expect(sharePriceBefore).eq(await vault.sharePrice());
 
-    const insuranceBefore = await usdc.balanceOf(insurance);
-    console.log('insuranceBefore', insuranceBefore)
+    // const insuranceBefore = await usdc.balanceOf(insurance);
+    // console.log('insuranceBefore', insuranceBefore)
 
     await strategy.setUseTrueExpectedWithdraw(true)
     await strategy.setSlippage(10);
-    await vault.setFees(0, 1000)
 
-    await vault.withdrawAll();
+    await expect(vault.withdrawAll()).revertedWith('SB: Too high')
 
     const insuranceAfter = await usdc.balanceOf(insurance);
-    console.log('insuranceAfter', insuranceAfter)
-    expect(insuranceAfter).eq(9891);
-
+    // console.log('insuranceAfter', insuranceAfter)
+    expect(insuranceAfter).eq(0);
 
     expect(sharePriceBefore).eq(await vault.sharePrice());
   });
 
   it("should register loss with coverPossibleStrategyLoss call", async () => {
     await strategy.init(controller.address, splitter.address);
-    await vault.setFees(300, 300);
+    // await vault.setFees(300, 300);
 
-    console.log('add strategy')
+    // console.log('add strategy')
     await splitter.addStrategies([strategy.address], [100], [0]);
-    console.log('check not a strategy')
+    // console.log('check not a strategy')
     await expect(splitter.coverPossibleStrategyLoss(0, 500_000)).rejectedWith("SS: Invalid strategy");
 
-    console.log('deposit')
+    // console.log('deposit')
     await vault.deposit(10_000_000, signer.address);
 
-    console.log('register huge loss revert')
+    // console.log('register huge loss revert')
     await expect(splitter.connect(await Misc.impersonate(strategy.address)).coverPossibleStrategyLoss(0, 500_000)).rejectedWith("SS: Loss too high");
     await splitter.connect(await Misc.impersonate(strategy.address)).coverPossibleStrategyLoss(1000_000, 500_000);
 

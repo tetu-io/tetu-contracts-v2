@@ -118,9 +118,8 @@ library StrategyLib {
 
       uint withdrew = balance > balanceBefore ? balance - balanceBefore : 0;
       uint withdrewUSD = withdrew * assetPrice / 1e18;
-      uint priceChangeTolerance = ITetuVaultV2(ISplitter(_splitter).vault()).withdrawFee();
       uint difference = expectedWithdrewUSD > withdrewUSD ? expectedWithdrewUSD - withdrewUSD : 0;
-      require(difference * FEE_DENOMINATOR / expectedWithdrewUSD <= priceChangeTolerance, TOO_HIGH);
+      require(difference * 1e18 / expectedWithdrewUSD < 1e16, TOO_HIGH);
     }
   }
 

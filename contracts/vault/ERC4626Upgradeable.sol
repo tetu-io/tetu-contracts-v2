@@ -21,6 +21,15 @@ abstract contract ERC4626Upgradeable is ERC20PermitUpgradeable, ReentrancyGuard,
   ///      depositing, and withdrawing
   IERC20 internal _asset;
 
+  uint internal _withdrawLoss;
+
+  /**
+   * @dev This empty reserved space is put in place to allow future versions to add new
+   * variables without shifting down storage in the inheritance chain.
+   * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+   */
+  uint[50 - 2] private __gap;
+
   function __ERC4626_init(
     IERC20 asset_,
     string memory _name,
@@ -114,6 +123,12 @@ abstract contract ERC4626Upgradeable is ERC20PermitUpgradeable, ReentrancyGuard,
 
     _burn(owner, shares);
 
+    uint withdrawLoss = _withdrawLoss;
+    if (withdrawLoss != 0) {
+      assets -= withdrawLoss;
+      _withdrawLoss = 0;
+    }
+
     emit Withdraw(msg.sender, receiver, owner, assets, shares);
 
     _asset.safeTransfer(receiver, assets);
@@ -142,6 +157,12 @@ abstract contract ERC4626Upgradeable is ERC20PermitUpgradeable, ReentrancyGuard,
     beforeWithdraw(assets, shares, receiver, owner);
 
     _burn(owner, shares);
+
+    uint withdrawLoss = _withdrawLoss;
+    if (withdrawLoss != 0) {
+      assets -= withdrawLoss;
+      _withdrawLoss = 0;
+    }
 
     emit Withdraw(msg.sender, receiver, owner, assets, shares);
 
@@ -216,11 +237,4 @@ abstract contract ERC4626Upgradeable is ERC20PermitUpgradeable, ReentrancyGuard,
 
   /// @param receiver The receiver of the shares received after deposit
   function afterDeposit(uint assets, uint shares, address receiver) internal virtual {}
-
-  /**
- * @dev This empty reserved space is put in place to allow future versions to add new
-     * variables without shifting down storage in the inheritance chain.
-     * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
-     */
-  uint[49] private __gap;
 }

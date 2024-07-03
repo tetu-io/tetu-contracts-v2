@@ -5,7 +5,7 @@ import {ethers} from "hardhat";
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {
-  ControllerMinimal, IERC20__factory,
+  ControllerMinimal,
   MockGauge,
   MockGauge__factory,
   MockSplitter,
@@ -81,7 +81,7 @@ describe("Tetu Vault V2 tests", function () {
     await TimeUtils.rollback(snapshot);
   });
 
-  describe("withdrawRequestBlocks == 0", () => {
+  describe("withdrawRequestBlocks ==   0", () => {
     it("decimals test", async () => {
       expect(await vault.decimals()).eq(6);
     });
@@ -167,54 +167,48 @@ describe("Tetu Vault V2 tests", function () {
       await expect(vault.redeem(0, signer.address, signer.address)).revertedWith('ZERO_ASSETS')
     });
 
-    it("deposit with fee test", async () => {
-      await vault.setFees(1_000, 1_000);
-
+    it("deposit test", async () => {
       const bal1 = await usdc.balanceOf(signer.address);
       await vault.deposit(parseUnits('1', 6), signer1.address);
-      expect(await vault.balanceOf(signer1.address)).eq(989000);
+      expect(await vault.balanceOf(signer1.address)).eq(999000); // 1000 initial shares goes to dead address
       expect(bal1.sub(await usdc.balanceOf(signer.address))).eq(parseUnits('1', 6));
 
       const bal2 = await usdc.balanceOf(signer.address);
       await vault.deposit(parseUnits('1', 6), signer.address);
-      expect(await vault.balanceOf(signer.address)).eq(990000);
+      expect(await vault.balanceOf(signer.address)).eq(1000000); // NO DEPOSIT FEES
       expect(bal2.sub(await usdc.balanceOf(signer.address))).eq(parseUnits('1', 6));
 
       const insurance = await vault.insurance();
-      expect(await usdc.balanceOf(insurance)).eq(20_000);
+      expect(await usdc.balanceOf(insurance)).eq(0); // INSURANCE IS DEPRECATED
       expect(await vault.sharePrice()).eq(parseUnits('1', 6))
     });
 
-    it("mint with fee test", async () => {
-      await vault.setFees(1_000, 1_000);
-
+    it("mint test", async () => {
       const bal1 = await usdc.balanceOf(signer.address);
       await vault.mint(990_000, signer1.address);
-      expect(await vault.balanceOf(signer1.address)).eq(989000);
-      expect(bal1.sub(await usdc.balanceOf(signer.address))).eq(parseUnits('1', 6));
+      expect(await vault.balanceOf(signer1.address)).eq(989_000);
+      expect(bal1.sub(await usdc.balanceOf(signer.address))).eq(990_000);
 
       const bal2 = await usdc.balanceOf(signer.address);
       await vault.mint(990_000, signer.address);
-      expect(await vault.balanceOf(signer.address)).eq(990000);
-      expect(bal2.sub(await usdc.balanceOf(signer.address))).eq(parseUnits('1', 6));
+      expect(await vault.balanceOf(signer.address)).eq(990_000);
+      expect(bal2.sub(await usdc.balanceOf(signer.address))).eq(990_000);
 
       const insurance = await vault.insurance();
-      expect(await usdc.balanceOf(insurance)).eq(20_000);
+      expect(await usdc.balanceOf(insurance)).eq(0);
       expect(await vault.sharePrice()).eq(parseUnits('1', 6))
     });
 
-    it("withdraw with fee test", async () => {
-      await vault.setFees(1_000, 1_000);
-
+    it("withdraw test", async () => {
       await vault.deposit(parseUnits('1', 6), signer1.address);
       await vault.deposit(parseUnits('1', 6), signer.address);
 
       const shares = await vault.balanceOf(signer.address);
-      expect(shares).eq(990_000);
+      expect(shares).eq(1_000_000);
 
       const assets = await vault.convertToAssets(shares);
-      const assetsMinusTax = assets.mul(99).div(100);
-      expect(assetsMinusTax).eq(980100);
+      const assetsMinusTax = assets.mul(100).div(100);
+      expect(assetsMinusTax).eq(1_000_000);
 
       const bal1 = await usdc.balanceOf(signer.address);
       const shares1 = await vault.balanceOf(signer.address);
@@ -223,22 +217,20 @@ describe("Tetu Vault V2 tests", function () {
       expect((await usdc.balanceOf(signer.address)).sub(bal1)).eq(assetsMinusTax);
 
       const insurance = await vault.insurance();
-      expect(await usdc.balanceOf(insurance)).eq(29_900);
+      expect(await usdc.balanceOf(insurance)).eq(0);
       expect(await vault.sharePrice()).eq(parseUnits('1', 6))
     });
 
-    it("redeem with fee test", async () => {
-      await vault.setFees(1_000, 1_000);
-
+    it("redeem test", async () => {
       await vault.deposit(parseUnits('1', 6), signer1.address);
       await vault.deposit(parseUnits('1', 6), signer.address);
 
       const shares = await vault.balanceOf(signer.address);
-      expect(shares).eq(990_000);
+      expect(shares).eq(1_000_000);
 
       const assets = await vault.convertToAssets(shares);
-      const assetsMinusTax = assets.mul(99).div(100);
-      expect(assetsMinusTax).eq(980100);
+      const assetsMinusTax = assets.mul(100).div(100);
+      expect(assetsMinusTax).eq(1_000_000);
 
       const bal1 = await usdc.balanceOf(signer.address);
       const shares1 = await vault.balanceOf(signer.address);
@@ -247,7 +239,7 @@ describe("Tetu Vault V2 tests", function () {
       expect((await usdc.balanceOf(signer.address)).sub(bal1)).eq(assetsMinusTax);
 
       const insurance = await vault.insurance();
-      expect(await usdc.balanceOf(insurance)).eq(29_900);
+      expect(await usdc.balanceOf(insurance)).eq(0);
       expect(await vault.sharePrice()).eq(parseUnits('1', 6))
     });
 
@@ -338,14 +330,6 @@ describe("Tetu Vault V2 tests", function () {
       await vault.redeem(10, signer.address, signer.address)
     });
 
-    it("set fees from 3d party revert", async () => {
-      await expect(vault.connect(signer2).setFees(1, 1)).revertedWith("DENIED");
-    });
-
-    it("set fees too high revert", async () => {
-      await expect(vault.setFees(10_000, 1)).revertedWith("TOO_HIGH");
-    });
-
     it("set DoHardWorkOnInvest from 3d party revert", async () => {
       await expect(vault.connect(signer2).setDoHardWorkOnInvest(false)).revertedWith("DENIED");
     });
@@ -403,9 +387,8 @@ describe("Tetu Vault V2 tests", function () {
       expect(bal.sub(balAfter)).eq(parseUnits('0.1', 6).add(900));
     });
 
-    it("withdraw with slippage should be fair for all users", async () => {
+    it("withdraw with slippage should be OK for all users. Each user pay for himself.", async () => {
       await vault.setBuffer(0);
-      const bal = await usdc.balanceOf(signer.address);
       const bal1 = await usdc.balanceOf(signer2.address);
       await vault.deposit(parseUnits('1', 6), signer.address)
       await vault.connect(signer2).deposit(parseUnits('1', 6), signer2.address)
@@ -413,47 +396,54 @@ describe("Tetu Vault V2 tests", function () {
       await mockSplitter.setSlippage(10_0);
       await expect(vault.withdrawAll()).revertedWith('SLIPPAGE');
 
-      await vault.setFees(0, 1_000);
       await mockSplitter.setSlippage(1_0);
+      await expect(vault.withdrawAll()).revertedWith('SLIPPAGE');
+
+      await mockSplitter.setSlippage(0); // 0.4%
+      // console.log('signer withdraw start');
+      const balBefore = await usdc.balanceOf(signer.address);
       await vault.withdrawAll();
+      // console.log('signer withdraw done');
 
       const balAfter = await usdc.balanceOf(signer.address);
-      expect(bal.sub(balAfter)).eq(parseUnits('0.01', 6).add(990));
+      // console.log('balBefore withdrawAll', balBefore)
+      // console.log('balAfter  withdrawAll', balAfter)
+      // console.log('withdrawn withdrawAll', formatUnits(balAfter.sub(balBefore), 6))
+      expect(balAfter.sub(balBefore)).eq(parseUnits('1', 6).sub(1000)); // substract INITIAL 1000 shares cost
 
       await mockSplitter.setSlippage(1);
+      // console.log('signer2 withdraw start');
       await vault.connect(signer2).withdrawAll()
+      // console.log('signer2 withdraw done');
       const balAfter1 = await usdc.balanceOf(signer2.address);
-      expect(bal1.sub(balAfter1)).eq(parseUnits('0.01', 6));
+      expect(bal1.sub(balAfter1)).eq(parseUnits('0.001', 6));
     });
 
     it("splitter assets test", async () => {
       expect(await vault.splitterAssets()).eq(0);
     });
 
-    it("maxWithdraw with fee test (withdrawAll)", async () => {
+    it("maxWithdraw test (withdrawAll)", async () => {
       await vault.deposit(parseUnits('1', 6), signer.address)
       const balanceBefore = await usdc.balanceOf(signer.address);
-      await vault.setFees(0, 1_000);
-      const expectWithdraw = parseUnits('1', 6).sub(parseUnits('0.01', 6));
-      expect(await vault.maxWithdraw(signer.address)).eq(expectWithdraw.sub(990));
+      const expectWithdraw = parseUnits('1', 6).sub(parseUnits('0.001', 6));
+      expect(await vault.maxWithdraw(signer.address)).eq(expectWithdraw);
       await vault.withdrawAll();
       const balanceAfter = await usdc.balanceOf(signer.address);
-      expect(balanceBefore.add(expectWithdraw)).eq(balanceAfter.add(990));
+      expect(balanceBefore.add(expectWithdraw)).eq(balanceAfter);
     });
 
-    it("maxWithdraw with fee test (withdraw max)", async () => {
+    it("maxWithdraw test (withdraw max)", async () => {
       await vault.deposit(parseUnits('1', 6), signer.address)
       const balanceBefore = await usdc.balanceOf(signer.address);
-      await vault.setFees(0, 1_000);
-      const expectWithdraw = parseUnits('1', 6).sub(parseUnits('0.01', 6));
-      expect(await vault.maxWithdraw(signer.address)).eq(expectWithdraw.sub(990));
+      const expectWithdraw = parseUnits('1', 6).sub(parseUnits('0.001', 6));
+      expect(await vault.maxWithdraw(signer.address)).eq(expectWithdraw);
       await vault.withdraw(await vault.maxWithdraw(signer.address), signer.address, signer.address);
       const balanceAfter = await usdc.balanceOf(signer.address);
-      expect(balanceBefore.add(expectWithdraw)).eq(balanceAfter.add(990));
+      expect(balanceBefore.add(expectWithdraw)).eq(balanceAfter);
     });
 
-    it("maxWithdraw with fee complex test (withdraw max)", async () => {
-      await vault.setFees(0, 500);
+    it("maxWithdraw complex test (withdraw max)", async () => {
       await vault.deposit(parseUnits('99800.001', 6), signer.address)
       await vault.deposit(parseUnits('10300.001656', 6), signer2.address)
       await usdc.transfer(vault.address, parseUnits('0.000267', 6));
@@ -463,12 +453,11 @@ describe("Tetu Vault V2 tests", function () {
 
     it("cover loss test", async () => {
       const bal = await usdc.balanceOf(signer.address);
-      await vault.setFees(1_000, 0);
       await vault.deposit(parseUnits('1', 6), signer.address);
       await mockSplitter.coverLoss(10_000);
       await vault.withdrawAll();
       const balAfter = await usdc.balanceOf(signer.address);
-      expect(bal.sub(balAfter)).eq(1011);
+      expect(bal.sub(balAfter)).eq(1000);
     });
 
     it("cover loss revert", async () => {
@@ -577,7 +566,6 @@ describe("Tetu Vault V2 tests", function () {
       async function withdrawRequestsTest(p: IWithdrawRequestsTestParams): Promise<IWithdrawRequestsTestResults> {
         // set up vault
         await vault.setWithdrawRequestBlocks(p.withdrawRequestBlocks || 5);
-        await vault.setFees(0, 0); // for simplicity of cal
         await vault.setBuffer(0); // for simplicity of cal
 
         // exclude INITIAL_SHARES influences
@@ -590,7 +578,7 @@ describe("Tetu Vault V2 tests", function () {
               await vault.connect(await Misc.impersonate(caller)).requestWithdraw();
             }
           }
-          console.log("advance blocks 1", p.actionsBefore.countBlocks ?? 5);
+          // console.log("advance blocks 1", p.actionsBefore.countBlocks ?? 5);
           await TimeUtils.advanceNBlocks(p.actionsBefore.countBlocks ?? 5);
         }
 
@@ -605,13 +593,13 @@ describe("Tetu Vault V2 tests", function () {
           }
           await vault.connect(depositor).deposit(amountToDeposit, receiver);
           if (d.countBlocks) {
-            console.log("advance blocks 4", d.countBlocks);
+            // console.log("advance blocks 4", d.countBlocks);
             await TimeUtils.advanceNBlocks(d.countBlocks);
           }
         }
 
         // advance blocks
-        console.log("advance blocks 2", p.countBlocks ?? 5);
+        // console.log("advance blocks 2", p.countBlocks ?? 5);
         await TimeUtils.advanceNBlocks(p.countBlocks ?? 5);
 
         // Signer withdraws from vault
@@ -631,7 +619,7 @@ describe("Tetu Vault V2 tests", function () {
             const amount = w.amountToWithdraw === "MAX"
               ? await vault.maxWithdraw(owner)
               : parseUnits(w.amountToWithdraw, 6);
-            console.log("Amount to withdraw", amount);
+            // console.log("Amount to withdraw", amount);
             if (owner !== caller) {
               await vault.connect(await Misc.impersonate(owner)).approve(caller, amount);
             }
@@ -642,7 +630,7 @@ describe("Tetu Vault V2 tests", function () {
             receivedAmount += +formatUnits(balanceAfter.sub(balanceBefore), 6);
 
             if (w.countBlocks) {
-              console.log("advance blocks 3", w.countBlocks);
+              // console.log("advance blocks 3", w.countBlocks);
               await TimeUtils.advanceNBlocks(w.countBlocks);
             }
           }
