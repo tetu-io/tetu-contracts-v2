@@ -12,10 +12,6 @@ interface ITetuVaultV2 {
 
   function insurance() external view returns (IVaultInsurance);
 
-  function depositFee() external view returns (uint);
-
-  function withdrawFee() external view returns (uint);
-
   function init(
     address controller_,
     IERC20 _asset,

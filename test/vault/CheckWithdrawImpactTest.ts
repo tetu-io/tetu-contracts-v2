@@ -70,8 +70,7 @@ describe("Tests for StrategyBaseV2._checkWithdrawImpact", function () {
     balanceBeforeWithdraw: BigNumber,
     balanceAfterWithdraw: BigNumber,
     investedAssetsUSD: BigNumber,
-    assetPrice: BigNumber,
-    withdrawFee: number
+    assetPrice: BigNumber
   ) : Promise<BigNumber> {
     // initialize the vault and the strategy
     vault = await DeployerUtils.deployTetuVaultV2(
@@ -95,7 +94,6 @@ describe("Tests for StrategyBaseV2._checkWithdrawImpact", function () {
 
     // prepare the strategy
     await strategy.init(controller.address, splitter.address);
-    // await vault.setFees(0, withdrawFee);
 
     // set strategy balance to expected value
     await asset.transfer(strategy.address, balanceAfterWithdraw);
@@ -118,8 +116,7 @@ describe("Tests for StrategyBaseV2._checkWithdrawImpact", function () {
         parseUnits("50", 6),
         parseUnits("99", 6),
         parseUnits("245", 6), // (99 - 50) * 5
-        parseUnits("5", 18),
-        0 // fee denominator is 100_000
+        parseUnits("5", 18)
       );
       expect(retBalance.eq(parseUnits("99", 6))).eq(true);
     });
@@ -129,8 +126,7 @@ describe("Tests for StrategyBaseV2._checkWithdrawImpact", function () {
         parseUnits("50", 8),
         parseUnits("99", 8),
         parseUnits("245", 8), // (99 - 50) * 5
-        parseUnits("5", 18),
-        0 // fee denominator is 100_000
+        parseUnits("5", 18)
       );
       expect(retBalance.eq(parseUnits("99", 8))).eq(true);
     });
@@ -143,8 +139,7 @@ describe("Tests for StrategyBaseV2._checkWithdrawImpact", function () {
         parseUnits("50", 6),
         parseUnits("99", 6),
         parseUnits("247", 6), // (99 - 50) * 5 + delta
-        parseUnits("5", 18),
-        0 // fee denominator is 100_000
+        parseUnits("5", 18)
       );
       expect(retBalance.eq(parseUnits("99", 6))).eq(true);
     });
@@ -154,8 +149,7 @@ describe("Tests for StrategyBaseV2._checkWithdrawImpact", function () {
         parseUnits("50", 8),
         parseUnits("99", 8),
         parseUnits("247", 8), // (99 - 50) * 5 + delta
-        parseUnits("5", 18),
-        0 // fee denominator is 100_000
+        parseUnits("5", 18)
       );
       expect(retBalance.eq(parseUnits("99", 8))).eq(true);
     });
@@ -169,8 +163,7 @@ describe("Tests for StrategyBaseV2._checkWithdrawImpact", function () {
           parseUnits("50", 6),
           parseUnits("90", 6),
           parseUnits("247", 6), // (99 - 50) * 5 + delta
-          parseUnits("5", 18),
-          0 // fee denominator is 100_000
+          parseUnits("5", 18)
         )
       ).revertedWith("SB: Too high");
     });
@@ -181,8 +174,7 @@ describe("Tests for StrategyBaseV2._checkWithdrawImpact", function () {
           parseUnits("50", 8),
           parseUnits("90", 8),
           parseUnits("247", 8), // (99 - 50) * 5 + delta
-          parseUnits("5", 18),
-          0 // fee denominator is 100_000
+          parseUnits("5", 18)
         )
       ).revertedWith("SB: Too high");
     });
@@ -196,7 +188,6 @@ describe("Tests for StrategyBaseV2._checkWithdrawImpact", function () {
           parseUnits("99", 8),
           parseUnits("0", 8), // (!) investedAssetsUSD is zero
           parseUnits("0", 18), // (!) price is zero
-          0 // fee denominator is 100_000
       );
       expect(retBalance.eq(parseUnits("99", 8))).eq(true);
     });
