@@ -187,8 +187,7 @@ abstract contract StrategyBaseV3 is IStrategyV3, ControllableV3 {
         _asset,
         balance,
         expectedWithdrewUSD,
-        assetPrice,
-        _splitter
+        assetPrice
       );
     }
 

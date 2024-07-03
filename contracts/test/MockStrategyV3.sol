@@ -45,7 +45,7 @@ contract MockStrategyV3 is StrategyBaseV3 {
       IERC20(asset).transfer(controller(), _slippage);
     }
     if (lastEarned != 0) {
-      uint toCompound = lastEarned * baseState.compoundRatio / StrategyLib2.COMPOUND_DENOMINATOR;
+      uint toCompound = lastEarned * baseState.compoundRatio / StrategyLib2.DENOMINATOR;
       MockToken(asset).mint(address(this), toCompound);
       address forwarder = IController(controller()).forwarder();
       if (forwarder != address(0)) {
@@ -189,9 +189,8 @@ contract MockStrategyV3 is StrategyBaseV3 {
     address _asset,
     uint balanceBefore,
     uint investedAssetsUSD,
-    uint assetPrice,
-    address _splitter
+    uint assetPrice
   ) external view returns (uint balance) {
-    return StrategyLib2.checkWithdrawImpact(_asset, balanceBefore, investedAssetsUSD, assetPrice, _splitter);
+    return StrategyLib2.checkWithdrawImpact(_asset, balanceBefore, investedAssetsUSD, assetPrice);
   }
 }

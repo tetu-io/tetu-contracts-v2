@@ -105,8 +105,7 @@ describe("Tests for StrategyBaseV2._checkWithdrawImpact", function () {
       asset.address,
       balanceBeforeWithdraw,
       investedAssetsUSD,
-      assetPrice,
-      splitter.address
+      assetPrice
     );
   }
 //endregion Utils

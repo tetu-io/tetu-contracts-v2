@@ -19,7 +19,6 @@ import {
 import {Misc} from "../../scripts/utils/Misc";
 import {parseUnits} from "ethers/lib/utils";
 
-
 const {expect} = chai;
 chai.use(chaiAsPromised);
 
@@ -854,7 +853,7 @@ describe("SplitterForBaseStrategyV3Tests", function () {
     });
   });
 
-  it("should not withdraw when MockStrategy has UseTrueExpectedWithdraw enabled, but in real slippage exist", async () => {
+  it("should not withdraw when MockStrategyV3 has UseTrueExpectedWithdraw enabled, but in real slippage exist", async () => {
     const insurance = await vault.insurance();
 
     await strategy.init(controller.address, splitter.address);
@@ -878,7 +877,7 @@ describe("SplitterForBaseStrategyV3Tests", function () {
     // console.log('insuranceBefore', insuranceBefore)
 
     await strategy.setUseTrueExpectedWithdraw(true)
-    await strategy.setSlippage(10);
+    await strategy.setSlippage(1_000);
 
     await expect(vault.withdrawAll()).revertedWith('SB: Too high')
 

@@ -16,7 +16,9 @@ library StrategyLib {
   // *************************************************************
 
   /// @dev Denominator for fee calculation.
-  uint internal constant FEE_DENOMINATOR = 100_000;
+  uint internal constant DENOMINATOR = 100_000;
+
+  uint internal constant CHECK_WITHDRAW_IMPACT_TOLERANCE = 1_000;
 
   // *************************************************************
   //                        EVENTS
@@ -37,8 +39,6 @@ library StrategyLib {
   string internal constant DENIED = "SB: Denied";
   string internal constant TOO_HIGH = "SB: Too high";
   string internal constant WRONG_VALUE = "SB: Wrong value";
-  /// @dev Denominator for compound ratio
-  uint internal constant COMPOUND_DENOMINATOR = 100_000;
 
   // *************************************************************
   //                        CHECKS AND EMITS
@@ -46,7 +46,7 @@ library StrategyLib {
 
   function _checkCompoundRatioChanged(address controller, uint oldValue, uint newValue) external {
     onlyPlatformVoter(controller);
-    require(newValue <= COMPOUND_DENOMINATOR, TOO_HIGH);
+    require(newValue <= DENOMINATOR, TOO_HIGH);
     emit CompoundRatioChanged(oldValue, newValue);
   }
 
@@ -110,16 +110,14 @@ library StrategyLib {
     address _asset,
     uint balanceBefore,
     uint expectedWithdrewUSD,
-    uint assetPrice,
-    address _splitter
+    uint assetPrice
   ) public view returns (uint balance) {
     balance = IERC20(_asset).balanceOf(address(this));
     if (assetPrice != 0 && expectedWithdrewUSD != 0) {
-
       uint withdrew = balance > balanceBefore ? balance - balanceBefore : 0;
       uint withdrewUSD = withdrew * assetPrice / 1e18;
       uint difference = expectedWithdrewUSD > withdrewUSD ? expectedWithdrewUSD - withdrewUSD : 0;
-      require(difference * 1e18 / expectedWithdrewUSD < 1e16, TOO_HIGH);
+      require(difference * DENOMINATOR / expectedWithdrewUSD < CHECK_WITHDRAW_IMPACT_TOLERANCE, TOO_HIGH);
     }
   }
 
@@ -147,8 +145,7 @@ library StrategyLib {
       _asset,
       balanceBefore,
       expectedWithdrewUSD,
-      assetPrice,
-      _splitter
+      assetPrice
     );
 
     if (balance != 0) {
