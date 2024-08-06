@@ -399,15 +399,15 @@ describe("veTETU tests", function () {
     const supply = +formatUnits(await ve.totalSupply());
     const supplyBlock = +formatUnits(await ve.totalSupplyAt(curBlock));
     const supplyTsNow = +formatUnits(await ve.totalSupplyAtT(blockTs));
-    console.log('supply', supply);
-    console.log('supplyBlock', supplyBlock);
-    console.log('supplyTsNow', supplyTsNow);
+    // console.log('supply', supply);
+    // console.log('supplyBlock', supplyBlock);
+    // console.log('supplyTsNow', supplyTsNow);
 
     expect(supply).eq(supplyBlock);
     expect(supplyTsNow).eq(supplyBlock);
 
-    const supplyTs = +formatUnits(await ve.totalSupplyAtT(await currentEpochTS(ve)));
-    console.log('supplyTs', supplyTs);
+    // const supplyTs = +formatUnits(await ve.totalSupplyAtT(await currentEpochTS(ve)));
+    // console.log('supplyTs', supplyTs);
 
     await checkTotalVeSupplyAtTS(ve, await currentEpochTS(ve) + WEEK)
 
@@ -477,16 +477,16 @@ describe("veTETU tests", function () {
   it("tokenURI test", async function () {
     await ve.createLock(tetu.address, parseUnits('333'), LOCK_PERIOD);
     const uri = (await ve.tokenURI(3))
-    console.log(uri);
+    // console.log(uri);
     const base64 = uri.replace('data:application/json;base64,', '');
-    console.log(base64);
+    // console.log(base64);
 
     const uriJson = Buffer.from(base64, 'base64').toString('binary');
-    console.log(uriJson);
+    // console.log(uriJson);
     const imgBase64 = JSON.parse(uriJson).image.replace('data:image/svg+xml;base64,', '');
-    console.log(imgBase64);
+    // console.log(imgBase64);
     const svg = Buffer.from(imgBase64, 'base64').toString('binary');
-    console.log(svg);
+    // console.log(svg);
     expect(svg).contains('333')
     // expect(svg).contains('88 days')
   });
@@ -499,7 +499,7 @@ describe("veTETU tests", function () {
     const blockTsB = await currentTS(ve);
     const blockTs = await currentTS(ve);
     const current = +formatUnits(await ve.balanceOfNFTAt(tId, blockTs));
-    console.log('>>> current', current);
+    // console.log('>>> current', current);
     expect(current).approximately(75, 15);
     const zero = +formatUnits(await ve.balanceOfNFTAt(tId, 0));
     const future = +formatUnits(await ve.balanceOfNFTAt(tId, 999_999_999_999));
@@ -513,11 +513,11 @@ describe("veTETU tests", function () {
 
     const blockTsA = await currentTS(ve);
     const beforeLockAfterIncrease = +formatUnits(await ve.balanceOfNFTAt(tId, blockTsA - 1000));
-    console.log('>>> beforeLockAfterIncrease', beforeLockAfterIncrease);
+    // console.log('>>> beforeLockAfterIncrease', beforeLockAfterIncrease);
     expect(beforeLockAfterIncrease).approximately(75, 15);
 
     const currentA = +formatUnits(await ve.balanceOfNFTAt(tId, blockTsA));
-    console.log('>>> currentA', currentA);
+    // console.log('>>> currentA', currentA);
     expect(currentA).approximately(700, 150);
   });
 
@@ -532,7 +532,7 @@ describe("veTETU tests", function () {
 
     const curBlock = await ethers.provider.getBlockNumber();
     const current = +formatUnits(await ve.balanceOfAtNFT(tId, curBlock));
-    console.log('>>> current', current);
+    // console.log('>>> current', current);
     expect(current).approximately(75, 15);
     const zero = +formatUnits(await ve.balanceOfAtNFT(tId, 0));
     const future = +formatUnits(await ve.balanceOfAtNFT(tId, 999_999_999_999));
@@ -547,11 +547,11 @@ describe("veTETU tests", function () {
 
     const curBlockA = await ethers.provider.getBlockNumber();
     const beforeLockAfterIncrease = +formatUnits(await ve.balanceOfAtNFT(tId, curBlockA - 10));
-    console.log('>>> beforeLockAfterIncrease', beforeLockAfterIncrease);
+    // console.log('>>> beforeLockAfterIncrease', beforeLockAfterIncrease);
     expect(beforeLockAfterIncrease).approximately(75, 15);
 
     const currentA = +formatUnits(await ve.balanceOfAtNFT(tId, curBlockA));
-    console.log('>>> currentA', currentA);
+    // console.log('>>> currentA', currentA);
     expect(currentA).approximately(700, 150);
   });
 
@@ -869,10 +869,10 @@ describe("veTETU tests", function () {
     // await TimeUtils.advanceBlocksOnTs(60 * 60 * 24)
     // await ve.increaseUnlockTime(1, MAX_LOCK);
 
-    const endOld = (await ve.lockedEnd(1)).toNumber()
-    const balOld = +formatUnits(await ve.balanceOfNFT(1))
+    // const endOld = (await ve.lockedEnd(1)).toNumber()
+    // const balOld = +formatUnits(await ve.balanceOfNFT(1))
     const supplyOld = +formatUnits(await ve.totalSupply())
-    console.log('old', endOld, balOld, supplyOld, new Date(endOld * 1000))
+    // console.log('old', endOld, balOld, supplyOld, new Date(endOld * 1000))
 
     await checkTotalVeSupplyAtTS(ve, await currentTS(ve));
 
@@ -884,15 +884,15 @@ describe("veTETU tests", function () {
 
     const endNew = (await ve.lockedEnd(1)).toNumber()
     const balNew = +formatUnits(await ve.balanceOfNFT(1))
-    const supplyNew = +formatUnits(await ve.totalSupply())
-    console.log('new', endNew, balNew, supplyNew, new Date(endNew * 1000))
+    // const supplyNew = +formatUnits(await ve.totalSupply())
+    // console.log('new', endNew, balNew, supplyNew, new Date(endNew * 1000))
 
     expect(balNew).eq(1);
     expect(endNew).eq(await maxLockTime(ve));
 
     await ve.setAlwaysMaxLock(1, false);
 
-    console.log('supply after relock', +formatUnits(await ve.totalSupply()))
+    // console.log('supply after relock', +formatUnits(await ve.totalSupply()))
 
     expect(+formatUnits(await ve.totalSupply())).gt(supplyOld);
     expect((await ve.additionalTotalSupply()).toString()).eq('0');
@@ -919,7 +919,7 @@ describe("veTETU tests", function () {
     await TimeUtils.advanceBlocksOnTs(MAX_LOCK)
     const tetuBal = await tetu.balanceOf(owner.address);
     const amnt = await ve.lockedAmounts(1, tetu.address)
-    console.log('amnt', formatUnits(amnt))
+    // console.log('amnt', formatUnits(amnt))
     expect(+formatUnits(amnt)).eq(2);
     await ve.withdrawAll(1)
     expect((await tetu.balanceOf(owner.address)).sub(tetuBal).toString()).eq(amnt.toString());
@@ -930,25 +930,25 @@ describe("veTETU tests", function () {
     await checkTotalVeSupplyAtTS(ve, await currentTS(ve));
 
     const oldPower = +formatUnits(await ve.balanceOfNFT(1));
-    console.log('oldPower', oldPower);
+    // console.log('oldPower', oldPower);
     const oldTotal = +formatUnits(await ve.totalSupply());
-    console.log('oldTotal', oldTotal);
+    // console.log('oldTotal', oldTotal);
 
     await ve.setAlwaysMaxLock(1, true);
     await checkTotalVeSupplyAtTS(ve, await currentTS(ve));
 
-    const powerAfterLock = +formatUnits(await ve.balanceOfNFT(1));
-    console.log('powerAfterLock', powerAfterLock);
-    const totalAfterLock = +formatUnits(await ve.totalSupply());
-    console.log('totalAfterLock', totalAfterLock);
+    // const powerAfterLock = +formatUnits(await ve.balanceOfNFT(1));
+    // console.log('powerAfterLock', powerAfterLock);
+    // const totalAfterLock = +formatUnits(await ve.totalSupply());
+    // console.log('totalAfterLock', totalAfterLock);
 
     await ve.setAlwaysMaxLock(1, false);
     await checkTotalVeSupplyAtTS(ve, await currentTS(ve));
 
     const powerAfterLockOff = +formatUnits(await ve.balanceOfNFT(1));
-    console.log('powerAfterLockOff', powerAfterLockOff);
+    // console.log('powerAfterLockOff', powerAfterLockOff);
     const totalAfterLockOff = +formatUnits(await ve.totalSupply());
-    console.log('totalAfterLockOff', totalAfterLockOff);
+    // console.log('totalAfterLockOff', totalAfterLockOff);
 
     expect(oldPower).approximately(powerAfterLockOff, 0.001);
     expect(oldTotal).approximately(totalAfterLockOff, 0.001);
@@ -973,7 +973,7 @@ async function depositOrWithdraw(
   const veIdLength = await ve.balanceOf(owner.address);
   expect(veIdLength).below(2);
   if (veIdLength.isZero()) {
-    console.log('create lock')
+    // console.log('create lock')
     await ve.connect(owner).createLock(stakingToken, amount, lock);
   } else {
     const veId = await ve.tokenOfOwnerByIndex(owner.address, 0);
@@ -982,13 +982,13 @@ async function depositOrWithdraw(
       const lockEnd = (await ve.lockedEnd(veId)).toNumber();
       const now = (await ve.blockTimestamp()).toNumber()
       if (now >= lockEnd) {
-        console.log('withdraw', veId.toNumber())
+        // console.log('withdraw', veId.toNumber())
         await ve.connect(owner).withdraw(stakingToken, veId);
       } else {
-        console.log('lock not ended yet', lockEnd, lockEnd - now, veId.toNumber());
+        // console.log('lock not ended yet', lockEnd, lockEnd - now, veId.toNumber());
       }
     } else {
-      console.log('no lock for this token')
+      // console.log('no lock for this token')
     }
   }
   await checkTotalVeSupplyAtTS(ve, await currentTS(ve));
@@ -1008,7 +1008,7 @@ async function withdrawIfExist(
       const lockEnd = (await ve.lockedEnd(veId)).toNumber();
       const now = (await ve.blockTimestamp()).toNumber()
       if (now >= lockEnd) {
-        console.log('withdraw', veId.toNumber())
+        // console.log('withdraw', veId.toNumber())
         await ve.connect(owner).withdraw(stakingToken, veId);
       }
     }

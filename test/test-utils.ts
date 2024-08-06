@@ -19,19 +19,19 @@ export async function currentTS(ve: VeTetu) {
 export async function checkTotalVeSupplyAtTS(ve: VeTetu, ts: number) {
   await ve.checkpoint();
 
-  console.log('additionalTotalSupply', formatUnits(await ve.additionalTotalSupply()))
+  // console.log('additionalTotalSupply', formatUnits(await ve.additionalTotalSupply()))
 
   const total = +formatUnits(await ve.totalSupplyAtT(ts));
-  console.log('total', total)
+  // console.log('total', total)
   const nftCount = (await ve.tokenId()).toNumber();
 
   let sum = 0;
   for (let i = 1; i <= nftCount; ++i) {
     const bal = +formatUnits(await ve.balanceOfNFTAt(i, ts))
-    console.log('bal', i, bal)
+    // console.log('bal', i, bal)
     sum += bal;
   }
-  console.log('sum', sum)
+  // console.log('sum', sum)
   expect(sum).approximately(total, 0.0000000000001);
-  console.log('total supply is fine')
+  // console.log('total supply is fine')
 }

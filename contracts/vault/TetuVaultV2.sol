@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: BUSL-1.1
-
 pragma solidity 0.8.17;
 
 import "../openzeppelin/Math.sol";
@@ -11,6 +10,7 @@ import "./ERC4626Upgradeable.sol";
 
 /// @title Vault for storing underlying tokens and managing them with strategy splitter.
 /// @author belbix
+/// @author a17
 contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   using SafeERC20 for IERC20;
   using Math for uint;
@@ -20,13 +20,14 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant VAULT_VERSION = "2.2.0";
+  string public constant VAULT_VERSION = "3.0.0";
+
   /// @dev Denominator for buffer calculation. 100% of the buffer amount.
   uint constant public BUFFER_DENOMINATOR = 100_000;
-  /// @dev Denominator for fee calculation.
-  uint constant public FEE_DENOMINATOR = 100_000;
-  /// @dev Max 1% fee.
-  uint constant public MAX_FEE = FEE_DENOMINATOR / 100;
+
+  uint constant internal SLIPPAGE_DENOMINATOR = 100_000; // 100%
+
+  uint constant internal MAX_WITHDRAW_SLIPPAGE = 500; // 0.5%
 
   // *************************************************************
   //                        VARIABLES
@@ -38,23 +39,17 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   ISplitter public splitter;
   /// @dev Connected gauge for stakeless rewards
   IGauge public gauge;
-  /// @dev Dedicated contract for holding insurance for covering share price loss.
-  IVaultInsurance public override insurance;
   /// @dev Percent of assets that will always stay in this vault.
   uint public buffer;
 
-  /// @dev Maximum amount for withdraw. Max UINT256 by default.
+  /// @dev Maximum amount for withdraw. Max uint by default.
   uint public maxWithdrawAssets;
-  /// @dev Maximum amount for redeem. Max UINT256 by default.
+  /// @dev Maximum amount for redeem. Max uint by default.
   uint public maxRedeemShares;
-  /// @dev Maximum amount for deposit. Max UINT256 by default.
+  /// @dev Maximum amount for deposit. Max uint by default.
   uint public maxDepositAssets;
-  /// @dev Maximum amount for mint. Max UINT256 by default.
+  /// @dev Maximum amount for mint. Max uint by default.
   uint public maxMintShares;
-  /// @dev Fee for deposit/mint actions. Zero by default.
-  uint public override depositFee;
-  /// @dev Fee for withdraw/redeem actions. Zero by default.
-  uint public override withdrawFee;
 
   /// @dev Trigger doHardwork on invest action. Enabled by default.
   bool public doHardWorkOnInvest;
@@ -83,9 +78,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   event Invest(address splitter, uint amount);
   event MaxWithdrawChanged(uint maxAssets, uint maxShares);
   event MaxDepositChanged(uint maxAssets, uint maxShares);
-  event FeeChanged(uint depositFee, uint withdrawFee);
   event DoHardWorkOnInvestChanged(bool oldValue, bool newValue);
-  event FeeTransfer(uint amount);
   event LossCovered(uint amount, uint requestedAmount, uint balance);
   event WithdrawRequested(address sender, uint startBlock);
   event WithdrawRequestBlocks(uint blocks);
@@ -134,15 +127,6 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
     );
   }
 
-  function initInsurance(IVaultInsurance _insurance) external override {
-    require(address(insurance) == address(0), "INITED");
-    _requireInterface(address(_insurance), InterfaceIds.I_VAULT_INSURANCE);
-
-    require(_insurance.vault() == address(this), "!VAULT");
-    require(_insurance.asset() == address(_asset), "!ASSET");
-    insurance = _insurance;
-  }
-
   // *************************************************************
   //                      GOV ACTIONS
   // *************************************************************
@@ -183,16 +167,6 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
     emit MaxWithdrawChanged(maxAssets, maxShares);
   }
 
-  /// @dev Set deposit/withdraw fees
-  function setFees(uint _depositFee, uint _withdrawFee) external {
-    require(isGovernance(msg.sender), "DENIED");
-    require(_depositFee <= MAX_FEE && _withdrawFee <= MAX_FEE, "TOO_HIGH");
-
-    depositFee = _depositFee;
-    withdrawFee = _withdrawFee;
-    emit FeeChanged(_depositFee, _withdrawFee);
-  }
-
   /// @dev If activated will call doHardWork on splitter on each invest action.
   function setDoHardWorkOnInvest(bool value) external {
     require(isGovernance(msg.sender), "DENIED");
@@ -229,7 +203,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
 
   /// @dev Price of 1 full share
   function sharePrice() external view returns (uint) {
-    uint units = 10 ** uint256(decimals());
+    uint units = 10 ** uint(decimals());
     uint totalSupply_ = totalSupply();
     return totalSupply_ == 0
       ? units
@@ -246,22 +220,19 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
   // *************************************************************
 
   function previewDeposit(uint assets) public view virtual override returns (uint) {
-    uint shares = convertToShares(assets);
-    return shares - (shares * depositFee / FEE_DENOMINATOR);
+    return convertToShares(assets);
   }
 
   function previewMint(uint shares) public view virtual override returns (uint) {
     uint supply = totalSupply();
     if (supply != 0) {
-      uint assets = shares.mulDiv(totalAssets(), supply, Math.Rounding.Up);
-      return assets * FEE_DENOMINATOR / (FEE_DENOMINATOR - depositFee);
-    } else {
-      return shares * FEE_DENOMINATOR / (FEE_DENOMINATOR - depositFee);
+      return shares.mulDiv(totalAssets(), supply, Math.Rounding.Up);
     }
+    return shares;
   }
 
   /// @dev Calculate available to invest amount and send this amount to splitter
-  function afterDeposit(uint assets, uint /*shares*/, address receiver) internal override {
+  function afterDeposit(uint /*assets*/, uint /*shares*/, address receiver) internal override {
     // reset withdraw request if necessary
     if (withdrawRequestBlocks != 0) {
       withdrawRequests[receiver] = block.number;
@@ -269,14 +240,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
 
     address _splitter = address(splitter);
     IERC20 asset_ = _asset;
-    uint _depositFee = depositFee;
-    // send fee to insurance contract
-    if (_depositFee != 0) {
-      uint toFees = assets * _depositFee / FEE_DENOMINATOR;
-      asset_.safeTransfer(address(insurance), toFees);
-      emit FeeTransfer(toFees);
-    }
-    uint256 toInvest = _availableToInvest(_splitter, asset_);
+    uint toInvest = _availableToInvest(_splitter, asset_);
     // invest only when buffer is filled
     if (toInvest > 0) {
 
@@ -331,12 +295,10 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
       return assets;
     }
     uint shares = assets.mulDiv(supply, _totalAssets, Math.Rounding.Up);
-    shares = shares * FEE_DENOMINATOR / (FEE_DENOMINATOR - withdrawFee);
     return supply == 0 ? assets : shares;
   }
 
   function previewRedeem(uint shares) public view virtual override returns (uint) {
-    shares = shares - (shares * withdrawFee / FEE_DENOMINATOR);
     return convertToAssets(shares);
   }
 
@@ -350,7 +312,6 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
 
   function maxWithdraw(address owner) public view override returns (uint) {
     uint assets = convertToAssets(balanceOf(owner));
-    assets -= assets.mulDiv(withdrawFee, FEE_DENOMINATOR, Math.Rounding.Up);
     return Math.min(maxWithdrawAssets, assets);
   }
 
@@ -369,14 +330,7 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
       withdrawRequests[owner_] = block.number;
     }
 
-    uint _withdrawFee = withdrawFee;
-    uint fromSplitter;
-    if (_withdrawFee != 0) {
-      // add fee amount
-      fromSplitter = assets * FEE_DENOMINATOR / (FEE_DENOMINATOR - _withdrawFee);
-    } else {
-      fromSplitter = assets;
-    }
+    uint fromSplitter = assets;
 
     IERC20 asset_ = _asset;
     uint balance = asset_.balanceOf(address(this));
@@ -392,19 +346,13 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
       );
     }
     balance = asset_.balanceOf(address(this));
-    require(assets <= balance, "SLIPPAGE");
-
-    // send fee amount to insurance for keep correct calculations
-    // in case of compensation it will lead to double transfer
-    // but we assume that it will be rare case
-    if (_withdrawFee != 0) {
-      // we should compensate possible slippage from user fee too
-      uint toFees = Math.min(fromSplitter - assets, balance - assets);
-      if (toFees != 0) {
-        asset_.safeTransfer(address(insurance), toFees);
-        emit FeeTransfer(toFees);
-      }
+    uint slippage;
+    if (assets > balance) {
+      uint withdrawLoss = assets - balance;
+      _withdrawLoss = withdrawLoss;
+      slippage = SLIPPAGE_DENOMINATOR * withdrawLoss / assets;
     }
+    require(slippage <= MAX_WITHDRAW_SLIPPAGE, "SLIPPAGE");
   }
 
   /// @dev Do necessary calculation for withdrawing from splitter and move assets to vault.
@@ -432,19 +380,6 @@ contract TetuVaultV2 is ERC4626Upgradeable, ControllableV3, ITetuVaultV2 {
       // if zero should be resolved on splitter side
       _splitter.withdrawToVault(missing);
     }
-  }
-
-  // *************************************************************
-  //                 INSURANCE LOGIC
-  // *************************************************************
-
-  function coverLoss(uint amount) external override {
-    require(msg.sender == address(splitter), "!SPLITTER");
-    IVaultInsurance _insurance = insurance;
-    uint balance = _asset.balanceOf(address(_insurance));
-    uint toRecover = Math.min(amount, balance);
-    _insurance.transferToVault(toRecover);
-    emit LossCovered(toRecover, amount, balance);
   }
 
   // *************************************************************

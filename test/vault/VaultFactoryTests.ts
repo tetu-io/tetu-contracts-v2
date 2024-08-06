@@ -23,7 +23,6 @@ describe("Vault factory tests", function () {
   let snapshotBefore: string;
   let snapshot: string;
   let signer: SignerWithAddress;
-  let signer1: SignerWithAddress;
   let signer2: SignerWithAddress;
   let controller: ControllerMinimal;
   let usdc: MockToken;
@@ -32,18 +31,17 @@ describe("Vault factory tests", function () {
 
 
   before(async function () {
-    [signer, signer1, signer2] = await ethers.getSigners()
+    [signer, signer2] = await ethers.getSigners()
     snapshotBefore = await TimeUtils.snapshot();
 
     controller = await DeployerUtils.deployMockController(signer);
     usdc = await DeployerUtils.deployMockToken(signer, 'USDC', 6);
     const vaultLogic = await DeployerUtils.deployContract(signer, 'TetuVaultV2');
-    const insurance = await DeployerUtils.deployContract(signer, 'VaultInsurance');
     const splitter = await DeployerUtils.deployContract(signer, 'MockSplitter');
 
 
     vaultFactory = await DeployerUtils.deployContract(signer, 'VaultFactory', controller.address,
-      vaultLogic.address, insurance.address, splitter.address) as VaultFactory;
+      vaultLogic.address, splitter.address) as VaultFactory;
 
     mockGauge = MockGauge__factory.connect(await DeployerUtils.deployProxy(signer, 'MockGauge'), signer);
     await mockGauge.init(controller.address)
@@ -106,16 +104,6 @@ describe("Vault factory tests", function () {
 
   it("set vault revert", async () => {
     await expect(vaultFactory.connect(signer2).setVaultImpl(Misc.ZERO_ADDRESS)).revertedWith('!GOV');
-  });
-
-  it("set insurance test", async () => {
-    const insurance2 = await DeployerUtils.deployContract(signer, 'VaultInsurance');
-    await vaultFactory.setVaultInsuranceImpl(insurance2.address);
-    expect(await vaultFactory.vaultInsuranceImpl()).eq(insurance2.address);
-  });
-
-  it("set insurance revert", async () => {
-    await expect(vaultFactory.connect(signer2).setVaultInsuranceImpl(Misc.ZERO_ADDRESS)).revertedWith('!GOV');
   });
 
   it("set splitter test", async () => {

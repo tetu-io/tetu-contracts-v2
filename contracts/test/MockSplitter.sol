@@ -23,7 +23,7 @@ contract MockSplitter is ISplitter, ControllableV3 {
     vault = _vault;
   }
 
-  function coverPossibleStrategyLoss(uint /*earned*/, uint /*lost*/) external pure {
+  function registerStrategyLoss(uint /*earned*/, uint /*lost*/) external pure {
     // noop
   }
 
@@ -71,10 +71,6 @@ contract MockSplitter is ISplitter, ControllableV3 {
 
   function lost(uint amount) external {
     IERC20(asset).transfer(msg.sender, amount);
-  }
-
-  function coverLoss(uint amount) external {
-    ITetuVaultV2(vault).coverLoss(amount);
   }
 
   /// @dev See {IERC165-supportsInterface}.

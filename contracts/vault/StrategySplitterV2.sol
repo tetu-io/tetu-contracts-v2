@@ -311,7 +311,6 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     delete isValidStrategy[strategy];
 
     // for expensive strategies should be called before removing
-    // without loss covering
     IStrategyV2(strategy).withdrawAllToSplitter();
     emit StrategyRemoved(strategy);
   }
@@ -385,7 +384,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     // need to emit loss separately
     if (strategyLossOnWithdraw != 0) {
       // for withdraw need to use balance before
-      _coverLoss(vault, strategyLossOnWithdraw, lossTolerance, lowStrategyBalance);
+      _checkLoss(strategyLossOnWithdraw, lossTolerance, lowStrategyBalance);
       emit Loss(lowStrategy, strategyLossOnWithdraw);
     }
 
@@ -394,10 +393,9 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     // need to emit loss separately
     if (strategyLossOnInvest != 0) {
       // for invest need to use balance after
-      _coverLoss(vault, strategyLossOnInvest, lossTolerance, strategyBalanceAfterInvest);
+      _checkLoss(strategyLossOnInvest, lossTolerance, strategyBalanceAfterInvest);
       emit Loss(topStrategy, strategyLossOnInvest);
     }
-
 
     emit Rebalance(
       topStrategy,
@@ -472,7 +470,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     if (strategies.length != 0) {
       (address strategy, uint strategyLoss, uint strategyBalanceAfterInvest) = _investToTopStrategy(true);
       if (strategyLoss > 0) {
-        _coverLoss(msg.sender, strategyLoss, INVEST_LOSS_TOLERANCE, strategyBalanceAfterInvest);
+        _checkLoss(strategyLoss, INVEST_LOSS_TOLERANCE, strategyBalanceAfterInvest);
         emit Loss(strategy, strategyLoss);
       }
     }
@@ -493,7 +491,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
         // register possible loses
         if (strategyLoss != 0) {
-          _coverLoss(_vault, strategyLoss, WITHDRAW_LOSS_TOLERANCE, strategyBalance);
+          _checkLoss(strategyLoss, WITHDRAW_LOSS_TOLERANCE, strategyBalance);
           emit Loss(strategies[i], strategyLoss);
         }
       }
@@ -535,9 +533,9 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
           remainingAmount = withdrew < remainingAmount ? remainingAmount - withdrew : 0;
 
-          // if we withdrew less than expected try to cover loss from vault insurance
+          // if we withdrew less than expected try to check loss
           if (strategyLoss != 0) {
-            _coverLoss(_vault, strategyLoss, WITHDRAW_LOSS_TOLERANCE, strategyBalance);
+            _checkLoss(strategyLoss, WITHDRAW_LOSS_TOLERANCE, strategyBalance);
             emit Loss(address(strategy), strategyLoss);
           }
 
@@ -559,13 +557,13 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
   /// @dev Register profit/loss data for the strategy.
   ///      Sender assume to be a registered strategy.
-  ///      Suppose to be used in actions where we updated assets price and need to cover the price diff gap.
-  function coverPossibleStrategyLoss(uint earned, uint lost) external override {
+  ///      Suppose to be used in actions where we updated assets price and need to check the price diff gap.
+  function registerStrategyLoss(uint earned, uint lost) external override {
     address strategy = msg.sender;
     require(isValidStrategy[strategy], "SS: Invalid strategy");
 
     uint tvl = IStrategyV2(strategy).totalAssets();
-    _declareStrategyIncomeAndCoverLoss(strategy, tvl, 0, earned, lost, false);
+    _declareStrategyIncomeAndCheckLoss(strategy, tvl, 0, earned, lost, false);
   }
 
   /// @dev Call hard works for all strategies.
@@ -623,7 +621,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
       if (tvl != 0) {
         (uint earned, uint lost) = IStrategyV2(strategy).doHardWork();
 
-        (uint apr, uint avgApr) = _declareStrategyIncomeAndCoverLoss(strategy, tvl, sinceLastHardWork, earned, lost, true);
+        (uint apr, uint avgApr) = _declareStrategyIncomeAndCheckLoss(strategy, tvl, sinceLastHardWork, earned, lost, true);
 
         lastHardWorks[strategy] = block.timestamp;
 
@@ -642,7 +640,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     return false;
   }
 
-  function _declareStrategyIncomeAndCoverLoss(
+  function _declareStrategyIncomeAndCheckLoss(
     address strategy,
     uint strategyTvl,
     uint sinceLastHardWork,
@@ -652,9 +650,9 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
   ) internal returns (uint apr, uint avgApr) {
     apr = 0;
     avgApr = 0;
-    uint lostForCovering = lost > earned ? lost - earned : 0;
-    if (lostForCovering > 0) {
-      _coverLoss(vault, lostForCovering, HARDWORK_LOSS_TOLERANCE, strategyTvl);
+    uint lostForCheck = lost > earned ? lost - earned : 0;
+    if (lostForCheck > 0) {
+      _checkLoss(lostForCheck, HARDWORK_LOSS_TOLERANCE, strategyTvl);
     }
 
     if (registerApr) {
@@ -728,7 +726,7 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
 
   /// @param updateTotalAssetsBeforeInvest TotalAssets of strategy should be updated before investing.
   /// @return strategy Selected strategy or zero
-  /// @return strategyLoss Loss should be covered from Insurance
+  /// @return strategyLoss Loss should be checked for slippage
   function _investToTopStrategy(bool updateTotalAssetsBeforeInvest) internal returns (
     address strategy,
     uint strategyLoss,
@@ -768,11 +766,10 @@ contract StrategySplitterV2 is ControllableV3, ReentrancyGuard, ISplitter {
     return (strategy, strategyLoss, strategyBalanceAfterInvest);
   }
 
-  function _coverLoss(address _vault, uint amount, uint lossTolerance, uint strategyBalance) internal {
+  function _checkLoss(uint amount, uint lossTolerance, uint strategyBalance) internal pure {
     if (amount != 0) {
       require(strategyBalance != 0, "SS: Strategy balance should not be zero");
       require(amount * 100_000 / strategyBalance <= lossTolerance, "SS: Loss too high");
-      ITetuVaultV2(_vault).coverLoss(amount);
     }
   }
 

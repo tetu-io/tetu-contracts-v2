@@ -102,7 +102,7 @@ describe("HardWorkResolverTest", function () {
   it("maxGasAdjusted", async () => {
     for (let i = 0; i < 30; i++) {
       const gas = formatUnits(await resolver.maxGasAdjusted(), 9);
-      console.log(i, gas);
+      // console.log(i, gas);
       await TimeUtils.advanceBlocksOnTs(60 * 60 * 24);
     }
   });

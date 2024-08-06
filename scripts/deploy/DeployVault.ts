@@ -37,7 +37,6 @@ async function main() {
   const vault = await factory.deployedVaults(l - 1);
   console.log(l, 'VAULT: ', vault)
 
-  await RunHelper.runAndWait2(TetuVaultV2__factory.connect(vault, signer).populateTransaction.setFees(DEPOSIT_FEE, WITHDRAW_FEE));
   await RunHelper.runAndWait2(ControllerV2__factory.connect(core.controller, signer).populateTransaction.registerVault(vault));
   await RunHelper.runAndWait2(MultiGauge__factory.connect(core.gauge, signer).populateTransaction.addStakingToken(vault));
 }

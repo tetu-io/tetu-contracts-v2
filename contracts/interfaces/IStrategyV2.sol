@@ -22,17 +22,17 @@ interface IStrategyV2 {
   /// @dev Usually, indicate that claimable rewards have reasonable amount.
   function isReadyToHardWork() external view returns (bool);
 
-  /// @return strategyLoss Loss should be covered from Insurance
+  /// @return strategyLoss Loss should be checked and emited
   function withdrawAllToSplitter() external returns (uint strategyLoss);
 
-  /// @return strategyLoss Loss should be covered from Insurance
+  /// @return strategyLoss Loss should be checked and emited
   function withdrawToSplitter(uint amount) external returns (uint strategyLoss);
 
   /// @notice Stakes everything the strategy holds into the reward pool.
   /// @param amount_ Amount transferred to the strategy balance just before calling this function
   /// @param updateTotalAssetsBeforeInvest_ Recalculate total assets amount before depositing.
   ///                                       It can be false if we know exactly, that the amount is already actual.
-  /// @return strategyLoss Loss should be covered from Insurance
+  /// @return strategyLoss Loss should be checked and emited
   function investAll(
     uint amount_,
     bool updateTotalAssetsBeforeInvest_

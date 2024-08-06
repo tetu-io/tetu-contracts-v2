@@ -211,10 +211,10 @@ describe("multi bribe tests", function () {
     await tetu.transfer(tetu.address, await tetu.balanceOf(owner.address))
     expect(await tetu.balanceOf(user.address)).eq(0);
     expect(await tetu.balanceOf(owner.address)).eq(0);
-    console.log('>>> claim 1')
+    // console.log('>>> claim 1')
     await bribe.getAllRewardsForTokens([vault.address], 1);
     await TimeUtils.advanceBlocksOnTs(60 * 60 * 24 * 365)
-    console.log('>>> claim 2')
+    // console.log('>>> claim 2')
     await bribe.connect(user).getAllRewardsForTokens([vault.address], 2);
 
     expect(await tetu.balanceOf(user.address)).above(48);

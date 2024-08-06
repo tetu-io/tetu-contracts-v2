@@ -8,12 +8,19 @@ import "../interfaces/IERC20.sol";
 import "../interfaces/ITetuVaultV2.sol";
 import "../interfaces/ISplitter.sol";
 import "../proxy/ProxyControlled.sol";
-import "./VaultInsurance.sol";
 import "../lib/InterfaceIds.sol";
 
 /// @title Factory for vaults.
 /// @author belbix
+/// @author a17
 contract VaultFactory is TetuERC165 {
+
+  // *************************************************************
+  //                        CONSTANTS
+  // *************************************************************
+
+  /// @dev Version of this contract. Adjust manually on each code modification.
+  string public constant FACTORY_VERSION = "2.0.0";
 
   // *************************************************************
   //                        VARIABLES
@@ -24,8 +31,7 @@ contract VaultFactory is TetuERC165 {
 
   /// @dev TetuVaultV2 contract address
   address public vaultImpl;
-  /// @dev VaultInsurance contract address
-  address public vaultInsuranceImpl;
+
   /// @dev StrategySplitterV2 contract address
   address public splitterImpl;
 
@@ -45,28 +51,23 @@ contract VaultFactory is TetuERC165 {
     uint buffer,
     address vaultProxy,
     address vaultLogic,
-    address insurance,
     address splitterProxy,
     address splitterLogic
   );
   event VaultImplChanged(address value);
-  event VaultInsuranceImplChanged(address value);
   event SplitterImplChanged(address value);
 
   constructor(
     address _controller,
     address _vaultImpl,
-    address _vaultInsuranceImpl,
     address _splitterImpl
   ) {
     _requireInterface(_controller, InterfaceIds.I_CONTROLLER);
     _requireInterface(_vaultImpl, InterfaceIds.I_TETU_VAULT_V2);
-    _requireInterface(_vaultInsuranceImpl, InterfaceIds.I_VAULT_INSURANCE);
     _requireInterface(_splitterImpl, InterfaceIds.I_SPLITTER);
 
     controller = _controller;
     vaultImpl = _vaultImpl;
-    vaultInsuranceImpl = _vaultInsuranceImpl;
     splitterImpl = _splitterImpl;
   }
 
@@ -99,13 +100,6 @@ contract VaultFactory is TetuERC165 {
     _requireInterface(value, InterfaceIds.I_TETU_VAULT_V2);
     vaultImpl = value;
     emit VaultImplChanged(value);
-  }
-
-  /// @dev Set VaultInsurance contract address
-  function setVaultInsuranceImpl(address value) external onlyGov {
-    _requireInterface(value, InterfaceIds.I_VAULT_INSURANCE);
-    vaultInsuranceImpl = value;
-    emit VaultInsuranceImplChanged(value);
   }
 
   /// @dev Set StrategySplitterV2 contract address
@@ -141,12 +135,6 @@ contract VaultFactory is TetuERC165 {
       gauge,
       buffer
     );
-    // clone insurance
-    VaultInsurance insurance = new VaultInsurance();
-    // init insurance
-    insurance.init(vaultProxy, address(asset));
-    // set insurance to vault
-    ITetuVaultV2(vaultProxy).initInsurance(insurance);
 
     // clone splitter
     address splitterProxy = address(new ProxyControlled());
@@ -169,7 +157,6 @@ contract VaultFactory is TetuERC165 {
       buffer,
       vaultProxy,
       vaultLogic,
-      address(insurance),
       splitterProxy,
       splitterLogic
     );

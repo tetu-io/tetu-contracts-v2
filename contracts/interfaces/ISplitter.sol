@@ -11,7 +11,7 @@ interface ISplitter {
 
   function withdrawToVault(uint256 amount) external;
 
-  function coverPossibleStrategyLoss(uint earned, uint lost) external;
+  function registerStrategyLoss(uint earned, uint lost) external;
 
   function doHardWork() external;
 

@@ -18,6 +18,7 @@ import "./VeTetuLib.sol";
 /// @title Voting escrow NFT for multiple underlying tokens.
 ///        Based on Curve/Solidly contract.
 /// @author belbix
+/// @author a17
 contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   using SafeERC20 for IERC20;
   using Math for uint;
@@ -55,7 +56,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant VE_VERSION = "1.3.4";
+  string public constant VE_VERSION = "1.4.0";
   uint internal constant WEEK = 1 weeks;
   uint internal constant MAX_TIME = 16 weeks;
   uint public constant MAX_ATTACHMENTS = 1;
@@ -645,8 +646,8 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
     require(_approved != owner, "IDENTICAL_ADDRESS");
     // Check requirements
     bool senderIsOwner = (owner == msg.sender);
-    bool senderIsApprovedForAll = (ownerToOperators[owner])[msg.sender];
-    require(senderIsOwner || senderIsApprovedForAll, "NOT_OWNER");
+    bool senderIsApprovedForTokenId = isApprovedOrOwner(msg.sender,_tokenId);
+    require(senderIsOwner || senderIsApprovedForTokenId, "NOT_OWNER");
     // Set the approval
     _idToApprovals[_tokenId] = _approved;
     emit Approval(owner, _approved, _tokenId);

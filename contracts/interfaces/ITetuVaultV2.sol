@@ -1,20 +1,12 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity 0.8.17;
 
-import "./IVaultInsurance.sol";
 import "./IERC20.sol";
 import "./ISplitter.sol";
 
 interface ITetuVaultV2 {
 
   function splitter() external view returns (ISplitter);
-
-  function insurance() external view returns (IVaultInsurance);
-
-  function depositFee() external view returns (uint);
-
-  function withdrawFee() external view returns (uint);
 
   function init(
     address controller_,
@@ -26,9 +18,5 @@ interface ITetuVaultV2 {
   ) external;
 
   function setSplitter(address _splitter) external;
-
-  function coverLoss(uint amount) external;
-
-  function initInsurance(IVaultInsurance _insurance) external;
 
 }

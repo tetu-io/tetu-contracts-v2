@@ -18,12 +18,11 @@ library StrategyLib2 {
   // *************************************************************
 
   /// @dev Denominator for fee calculation.
-  uint internal constant FEE_DENOMINATOR = 100_000;
+  uint internal constant DENOMINATOR = 100_000;
   /// @notice 10% of total profit is sent to {performanceReceiver} before compounding
   uint internal constant DEFAULT_PERFORMANCE_FEE = 10_000;
   address internal constant DEFAULT_PERF_FEE_RECEIVER = 0x9Cc199D4353b5FB3e6C8EEBC99f5139e0d8eA06b;
-  /// @dev Denominator for compound ratio
-  uint internal constant COMPOUND_DENOMINATOR = 100_000;
+  uint internal constant CHECK_WITHDRAW_IMPACT_TOLERANCE = 1_000;
 
   // *************************************************************
   //                        ERRORS
@@ -44,7 +43,7 @@ library StrategyLib2 {
   event InvestAll(uint balance);
   event WithdrawAllToSplitter(uint amount);
   event WithdrawToSplitter(uint amount, uint sent, uint balance);
-  event PerformanceFeeChanged(uint fee, address receiver, uint ratio);
+  event PerformanceFeeChanged(uint fee, address receiver);
 
   // *************************************************************
   //                        CHECKS AND EMITS
@@ -61,12 +60,11 @@ library StrategyLib2 {
     emit InvestAll(assetBalance);
   }
 
-  function _checkSetupPerformanceFee(address controller, uint fee_, address receiver_, uint ratio_) internal {
+  function _checkSetupPerformanceFee(address controller, uint fee_, address receiver_) internal {
     onlyGovernance(controller);
-    require(fee_ <= FEE_DENOMINATOR, TOO_HIGH);
+    require(fee_ <= DENOMINATOR, TOO_HIGH);
     require(receiver_ != address(0), WRONG_VALUE);
-    require(ratio_ <= FEE_DENOMINATOR, TOO_HIGH);
-    emit PerformanceFeeChanged(fee_, receiver_, ratio_);
+    emit PerformanceFeeChanged(fee_, receiver_);
   }
 
   // *************************************************************
@@ -75,7 +73,7 @@ library StrategyLib2 {
 
   function _changeCompoundRatio(IStrategyV3.BaseState storage baseState, address controller, uint newValue) external {
     onlyPlatformVoterOrGov(controller);
-    require(newValue <= COMPOUND_DENOMINATOR, TOO_HIGH);
+    require(newValue <= DENOMINATOR, TOO_HIGH);
 
     uint oldValue = baseState.compoundRatio;
     baseState.compoundRatio = newValue;
@@ -129,11 +127,10 @@ library StrategyLib2 {
     require(IControllable(splitter_).isController(controller_), WRONG_VALUE);
   }
 
-  function setupPerformanceFee(IStrategyV3.BaseState storage baseState, uint fee_, address receiver_, uint ratio_, address controller_) external {
-    _checkSetupPerformanceFee(controller_, fee_, receiver_, ratio_);
+  function setupPerformanceFee(IStrategyV3.BaseState storage baseState, uint fee_, address receiver_, address controller_) external {
+    _checkSetupPerformanceFee(controller_, fee_, receiver_);
     baseState.performanceFee = fee_;
     baseState.performanceReceiver = receiver_;
-    baseState.performanceFeeRatio = ratio_;
   }
 
   /// @notice Calculate withdrawn amount in USD using the {assetPrice}.
@@ -146,17 +143,15 @@ library StrategyLib2 {
     address _asset,
     uint balanceBefore,
     uint expectedWithdrewUSD,
-    uint assetPrice,
-    address _splitter
+    uint assetPrice
   ) public view returns (uint balance) {
     balance = IERC20(_asset).balanceOf(address(this));
     if (assetPrice != 0 && expectedWithdrewUSD != 0) {
 
       uint withdrew = balance > balanceBefore ? balance - balanceBefore : 0;
       uint withdrewUSD = withdrew * assetPrice / 1e18;
-      uint priceChangeTolerance = ITetuVaultV2(ISplitter(_splitter).vault()).withdrawFee();
       uint difference = expectedWithdrewUSD > withdrewUSD ? expectedWithdrewUSD - withdrewUSD : 0;
-      require(difference * FEE_DENOMINATOR / expectedWithdrewUSD <= priceChangeTolerance, TOO_HIGH);
+      require(difference * DENOMINATOR / expectedWithdrewUSD < CHECK_WITHDRAW_IMPACT_TOLERANCE, TOO_HIGH);
     }
   }
 
@@ -184,8 +179,7 @@ library StrategyLib2 {
       _asset,
       balanceBefore,
       expectedWithdrewUSD,
-      assetPrice,
-      _splitter
+      assetPrice
     );
 
     if (balance != 0) {

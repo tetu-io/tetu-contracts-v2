@@ -20,14 +20,12 @@ async function main() {
   await RunHelper.runAndWait2(investFund.populateTransaction.init(controller.address));
 
   const vaultImpl = await DeployerUtils.deployContract(signer, 'TetuVaultV2');
-  const vaultInsuranceImpl = await DeployerUtils.deployContract(signer, 'VaultInsurance');
   const splitterImpl = await DeployerUtils.deployContract(signer, 'StrategySplitterV2');
 
   const vaultFactory = await DeployerUtils.deployVaultFactory(
     signer,
     controller.address,
     vaultImpl.address,
-    vaultInsuranceImpl.address,
     splitterImpl.address,
   );
 

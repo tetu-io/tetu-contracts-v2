@@ -118,7 +118,7 @@ describe("SplitterRebalanceResolverTest", function () {
   it("maxGasAdjusted", async () => {
     for (let i = 0; i < 30; i++) {
       const gas = formatUnits(await resolver.maxGasAdjusted(), 9);
-      console.log(i, gas);
+      // console.log(i, gas);
       await TimeUtils.advanceBlocksOnTs(60 * 60 * 24);
     }
   });
@@ -166,7 +166,7 @@ describe("SplitterRebalanceResolverTest", function () {
   it("execute call", async () => {
     const data = await resolver.checker();
     expect(data.canExec).eq(true)
-    console.log('data.execPayload', data.execPayload)
+    // console.log('data.execPayload', data.execPayload)
     const vaultCall = SplitterRebalanceResolver__factory.createInterface().decodeFunctionData('call', data.execPayload).vault
     expect(vaultCall).eq(vault.address)
 

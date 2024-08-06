@@ -9,7 +9,6 @@ import {
   ControllerV2__factory,
   ForwarderV3,
   ForwarderV3__factory,
-  ForwarderV4,
   ForwarderV4__factory,
   MockStakingToken,
   MockToken,
@@ -27,14 +26,11 @@ import {
   TetuEmitter__factory,
   TetuVaultV2,
   TetuVaultV2__factory,
-  TetuVoter,
   TetuVoter__factory,
   TetuVoterSimplified__factory,
   VaultFactory,
-  VaultInsurance,
   VeDistributor__factory,
   VeDistributorV2__factory,
-  VeTetu,
   VeTetu__factory
 } from "../../typechain";
 import {RunHelper} from "./RunHelper";
@@ -267,9 +263,9 @@ export class DeployerUtils {
       gauge,
       buffer,
     );
-    const insurance = await DeployerUtils.deployContract(signer, 'VaultInsurance') as VaultInsurance;
-    await insurance.init(vault.address, asset);
-    await vault.initInsurance(insurance.address);
+    // const insurance = await DeployerUtils.deployContract(signer, 'VaultInsurance') as VaultInsurance;
+    // await insurance.init(vault.address, asset);
+    // await vault.initInsurance(insurance.address);
     return vault;
   }
 
@@ -363,13 +359,11 @@ export class DeployerUtils {
     signer: SignerWithAddress,
     controller: string,
     vaultImpl: string,
-    vaultInsuranceImpl: string,
     splitterImpl: string,
   ) {
     return await DeployerUtils.deployContract(signer, 'VaultFactory',
       controller,
       vaultImpl,
-      vaultInsuranceImpl,
       splitterImpl
     ) as VaultFactory;
   }
