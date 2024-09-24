@@ -267,7 +267,6 @@ library VeTetuLib {
     mapping(uint => IVeTetu.Point[1000000000]) storage _userPointHistory,
     mapping(uint => IVeTetu.Point) storage _pointHistory
   ) internal returns (uint newEpoch) {
-
     if (info.tokenId != 0) {
       // Calculate slopes and biases
       // Kept at zero when they have to
@@ -301,7 +300,13 @@ library VeTetuLib {
     // initialLastPoint is used for extrapolation to calculate block number
     // (approximately, for *At methods) and save them
     // as we cannot figure that out exactly from inside the contract
-    IVeTetu.Point memory initialLastPoint = lastPoint;
+    IVeTetu.Point memory initialLastPoint = IVeTetu.Point({
+      ts: lastPoint.ts,
+      slope: lastPoint.slope,
+      blk: lastPoint.blk,
+      bias: lastPoint.bias
+    });
+
     uint blockSlope = 0;
     // dblock/dt
     if (block.timestamp > lastPoint.ts) {
@@ -328,6 +333,7 @@ library VeTetuLib {
         lastCheckpoint = ti;
         lastPoint.ts = ti;
         lastPoint.blk = initialLastPoint.blk + (blockSlope * (ti - initialLastPoint.ts)) / MULTIPLIER;
+
         info.epoch += 1;
         if (ti == block.timestamp) {
           lastPoint.blk = block.number;
