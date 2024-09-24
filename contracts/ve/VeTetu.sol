@@ -11,7 +11,6 @@ import "../interfaces/IController.sol";
 import "../interfaces/IVoter.sol";
 import "../interfaces/IPlatformVoter.sol";
 import "../interfaces/ISmartVault.sol";
-import "../interfaces/IVeDistributor.sol";
 import "../proxy/ControllableV3.sol";
 import "./VeTetuLib.sol";
 
@@ -55,7 +54,7 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   // *************************************************************
 
   /// @dev Version of this contract. Adjust manually on each code modification.
-  string public constant VE_VERSION = "1.3.4";
+  string public constant VE_VERSION = "1.3.5";
   uint internal constant WEEK = 1 weeks;
   uint internal constant MAX_TIME = 16 weeks;
   uint public constant MAX_ATTACHMENTS = 1;
@@ -352,35 +351,8 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
     return _balanceOfNFT(_tokenId, block.timestamp);
   }
 
-  function balanceOfNFTAt(uint _tokenId, uint _t) external view override returns (uint) {
-    return _balanceOfNFT(_tokenId, _t);
-  }
-
-  function totalSupply() external view returns (uint) {
-    return totalSupplyAtT(block.timestamp);
-  }
-
-  function balanceOfAtNFT(uint _tokenId, uint _block) external view returns (uint) {
-    return _balanceOfAtNFT(_tokenId, _block);
-  }
-
-  function userPointHistory(uint _tokenId, uint _loc) external view override returns (Point memory point) {
-    if (isAlwaysMaxLock[_tokenId]) {
-      return Point({
-        bias: int128(int256(lockedDerivedAmount[_tokenId])),
-        slope: 0,
-        ts: (block.timestamp - MAX_TIME) / WEEK * WEEK, // this represent a simulation that we locked MAX TIME ago, need for VeDist
-        blk: block.number
-      });
-    }
-
-    point = _userPointHistory[_tokenId][_loc];
-  }
-
-  function pointHistory(uint _loc) external view override returns (Point memory point) {
-    point = _pointHistory[_loc];
-    // we have a big simplification of the logic at this moment and just return current extra supply at any request epoch
-    point.bias = point.bias + int128(int256(additionalTotalSupply));
+  function totalSupply() external override view returns (uint) {
+    return VeTetuLib.supplyAt(_pointHistory[epoch], block.timestamp, slopeChanges) + additionalTotalSupply;
   }
 
   function isVoted(uint _tokenId) public view override returns (bool) {
@@ -810,9 +782,6 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
     require(isApprovedOrOwner(msg.sender, _tokenId), "NOT_OWNER");
     require(status != isAlwaysMaxLock[_tokenId], "WRONG_INPUT");
 
-    // additional protection against wrong calculation inside VeDist for keep invariant with balances.
-    require(IVeDistributor(IController(controller()).veDistributor()).claimable(_tokenId) == 0, 'CLAIM_REWARDS');
-
     _setAlwaysMaxLock(_tokenId, status);
   }
 
@@ -1189,7 +1158,12 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
   function _balanceOfNFT(uint _tokenId, uint ts) internal view returns (uint) {
     // with max lock return balance as is
     if (isAlwaysMaxLock[_tokenId]) {
-      return lockedDerivedAmount[_tokenId];
+      // if requested too old block return zero to protect wrong function usage
+      if(ts < block.timestamp) {
+        return 0;
+      } else {
+        return lockedDerivedAmount[_tokenId];
+      }
     }
 
     uint _epoch = userPointEpoch[_tokenId];
@@ -1242,47 +1216,32 @@ contract VeTetu is ControllableV3, ReentrancyGuard, IVeTetu {
     );
   }
 
-  /// @notice Measure voting power of `_tokenId` at block height `_block`
-  /// @dev Adheres to MiniMe `balanceOfAt` interface: https://github.com/Giveth/minime
-  /// @param _tokenId User's wallet NFT
-  /// @param _block Block to calculate the voting power at
-  /// @return Voting power
-  function _balanceOfAtNFT(uint _tokenId, uint _block) internal view returns (uint) {
-    // for always max lock just return full derived amount
-    if (isAlwaysMaxLock[_tokenId]) {
-      return lockedDerivedAmount[_tokenId];
-    }
-
-    return VeTetuLib.balanceOfAtNFT(
-      _tokenId,
-      _block,
-      epoch,
-      lockedDerivedAmount[_tokenId],
-      userPointEpoch,
-      _userPointHistory,
-      _pointHistory
-    );
-  }
-
-  /// @notice Calculate total voting power
-  /// @dev Adheres to the ERC20 `totalSupply` interface for Aragon compatibility
-  /// @return Total voting power
-  function totalSupplyAtT(uint t) public view override returns (uint) {
-    Point memory lastPoint = _pointHistory[epoch];
-    return VeTetuLib.supplyAt(lastPoint, t, slopeChanges) + additionalTotalSupply;
-  }
-
-  /// @notice Calculate total voting power at some point in the past
-  /// @param _block Block to calculate the total voting power at
-  /// @return Total voting power at `_block`
-  function totalSupplyAt(uint _block) external view override returns (uint) {
-    return VeTetuLib.totalSupplyAt(
-      _block,
-      epoch,
-      _pointHistory,
-      slopeChanges
-    ) + additionalTotalSupply;
-  }
+//  /// @notice Measure voting power of `_tokenId` at block height `_block`
+//  /// @dev Adheres to MiniMe `balanceOfAt` interface: https://github.com/Giveth/minime
+//  /// @param _tokenId User's wallet NFT
+//  /// @param _block Block to calculate the voting power at
+//  /// @return Voting power
+//  function _balanceOfAtNFT(uint _tokenId, uint _block) internal view returns (uint) {
+//    // for always max lock just return full derived amount
+//    if (isAlwaysMaxLock[_tokenId]) {
+//      // if requested too old block return zero to protect wrong function usage
+//      if(_block < block.number) {
+//        return 0;
+//      } else {
+//        return lockedDerivedAmount[_tokenId];
+//      }
+//    }
+//
+//    return VeTetuLib.balanceOfAtNFT(
+//      _tokenId,
+//      _block,
+//      epoch,
+//      lockedDerivedAmount[_tokenId],
+//      userPointEpoch,
+//      _userPointHistory,
+//      _pointHistory
+//    );
+//  }
 
   /// @notice Record global data to checkpoint
   function checkpoint() external override {

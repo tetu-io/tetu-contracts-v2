@@ -32,8 +32,6 @@ import {
   TetuVoterSimplified__factory,
   VaultFactory,
   VaultInsurance,
-  VeDistributor__factory,
-  VeDistributorV2__factory,
   VeTetu,
   VeTetu__factory
 } from "../../typechain";
@@ -212,40 +210,6 @@ export class DeployerUtils {
     return await DeployerUtils.deployContract(signer, 'MockVoter', ve) as MockVoter;
   }
 
-  public static async deployVeDistributor(
-    signer: SignerWithAddress,
-    controller: string,
-    ve: string,
-    rewardToken: string,
-  ) {
-    const logic = await DeployerUtils.deployContract(signer, 'VeDistributor');
-    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
-    await RunHelper.runAndWait2(proxy.populateTransaction.initProxy(logic.address));
-    await RunHelper.runAndWait2(VeDistributor__factory.connect(proxy.address, signer).populateTransaction.init(
-      controller,
-      ve,
-      rewardToken
-    ));
-    return VeDistributor__factory.connect(proxy.address, signer);
-  }
-
-  public static async deployVeDistributorV2(
-    signer: SignerWithAddress,
-    controller: string,
-    ve: string,
-    rewardToken: string,
-  ) {
-    const logic = await DeployerUtils.deployContract(signer, 'VeDistributorV2');
-    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
-    await RunHelper.runAndWait2(proxy.populateTransaction.initProxy(logic.address));
-    await RunHelper.runAndWait2(VeDistributorV2__factory.connect(proxy.address, signer).populateTransaction.init(
-      controller,
-      ve,
-      rewardToken
-    ));
-    return VeDistributorV2__factory.connect(proxy.address, signer);
-  }
-
   public static async deployTetuVaultV2(
     signer: SignerWithAddress,
     controller: string,
@@ -348,15 +312,6 @@ export class DeployerUtils {
     const controller = ControllerV2__factory.connect(proxy.address, signer);
     await RunHelper.runAndWait2(controller.populateTransaction.init(signer.address));
     return controller;
-  }
-
-  public static async deployTetuEmitter(signer: SignerWithAddress, controller: string, token: string, bribe: string) {
-    const logic = await DeployerUtils.deployContract(signer, 'TetuEmitter') as ControllerV2;
-    const proxy = await DeployerUtils.deployContract(signer, 'ProxyControlled') as ProxyControlled;
-    await RunHelper.runAndWait2(proxy.populateTransaction.initProxy(logic.address));
-    const contract = TetuEmitter__factory.connect(proxy.address, signer);
-    await RunHelper.runAndWait2(contract.populateTransaction.init(controller, token, bribe));
-    return contract;
   }
 
   public static async deployVaultFactory(

@@ -15,7 +15,8 @@ interface IController {
 
   function investFund() external view returns (address);
 
-  function veDistributor() external view returns (address);
+  // deprecated
+//  function veDistributor() external view returns (address);
 
   function platformVoter() external view returns (address);
 

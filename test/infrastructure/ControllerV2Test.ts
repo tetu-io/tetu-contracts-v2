@@ -4,7 +4,7 @@ import chai from "chai";
 import {TimeUtils} from "../TimeUtils";
 import {DeployerUtils} from "../../scripts/utils/DeployerUtils";
 import {Misc} from "../../scripts/utils/Misc";
-import {ControllerV2, ForwarderV3, PlatformVoter, ProxyControlled__factory, VeDistributor} from "../../typechain";
+import {ControllerV2, ForwarderV3, PlatformVoter, ProxyControlled__factory} from "../../typechain";
 
 
 const {expect} = chai;
@@ -103,19 +103,19 @@ describe("controller v2 tests", function () {
     expect(await controller.investFund()).eq(signer.address);
   });
 
-  it("change veDistributor test", async function () {
-    const type = 7;
-    const veDistributor = await DeployerUtils.deployContract(signer, 'VeDistributor') as VeDistributor;
-    await controller.announceAddressChange(type, veDistributor.address);
-    await controller.changeAddress(type);
-    expect(await controller.veDistributor()).eq(veDistributor.address);
-
-    const veDistributor2 = await DeployerUtils.deployContract(signer, 'VeDistributor') as VeDistributor;
-    await controller.announceAddressChange(type, veDistributor2.address);
-    await TimeUtils.advanceBlocksOnTs(LOCK);
-    await controller.changeAddress(type);
-    expect(await controller.veDistributor()).eq(veDistributor2.address);
-  });
+  // it("change veDistributor test", async function () {
+  //   const type = 7;
+  //   const veDistributor = await DeployerUtils.deployContract(signer, 'VeDistributor') as VeDistributor;
+  //   await controller.announceAddressChange(type, veDistributor.address);
+  //   await controller.changeAddress(type);
+  //   expect(await controller.veDistributor()).eq(veDistributor.address);
+  //
+  //   const veDistributor2 = await DeployerUtils.deployContract(signer, 'VeDistributor') as VeDistributor;
+  //   await controller.announceAddressChange(type, veDistributor2.address);
+  //   await TimeUtils.advanceBlocksOnTs(LOCK);
+  //   await controller.changeAddress(type);
+  //   expect(await controller.veDistributor()).eq(veDistributor2.address);
+  // });
 
   it("change platformVoter test", async function () {
     const type = 3;
